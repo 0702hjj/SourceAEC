@@ -1,0 +1,7 @@
+# aiifc skill 运行时依赖（flows/*.py 与 tools 需要）
+# 安装：uv pip install -r requirements.txt （或复用已含这些库的 venv）
+ifcopenshell>=0.8
+ifcquery>=0.8
+numpy>=1.21
+# consume-upstream 读 DXF 需 dxfkit（由 tools/install_skill_venv.sh 以 editable 装入 skills/.venv——
+# aidxf 5 包之一；此处不重复声明，避免与 aidxf 版本漂移）

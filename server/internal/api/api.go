@@ -1,0 +1,365 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 0702hjj
+
+package api
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"ifcviewer/server/internal/change"
+	"ifcviewer/server/internal/convert"
+	"ifcviewer/server/internal/editsvc"
+	"ifcviewer/server/internal/issue"
+	"ifcviewer/server/internal/override"
+	"ifcviewer/server/internal/store"
+)
+
+const (
+	codeInvalidType = 40001
+	codeTooLarge    = 40002
+	codeNotFound    = 40400
+	codeInternal    = 50000
+)
+
+type envelope struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
+type handler struct {
+	st        *store.Store
+	q         *convert.Queue
+	iss       issue.Store
+	chg       change.Store
+	ovr       override.Store
+	ed        *editsvc.Client // services/ifc :8100（kind=ifc）
+	cad       *editsvc.Client // services/cad :8200（kind=dxf，W-0040）
+	ps        *store.ProjectStore // 删除模型联动项目摘除（nil 跳过——测试/无项目装配）
+	maxUpload int64
+}
+
+// SetProjectStore 注入项目存储（删除模型时联动 RemoveModel 防孤儿 modelId；nil 跳过）。
+func (h *handler) SetProjectStore(ps *store.ProjectStore) { h.ps = ps }
+
+func NewHandler(st *store.Store, q *convert.Queue, iss issue.Store, chg change.Store, ovr override.Store, ed, cad *editsvc.Client, maxUploadBytes int64) http.Handler {
+	return NewHandlerWithCORS(st, q, iss, chg, ovr, ed, cad, maxUploadBytes, nil)
+}
+
+// DefaultCORSOrigins 是 corsOrigins 为空时的默认白名单（本地开发端口）。
+func DefaultCORSOrigins() []string {
+	return []string{"http://localhost:5173", "http://localhost:8080"}
+}
+
+// NewHandlerWithCORS 同 NewHandler，corsOrigins 指定 CORS 白名单（空 = 默认）。
+func NewHandlerWithCORS(st *store.Store, q *convert.Queue, iss issue.Store, chg change.Store, ovr override.Store, ed, cad *editsvc.Client, maxUploadBytes int64, corsOrigins []string) http.Handler {
+	return NewHandlerWithProjectStore(st, q, iss, chg, ovr, ed, cad, maxUploadBytes, corsOrigins, nil)
+}
+
+// NewHandlerWithProjectStore 同 NewHandlerWithCORS，额外注入项目存储——
+// 删除模型时联动 ProjectStore.RemoveModel（防孤儿 modelId 残留 project.json）。
+// ps 可空（测试/无项目装配跳过联动）。
+func NewHandlerWithProjectStore(st *store.Store, q *convert.Queue, iss issue.Store, chg change.Store, ovr override.Store, ed, cad *editsvc.Client, maxUploadBytes int64, corsOrigins []string, ps *store.ProjectStore) http.Handler {
+	h := &handler{st: st, q: q, iss: iss, chg: chg, ovr: ovr, ed: ed, cad: cad, ps: ps, maxUpload: maxUploadBytes}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/models", h.upload)
+	mux.HandleFunc("GET /api/v1/models", h.list)
+	mux.HandleFunc("GET /api/v1/models/{id}", h.get)
+	mux.HandleFunc("POST /api/v1/models/{id}/retry", h.retry)
+	mux.HandleFunc("DELETE /api/v1/models/{id}", h.delete)
+	mux.HandleFunc("GET /api/v1/models/{id}/download", h.download)
+	mux.HandleFunc("GET /v1/models/{id}/model.xkt", h.serveModelFile("model.xkt"))
+	mux.HandleFunc("GET /v1/models/{id}/metadata.json", h.serveModelFile("metadata.json"))
+	mux.HandleFunc("GET /v1/models/{id}/render.json", h.serveModelFile("render.json"))
+	mux.HandleFunc("GET /api/v1/models/{id}/issues", h.listIssues)
+	mux.HandleFunc("POST /api/v1/models/{id}/issues", h.createIssue)
+	mux.HandleFunc("PATCH /api/v1/models/{id}/issues/{issueId}", h.updateIssue)
+	mux.HandleFunc("DELETE /api/v1/models/{id}/issues/{issueId}", h.deleteIssue)
+	mux.HandleFunc("GET /v1/models/{id}/issues/{file}", h.serveIssueFile)
+	mux.HandleFunc("GET /api/v1/models/{id}/changes", h.listChanges)
+	mux.HandleFunc("GET /api/v1/models/{id}/overrides", h.listOverrides)
+	mux.HandleFunc("PUT /api/v1/models/{id}/entities/{entityId}/properties", h.putEntityProperties)
+	h.registerEditRoutes(mux)
+	h.registerScriptRoutes(mux)
+	return cors(mux, corsOrigins)
+}
+
+func cors(next http.Handler, origins []string) http.Handler {
+	if len(origins) == 0 {
+		origins = DefaultCORSOrigins()
+	}
+	allowed := make(map[string]struct{}, len(origins))
+	for _, o := range origins {
+		allowed[strings.TrimSpace(o)] = struct{}{}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			if _, ok := allowed[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
+			}
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func writeJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(envelope{Code: 0, Message: "ok", Data: data})
+}
+
+func writeErr(w http.ResponseWriter, httpStatus, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(httpStatus)
+	json.NewEncoder(w).Encode(envelope{Code: code, Message: msg, Data: nil})
+}
+
+func (h *handler) listIssues(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	issues, err := h.iss.List(m.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	if issues == nil {
+		issues = []*issue.Issue{}
+	}
+	writeJSON(w, issues)
+}
+
+func (h *handler) createIssue(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxIssueUpload)
+	if err := r.ParseMultipartForm(maxIssueUpload); err != nil {
+		writeErr(w, http.StatusBadRequest, codeTooLarge, "request exceeds size limit")
+		return
+	}
+	raw := r.FormValue("issue")
+	if raw == "" {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "missing issue field")
+		return
+	}
+	var in issue.Issue
+	if err := json.Unmarshal([]byte(raw), &in); err != nil {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "invalid issue json")
+		return
+	}
+	var png []byte
+	if file, _, err := r.FormFile("screenshot"); err == nil {
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, maxScreenshot+1))
+		if err != nil || len(data) > maxScreenshot {
+			writeErr(w, http.StatusBadRequest, codeTooLarge, "screenshot exceeds 5MB")
+			return
+		}
+		if http.DetectContentType(data) != "image/png" {
+			writeErr(w, http.StatusBadRequest, codeInvalidType, "screenshot must be png")
+			return
+		}
+		png = data
+	}
+	created, err := h.iss.Create(m.ID, &in)
+	if errors.Is(err, issue.ErrEmptyTitle) || errors.Is(err, issue.ErrInvalidStatus) {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, err.Error())
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	if png != nil {
+		if _, err := h.iss.SaveScreenshot(m.ID, created.ID, png); err != nil {
+			writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+			return
+		}
+		created.Screenshot = "issues/" + created.ID + ".png"
+	}
+	writeJSON(w, created)
+}
+
+func (h *handler) updateIssue(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	var patch issue.IssuePatch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "invalid json body")
+		return
+	}
+	got, err := h.iss.Update(m.ID, r.PathValue("issueId"), patch)
+	if errors.Is(err, issue.ErrNotFound) || errors.Is(err, issue.ErrInvalidID) {
+		writeErr(w, http.StatusNotFound, codeNotFound, "issue not found")
+		return
+	}
+	if errors.Is(err, issue.ErrInvalidStatus) || errors.Is(err, issue.ErrEmptyTitle) {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, err.Error())
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	writeJSON(w, got)
+}
+
+func (h *handler) deleteIssue(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	if err := h.iss.Delete(m.ID, r.PathValue("issueId")); err != nil {
+		if errors.Is(err, issue.ErrNotFound) || errors.Is(err, issue.ErrInvalidID) {
+			writeErr(w, http.StatusNotFound, codeNotFound, "issue not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	writeJSON(w, nil)
+}
+
+func (h *handler) serveIssueFile(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	file := r.PathValue("file")
+	if !issueFilePattern.MatchString(file) {
+		writeErr(w, http.StatusNotFound, codeNotFound, "file not found")
+		return
+	}
+	http.ServeFile(w, r, filepath.Join(h.st.ModelDir(m.ID), "issues", file))
+}
+
+func (h *handler) listOverrides(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	all, err := h.ovr.GetAll(m.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	if all == nil {
+		all = map[string]map[string]string{}
+	}
+	writeJSON(w, all)
+}
+
+type propertiesPatch struct {
+	EntityName string             `json:"entityName"`
+	Fields     map[string]string  `json:"fields"`
+	Author     string             `json:"author"`
+	Provenance *change.Provenance `json:"provenance"`
+}
+
+func (h *handler) putEntityProperties(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	entityID := r.PathValue("entityId")
+	if entityID == "" {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "entityId is required")
+		return
+	}
+	var in propertiesPatch
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "invalid json body")
+		return
+	}
+	if len(in.Fields) == 0 {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "fields is required")
+		return
+	}
+	author := in.Author
+	if author == "" {
+		author = "local-user"
+	}
+	source := "UI"
+	if in.Provenance != nil && in.Provenance.Source != "" {
+		source = in.Provenance.Source
+	}
+	if !change.ValidSource(source) {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, "provenance.source must be UI, AI or USER")
+		return
+	}
+	old, err := h.ovr.Set(m.ID, entityID, in.Fields)
+	if errors.Is(err, override.ErrInvalidField) {
+		writeErr(w, http.StatusBadRequest, codeInvalidType, err.Error())
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	fields := make([]string, 0, len(in.Fields))
+	for f := range in.Fields {
+		fields = append(fields, f)
+	}
+	sort.Strings(fields)
+	entries := make([]*change.Entry, 0, len(fields))
+	for _, f := range fields {
+		entries = append(entries, &change.Entry{
+			EntityID:   entityID,
+			EntityName: in.EntityName,
+			Field:      f,
+			OldValue:   old[f],
+			NewValue:   in.Fields[f],
+			Author:     author,
+			Provenance: change.Provenance{Source: source},
+			Operation:  "update",
+		})
+	}
+	if err := h.chg.Append(m.ID, entries...); err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	all, err := h.ovr.GetAll(m.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	effective := all[entityID]
+	if effective == nil {
+		effective = map[string]string{}
+	}
+	writeJSON(w, effective)
+}
+
+func (h *handler) listChanges(w http.ResponseWriter, r *http.Request) {
+	m := h.modelOrErr(w, r.PathValue("id"))
+	if m == nil {
+		return
+	}
+	entries, err := h.chg.List(m.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		return
+	}
+	if entries == nil {
+		entries = []*change.Entry{}
+	}
+	writeJSON(w, entries)
+}

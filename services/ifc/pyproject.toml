@@ -1,0 +1,34 @@
+[project]
+name = "ifc-edit-service"
+version = "0.1.0"
+description = "IFC model editing service (FastAPI + ifcopenshell)"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "aibim-editapi",
+    "aibim-sandbox",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "ifcopenshell>=0.8",
+    "ifcdiff>=0.8",
+    "libcst>=1.5",
+    "python-multipart>=0.0.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+[tool.uv]
+package = false
+
+# 共享沙箱/领域模块（W-0048 T1）：本地 path 依赖，editable 开发。
+# 共享 REST 编辑面领域层（W-0057 T2）：config/script_runner 实现 + 领域门面。
+[tool.uv.sources]
+aibim-editapi = { path = "../editapi", editable = true }
+aibim-sandbox = { path = "../sandbox", editable = true }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

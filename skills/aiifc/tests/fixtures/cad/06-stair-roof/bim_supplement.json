@@ -1,0 +1,11 @@
+{
+ "version": 1,
+ "project": "stair_roof",
+ "source_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+ "roof": {
+  "type": "gable",
+  "slope_deg": 30,
+  "ridge_h_m": 2.8,
+  "overhang_m": 0.5
+ }
+}

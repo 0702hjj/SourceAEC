@@ -1,0 +1,22 @@
+{
+  "host": "127.0.0.1",
+  "port": 8090,
+  "dataDir": "../data",
+  "nodeBin": "node",
+  "converterScript": "../converter/convert.js",
+  "maxUploadMB": 200,
+  "webDist": "../web/dist",
+  "pgDSN": "",
+  "editServiceURL": "http://127.0.0.1:8100",
+  "cadServiceURL": "http://127.0.0.1:8200",
+  "llmAPIKey": "",
+  "llmBaseURL": "",
+  "llmModel": "",
+  "skillsDir": "../skills/dist",
+  "skillVenv": "../skills/.venv",
+  "skillCLI": "aiplan,aidxfv3,aiifc",
+  "pprofAddr": "127.0.0.1:6060",
+  "llmTimeoutS": 120,
+  "sseHeartbeatS": 15,
+  "shutdownJoinS": 10
+}

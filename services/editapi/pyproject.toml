@@ -1,0 +1,35 @@
+[project]
+name = "aibim-editapi"
+version = "0.1.0"
+description = "Shared REST-edit domain layer for services/ifc and services/cad (W-0057): profile/config/script_runner + domain facades"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    # profile/config（parse_backend_choice）与 route_common 门面
+    "aibim-sandbox",
+    # route_common / versions / script_versions 门面的单点实现依赖 fastapi
+    "fastapi>=0.115",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+# 共享沙箱/领域模块（W-0048 单一源，本包门面再导出）：本地 path 依赖，editable 开发。
+[tool.uv.sources]
+aibim-sandbox = { path = "../sandbox", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.8"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = true
+
+# 契约套件（tests/）仍寄生在目标服务的 venv 下运行（README「怎么跑」）：
+# pytest 以本文件为 rootdir/inifile，目标 app 的重依赖（ifcopenshell/ezdxf）
+# 由 services/ifc 或 services/cad 的环境提供，本包自身不声明它们。
+[tool.pytest.ini_options]
+testpaths = ["tests"]

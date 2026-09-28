@@ -1,0 +1,2 @@
+# 文件行数门控白名单（scripts/check_file_size.sh）：存量超限登记，只减不增。
+# 2026-09-18 起为空——最后一个超限项（ifc/cad test_script_runner.py）已按领域拆分收口（W-0056）。

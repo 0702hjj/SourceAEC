@@ -1,0 +1,29 @@
+[project]
+name = "aibim-sandbox"
+version = "0.1.0"
+description = "Shared script sandbox + script-as-source domain modules for services/ifc and services/cad (W-0048)"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    # backend.verify_sandbox_backend / runner 的 HTTP 错误翻译 + route_common
+    "fastapi>=0.115",
+    # script_edit（libcst 标量改写）
+    "libcst>=1.5",
+    # deps（PEP 723 TOML 解析；Python 3.10 无标准库 tomllib）
+    "tomli>=2; python_version < '3.11'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    # 契约测试的 ifc 配置：静态契约门在父进程 import flows 的
+    # script_lib（顶层 import ifcopenshell）。
+    "ifcopenshell>=0.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.8"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,25 @@
+SourceAEC
+Copyright (C) 2026 0702hjj and contributors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+The following directories retain their own MIT license notices:
+
+- skills/aiplan/
+- skills/aidxf/
+
+Key third-party runtime dependencies include:
+
+- @xeokit/xeokit-sdk and @xeokit/xeokit-convert: AGPL-3.0
+- web-ifc: MPL-2.0
+- IfcOpenShell and IfcDiff: LGPL-3.0-or-later
+- ezdxf, pgx, React, Vite, zustand, and FastAPI: permissive licenses
+
+The tracked `web/public/wasm/web-ifc*.wasm` files are web-ifc distribution
+artifacts and remain subject to MPL-2.0. The web frontend also depends on
+AGPL-3.0 xeokit; deployments and redistributed frontend builds must comply
+with that license. Dependency manifests and lockfiles contain exact versions.
+
+No private reference dataset or real-project drawing is distributed in this
+repository.
+

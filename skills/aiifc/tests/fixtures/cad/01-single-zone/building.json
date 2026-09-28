@@ -1,0 +1,23 @@
+{
+ "version": 2,
+ "project": "single_tower",
+ "site": {
+  "anchor": [
+   0,
+   0
+  ],
+  "setback_m": 3.0
+ },
+ "standards": {
+  "code": "GB50016"
+ },
+ "zones": [
+  {
+   "zone": "tower",
+   "floors_from": 1,
+   "floors_to": 1,
+   "modelId": "m_0000000000000001",
+   "typology": "residence"
+  }
+ ]
+}

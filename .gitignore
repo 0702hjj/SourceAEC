@@ -1,0 +1,41 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+
+# Virtual environments
+.venv
+
+# Runtime data (edit-service / Go server 共享)
+data/
+
+.env
+
+# 本地敏感配置（LLM key / pgDSN 等，从 server/server_config.example.json 复制）
+server/server_config.json
+
+# Generated skills archives
+skills/*.tar.gz
+skills/dist/
+
+.DS_Store
+
+# CAD/export artifacts
+*.step
+*.stl
+
+# AI skill 运行期产物（design_review / ifc_inspect 自动写出）
+analysis_results/
+
+.superpowers/
+.zcode/
+
+# 已退役/内部过程产物：本地保留，不入库（历史版本可从 git 历史回捞）
+.opencode/
+
+# Go 编译产物（误在仓库内 go build 生成）
+server/server

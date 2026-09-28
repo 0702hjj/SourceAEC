@@ -1,0 +1,40 @@
+/* SPDX-License-Identifier: Apache-2.0
+   Copyright (C) 2026 0702hjj */
+
+.issue-pins-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.issue-pin {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0;
+}
+
+.issue-pin.active {
+  outline: 2px solid #1565c0;
+  outline-offset: 1px;
+}
+
+.issue-pin.issue-status-open {
+  background: #d32f2f;
+}
+
+.issue-pin.issue-status-checking {
+  background: #f9a825;
+}
+
+.issue-pin.issue-status-resolved {
+  background: #2e7d32;
+}

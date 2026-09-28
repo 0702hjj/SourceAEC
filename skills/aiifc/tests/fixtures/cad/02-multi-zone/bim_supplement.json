@@ -1,0 +1,10 @@
+{
+ "version": 1,
+ "project": "multi_zone",
+ "source_plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+ "roof": {
+  "type": "hip",
+  "slope_deg": 30,
+  "ridge_h_m": 2.6
+ }
+}
