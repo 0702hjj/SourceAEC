@@ -10,7 +10,7 @@ SourceAEC 是一个自托管、开源的建筑 3D 建模平台，目标是让 AI
 
 **逻辑一：AI 生成 IFC，已交付。** `skills/aiifc` 是给 AI 的建模参考包，`services/ifc` 是服务端运行时，负责脚本沙箱执行、版本快照、语义对比和编辑 API。
 
-**逻辑二：AI 生成 CAD，已交付。** `skills/aiplan` 把外部资料整理成任务书，`skills/aidxf` 把任务书画成逐层 DXF 图纸；`services/cad` 与 ifc 侧同构。另有 `skills/aiblueprint-mcp` 支持交互式微调。
+**逻辑二：AI 生成 CAD，已交付。** `skills/aiplan` 把外部资料整理成任务书，`skills/aidxf` 把任务书画成逐层 DXF 图纸；`services/cad` 与 ifc 侧同构。
 
 **推荐项：Agent 工作流，已落地。** 平台内置 Eino chat agent，按项目类型派发 ifc 或 cad 子 agent。网页右侧的 AI 对话栏就是它驱动的，不需要外部 agent 服务。
 

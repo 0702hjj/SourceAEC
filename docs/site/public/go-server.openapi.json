@@ -200,7 +200,7 @@
       },
       "get": {
         "summary": "项目详情（元信息 + 模型列表）",
-        "description": "项目详情（W-0054）：data 形状与 POST /chat/projects（创建）一致——{projectId,title,kind,createdAt,models}；models 每项 {id,kind,name,status}，与 agent get_project_models 工具同语义（status 反查真实状态，非 project.json 快照；已删模型保留快照引用）。kind 创建时定死、不可演进（转换 = 删项目重建，见 docs/internal/w0054-kind-rules.md）。",
+        "description": "项目详情：data 形状与 POST /chat/projects（创建）一致——{projectId,title,kind,createdAt,models}；models 每项 {id,kind,name,status}，与 agent get_project_models 工具同语义（status 反查真实状态，非 project.json 快照；已删模型保留快照引用）。kind 创建时确定且不可修改。",
         "operationId": "getApiV1ChatProjectsId",
         "tags": [
           "chat"

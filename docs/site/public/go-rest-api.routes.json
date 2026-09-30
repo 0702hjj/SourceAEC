@@ -1,7 +1,7 @@
 {
   "service": "server (Go)",
   "source": "server/internal/api/{api,edit,chat,script,design}.go",
-  "generatedBy": "docs/scripts/gen-go-routes.mjs",
+  "generatedBy": "SourceAEC public API snapshot",
   "note": "Machine-readable endpoint inventory extracted from Go mux registrations. Human-readable contract: docs/site/reference/rest-api.md.",
   "endpoints": [
     {

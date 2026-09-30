@@ -69,10 +69,10 @@ python tools/skill_pack.py --skill-dir skills/aiplan --archive     # aiplan 走 
 
 产物在 `skills/dist/`。解压到 agent 的 skill 目录即完成安装，运行时会自动索引 SKILL.md：
 
-- opencode：用户级 `~/.agents/skills/<name>/`，或项目级 `<项目>/.opencode/skill/<name>/`
+- 支持 skill 的 agent：安装到该 agent 的用户级或项目级 skill 目录
 - Claude Code：`~/.claude/skills/<name>/`
 
-运行依赖见各包内 requirements.txt：aiifc 要 ifcopenshell、ifcquery、numpy；aidxf 要 ezdxf 和 shapely；aiplan 只要 jsonschema；aiblueprint-mcp 是 MCP server 形态，按包内 README 接入。
+运行依赖见各包内 requirements.txt：aiifc 要 ifcopenshell、ifcquery、numpy；aidxf 要 ezdxf 和 shapely；aiplan 只要 jsonschema。
 
 与平台的关系：skill 是 AI 侧入口，编辑服务是服务端运行时，两者配对但可独立使用。只做一次性生成不需要平台；要版本、diff、双角色编辑才需要部署平台。
 

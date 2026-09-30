@@ -67,9 +67,7 @@ SourceAEC/
 ├── skills/                   # ① AI 生成 skill 封装（agent-agnostic，可分发）
 │   ├── aiifc/                #   IFC 生成/修改（ifcopenshell）
 │   ├── aiplan/               #   plan 阶段（外部资料 → plan.json + bim_supplement.json）
-│   ├── aidxf/                #   plan→cad 建筑平面管线正式版（plan.json → building.json + 各层 DXF）
-│   ├── aiblueprint-mcp/      #   CAD 交互微调 MCP（MIT）
-│   └── aibim-orchestrator/   #   主 Agent 编排提示词包（意图路由 + 子 Agent 分工契约）
+│   └── aidxf/                #   plan→cad 建筑平面管线正式版（plan.json → building.json + 各层 DXF）
 ├── services/                 # ② 业务逻辑核心（沙箱执行 + diff + 编辑 API）
 │   ├── ifc/                  #   IFC 段（FastAPI + IfcOpenShell，:8100）
 │   ├── cad/                  #   CAD 段（FastAPI + ezdxf，:8200，与 ifc 同构）
@@ -83,18 +81,12 @@ SourceAEC/
 ├── data/                     #   · 运行时数据（gitignored，server 与两个 Python 服务共享）
 ├── tools/                    # skill 打包器（skill_pack.py）+ agent TUI 调试工具
 ├── examples/                 # IFC 示例脚本与 buildingSMART 样例（CC BY 4.0）
-├── docs/
-│   ├── site/                 # 唯一公开文档站源（VitePress：guide / development / reference）
-│   ├── internal/             # 内部计划、团队同步、阶段评估（不发布）
-│   └── work/                 # 工作项看板
-├── .github/workflows/        # CI 与 docs（构建 + Pages 部署）
+├── docs/site/                # 公开文档站源（VitePress：guide / development / reference）
 ├── LICENSE                   # Apache-2.0
 └── NOTICE                    # 三方组件与归档代码边界
 ```
 
-历史沿革：原 `viewer/` 目录已拆分为顶层组件；`skills/aidxfv/` 已删除，`skills/aidxf/` 是唯一迭代基线；SCAD 遗产代码已移至私有归档仓；设计 spec 与实施计划（`docs/superpowers/`）和 `.opencode/` 存档已移出仓库，仅本地保留。
-
-**文档边界**：`docs/site/` 是唯一公开文档站源。各服务 README 只留最小启动提示，详细说明链接到文档站，不复制第二份。
+各服务 README 只留最小启动提示，详细说明链接到文档站，不复制第二份。
 
 ## 核心数据流
 

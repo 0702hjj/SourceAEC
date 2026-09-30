@@ -32,6 +32,14 @@ if rg -n -i \
   exit 1
 fi
 
+public_docs=(AGENTS.md README.md README.zh-CN.md docs/site)
+if rg -n -i \
+  '(docs/(internal|work|superpowers)|aibim-orchestrator|aiblueprint-mcp|W-[0-9]{4}|私有归档仓)' \
+  "${public_docs[@]}"; then
+  echo "internal documentation marker found" >&2
+  exit 1
+fi
+
 if rg -n \
   '(/home/[A-Za-z0-9._-]+|/Users/[A-Za-z0-9._-]+|[A-Za-z]:\\Users\\[A-Za-z0-9._-]+)' \
   --glob '!**/node_modules/**' --glob '!**/.vitepress/dist/**' \
