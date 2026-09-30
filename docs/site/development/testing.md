@@ -47,8 +47,6 @@ cd server && go run ./cmd/server &
 ## 文档与提交纪律
 
 - 公开文档源在 `docs/site/`，是唯一信息源。改动后必须跑 `cd docs && npm run docs:build`，死链会让构建失败。
-- 改了 API 文档要跑 `cd docs && npm run gen:api && npm run check:api`：它会重新生成三件产物再做 git 漂移检测，有 diff 就是红的。
+- 改了 API 时要同步更新 `docs/site/public/` 下的公开 schema、对应参考页和契约测试，再运行文档构建。
 - 文档涉及未交付能力时必须标注为规划，不得写不可执行的步骤。移动或删除文档后，全仓的相对链接要同步更新。
 - commit 用中文前缀：`feat:`、`fix:`、`docs:`、`ci:`、`chore:`。不要提交本机路径、密钥和运行时数据 `data/`。
-
-> CI 暂停中（2026-09-18 起，Actions 配额用尽）。期间 `ci.yml` 与 `docs.yml` 已 disable，PR 不触发任何 run、合并不再要求状态检查，防线改为**推送前本机跑绿上表对应套件**加 `scripts/check_file_size.sh`。恢复与对账步骤见仓库根 `AGENTS.md`。

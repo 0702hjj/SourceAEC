@@ -7,7 +7,7 @@
 ```bash
 cd services/ifc
 uv sync
-VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8100
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
 ```
 
 依赖全部来自 PyPI 官方发布，`uv sync` 直接安装。环境变量（`VIEWER_DATA_DIR`、`EDIT_SERVICE_PORT`、`AIIFC_FLOWS_DIR`、`EDIT_SERVICE_MAX_MODELS` 等）与沙箱变量集中在[配置说明](/guide/configuration)，沙箱机制见[沙箱执行环境](/development/sandbox)。

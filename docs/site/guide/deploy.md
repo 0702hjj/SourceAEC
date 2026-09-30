@@ -15,8 +15,8 @@ cd server && go build -o server ./cmd/server
 
 # 3. 依次启动：server 对外，两个编辑服务只绑回环
 cd server && ./server
-cd services/ifc && uv sync && VIEWER_DATA_DIR=/srv/aiifc/data uv run uvicorn app.main:app --host 127.0.0.1 --port 8100
-cd services/cad && uv sync && VIEWER_DATA_DIR=/srv/aiifc/data uv run uvicorn app.main:app --host 127.0.0.1 --port 8200
+cd services/ifc && uv sync && VIEWER_DATA_DIR=/srv/sourceaec/data uv run uvicorn app.main:app --host 127.0.0.1 --port 8100
+cd services/cad && uv sync && VIEWER_DATA_DIR=/srv/sourceaec/data uv run uvicorn app.main:app --host 127.0.0.1 --port 8200
 ```
 
 **生产必须设置 `VIEWER_API_TOKEN`。** 编辑 API 会在服务端沙箱里执行脚本，等于开放代码执行入口。不设 token 只适用于本机单人开发，任何对外部署都必须带上。鉴权与 CORS 的行为细节见 [REST API](/reference/rest-api)，配置项见[配置说明](/guide/configuration)。
@@ -29,7 +29,7 @@ cd services/cad && uv sync && VIEWER_DATA_DIR=/srv/aiifc/data uv run uvicorn app
 ## systemd 最小示例
 
 ```ini
-# /etc/systemd/system/aiifc-server.service
+# /etc/systemd/system/sourceaec-server.service
 [Unit]
 Description=SourceAEC Go server
 After=network.target
@@ -45,7 +45,7 @@ WantedBy=multi-user.target
 ```
 
 ```ini
-# /etc/systemd/system/aiifc-ifc.service（cad 服务同构：目录换 services/cad、端口 8200）
+# /etc/systemd/system/sourceaec-ifc.service（cad 服务同构：目录换 services/cad、端口 8200）
 [Unit]
 Description=SourceAEC edit-service
 After=network.target
@@ -72,7 +72,7 @@ Go server 自带静态托管与 SPA fallback，**正常部署不需要 nginx**�
 不配置时 Issue、override、修改记录全部落文件，零外部依赖。装好 14+ 版本后给 server 传 DSN 即可，建表自动完成：
 
 ```bash
-VIEWER_PG_DSN=postgres://user:pass@127.0.0.1:5432/aiifc
+VIEWER_PG_DSN=postgres://user:pass@127.0.0.1:5432/sourceaec
 ```
 
 注意模型文件与版本快照**始终在文件系统**，PG 只承接网关侧的三张表，所以备份要覆盖两边。

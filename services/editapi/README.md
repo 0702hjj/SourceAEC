@@ -1,15 +1,15 @@
-# editapi —— ifc/cad 共享 REST 编辑面领域层 + 契约套件（W-0057）
+# editapi —— ifc/cad 共享 REST 编辑面领域层 + 契约套件
 
 `services/ifc`（FastAPI + ifcopenshell, :8100）与 `services/cad`（FastAPI +
 ezdxf, :8200）是同构镜像服务。本目录承载两块内容：
 
-- **`src/aibim_editapi/`（W-0057 T2）**：共享领域基座——`profile`（ServiceProfile
+- **`src/aibim_editapi/`**：共享领域基座——`profile`（ServiceProfile
   服务差异显式声明）、`config`（Settings + load_settings(profile)）、
   `script_runner`（sandbox_config(profile) + ScriptRunner 适配层），以及
   `route_common`/`versions`/`script_versions` 三个领域门面（实现单点仍在
-  `aibim_sandbox`，W-0048 T1；此处不复制第二份）。两侧 `app/` 同名模块改为
+  `aibim_sandbox`；此处不复制第二份）。两侧 `app/` 同名模块改为
   薄 shim：声明各自 PROFILE 后 re-export，公开名与测试 seam 零改动。
-- **`tests/`（W-0057 T0）**：HTTP 级契约套件，把两侧**共享面**的现状行为钉死，
+- **`tests/`**：HTTP 级契约套件，把两侧**共享面**的现状行为钉死，
   作为收编迁移的回归门：**迁移复用本套件时不得改断言**。
 
 契约套件不引入第三个 venv，寄生在目标服务的 venv 下运行。
@@ -70,7 +70,7 @@ EDITAPI_TARGET=ifc uv run --group dev pytest ../editapi/tests -q   # 仍须在 s
 buildingChanges/render.json 留在两侧各自套件。已知响应字段差异（ifc save 多
 `alignment`、cad script/diff 多 `buildingChanges`）不进共享断言。
 
-## 与 W-0048 先例的关系
+## 与 sandbox 契约套件的关系
 
 `services/sandbox/tests/` 是纯函数/适配器级契约；本套件是 HTTP 级
 （TestClient 打真实路由），机制不同但目标一致：收编前的行为钉死。

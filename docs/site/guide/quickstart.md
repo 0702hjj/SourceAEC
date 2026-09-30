@@ -32,11 +32,11 @@
 
 # 1. edit-service（:8100）—— VIEWER_DATA_DIR 必须指向 data 的绝对路径
 cd services/ifc
-VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8100
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
 
 # 1b. cad-edit-service（:8200）—— DXF 模型需要；纯 IFC 可不启
 cd services/cad
-VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8200
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
 
 # 2. Go server（:8090）
 cd server && go run ./cmd/server

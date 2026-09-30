@@ -63,12 +63,6 @@ uv run python scripts/export_openapi.py   # 输出到 docs/site/public/ai-tools.
 
 ### Go server
 
-完整 schema 见 [go-server.openapi.json](/go-server.openapi.json)，可以直接喂给 LLM、工具或代码生成器。说明一点：Go 的标准库 mux 没有反射，schema 无法从代码自动导出，因此采用三层机制——路由清单由脚本从 mux 注册自动提取，请求响应 schema 手工维护，生成器对两者做双向覆盖断言。新增路由没配 schema，或 schema 里有已删除的路由，生成都会直接失败。
-
-```bash
-cd docs
-npm run gen:api    # 生成三件产物：edit-api-reference.md、go-rest-api.routes.json、go-server.openapi.json
-npm run check:api  # 自证测试 + 生成 + git 漂移检测，无 diff 才绿
-```
+完整 schema 见 [go-server.openapi.json](/go-server.openapi.json)，可以直接喂给 LLM、工具或代码生成器。路由清单与请求响应 schema 随公开文档版本发布；修改 Go API 时，请同步更新 `docs/site/public/` 下的 schema、路由清单和对应参考页，并运行 `npm run docs:build` 检查站点。
 
 对接方要自研前端或接自己的存储时，看[存储与前端对接](/development/integration)；AI agent 接入看 [AI 接入](/reference/ai)。

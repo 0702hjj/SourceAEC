@@ -14,7 +14,7 @@
 ```bash
 cd services/cad
 uv sync
-VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8200
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
 ```
 
 环境变量（`VIEWER_DATA_DIR`、`CAD_SERVICE_PORT`、`AIDXF_FLOWS_DIR`、`AIDXF_DRAWLIB_DIR`、`CAD_SERVICE_MAX_MODELS` 等）与沙箱变量集中在[配置说明](/guide/configuration)，沙箱机制见[沙箱执行环境](/development/sandbox)。

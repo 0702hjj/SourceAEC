@@ -1,10 +1,9 @@
-# cad fixture 库 —— W-0052 cad→ifc 消化管线实验矩阵（6 形态）
+# cad fixture 库 —— cad→ifc 消化管线实验矩阵（6 形态）
 
 > aiifc skill 的**持久化上游产物输入库**：每形态目录 = `building.json`（aidxf v2 交付
 > 契约形态）+ `bim_supplement.json`（aiplan v1 形态）+ 各 zone DXF（`dxfkit.draw` 产出，
 > 与 aidxf 主 agent 画图同一 API——含沿墙门窗、弧墙、archdxf.stairs 楼梯符号）。
 > 消费方：`skills/aiifc/tests/test_digestion_matrix.py`（每形态 ≥1 条全链契约测试）。
-> 实验结论（保真/丢失/需人工补）：`docs/internal/w0052-digestion-matrix.md`。
 
 ## 形态清单
 
