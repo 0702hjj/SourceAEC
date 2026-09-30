@@ -6,7 +6,7 @@ An open-source, self-hosted AI modeling platform for AEC. SourceAEC provides
 script-as-source editing for IFC and CAD/DXF, semantic version diffs, and the
 same editing APIs for designers and AI agents.
 
-> Documentation: <https://0702hjj.github.io/AI_IFC/>
+> Documentation: <https://0702hjj.github.io/SourceAEC/>
 
 ## Highlights
 
@@ -109,10 +109,18 @@ scripts/check_public_snapshot.sh
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
+Documentation is maintained with the source:
+
+```bash
+cd docs
+npm install
+npm run docs:dev
+npm run docs:build
+```
+
 ## License
 
 SourceAEC is licensed under Apache-2.0, with nested MIT-licensed skills and
 third-party runtime components described in [NOTICE](NOTICE). The frontend
 depends on AGPL-3.0 xeokit, and the tracked web-ifc WASM files remain subject
 to MPL-2.0.
-

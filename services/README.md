@@ -8,7 +8,7 @@
 | `services/cad` | CAD 段：同构（DXF 脚本沙箱 + 版本 + diff + render.json 发布） | FastAPI + ezdxf，:8200 |
 | `services/sandbox` | 共享包 `aibim_sandbox`：bwrap 沙箱后端 + PEP 723 依赖环境 + script-as-source 领域模块单一源 | 被 ifc/cad 经 uv path editable 依赖 import，不独立起服务 |
 
-- **services/ifc 独立调用指南**：见文档站 [Edit Service 独立部署与移植](https://0702hjj.github.io/AI_IFC/development/edit-service)。
-- **沙箱机制**：见文档站 [沙箱执行环境](https://0702hjj.github.io/AI_IFC/development/sandbox)。
+- **services/ifc 独立调用指南**：见文档站 [Edit Service 独立部署与移植](https://0702hjj.github.io/SourceAEC/development/edit-service)。
+- **沙箱机制**：见文档站 [沙箱执行环境](https://0702hjj.github.io/SourceAEC/development/sandbox)。
 - **共享可选运行时**：`web`（前端，可选）、`server`（Go 网关 :8090）、`converter`（转换）、PostgreSQL（可选）。
 - **skill 封装**：`skills/aiifc/`（IFC）、`skills/aiplan/` + `skills/aidxf/`（CAD plan→cad 管线）。

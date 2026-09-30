@@ -10,4 +10,4 @@ npm run build      # tsc -b + vite build（含类型检查）
 npm run lint       # oxlint
 ```
 
-组件结构、双引擎切换与关键机制见文档站 [Web 前端](https://0702hjj.github.io/AI_IFC/development/web)。
+组件结构、双引擎切换与关键机制见文档站 [Web 前端](https://0702hjj.github.io/SourceAEC/development/web)。
