@@ -1,0 +1,308 @@
+{
+  "service": "server (Go)",
+  "source": "server/internal/api/{api,edit,chat,script,design}.go",
+  "generatedBy": "docs/scripts/gen-go-routes.mjs",
+  "note": "Machine-readable endpoint inventory extracted from Go mux registrations. Human-readable contract: docs/site/reference/rest-api.md.",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/v1/chat/projects",
+      "handler": "h.createProject",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/chat/projects/{id}",
+      "handler": "h.deleteProject",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chat/projects/{id}",
+      "handler": "h.getProject",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chat/sessions",
+      "handler": "h.listSessions",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chat/sessions",
+      "handler": "h.createSession",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chat/sessions/{cid}/abort",
+      "handler": "h.abortSession",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chat/sessions/{cid}/answer",
+      "handler": "h.answerSession",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chat/sessions/{cid}/events",
+      "handler": "h.events",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chat/sessions/{cid}/messages",
+      "handler": "h.getMessages",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chat/sessions/{cid}/messages",
+      "handler": "h.postMessage",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models",
+      "handler": "h.list",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models",
+      "handler": "h.upload",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/models/{id}",
+      "handler": "h.delete",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}",
+      "handler": "h.get",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/changes",
+      "handler": "h.listChanges",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/download",
+      "handler": "h.download",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/edit/diff",
+      "handler": "h.editDiff",
+      "file": "server/internal/api/edit.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/edit/history",
+      "handler": "h.editHistory",
+      "file": "server/internal/api/edit.go"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/models/{id}/edit/pending",
+      "handler": "h.editDeletePending",
+      "file": "server/internal/api/edit.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/edit/pending",
+      "handler": "h.editGetPending",
+      "file": "server/internal/api/edit.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/edit/versions",
+      "handler": "h.editVersions",
+      "file": "server/internal/api/edit.go"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/models/{id}/entities/{entityId}/properties",
+      "handler": "h.putEntityProperties",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/issues",
+      "handler": "h.listIssues",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/issues",
+      "handler": "h.createIssue",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/models/{id}/issues/{issueId}",
+      "handler": "h.deleteIssue",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/models/{id}/issues/{issueId}",
+      "handler": "h.updateIssue",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/overrides",
+      "handler": "h.listOverrides",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/retry",
+      "handler": "h.retry",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/script",
+      "handler": "h.scriptGet",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/models/{id}/script",
+      "handler": "h.scriptPut",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/diff",
+      "handler": "h.scriptPost(\"diff\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/discard",
+      "handler": "h.scriptPost(\"discard\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/script/locate",
+      "handler": "h.scriptLocate",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/script/params",
+      "handler": "h.scriptParams",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/redo",
+      "handler": "h.scriptPost(\"redo\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/rollback",
+      "handler": "h.scriptMutatingPost(\"rollback\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/run",
+      "handler": "h.scriptMutatingPost(\"run\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/save",
+      "handler": "h.scriptMutatingPost(\"save\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/script/staging/diff",
+      "handler": "h.scriptStagingDiff",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/script/undo",
+      "handler": "h.scriptPost(\"undo\")",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/scripts",
+      "handler": "h.scriptList",
+      "file": "server/internal/api/script.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{projectID}/{name}",
+      "handler": "h.getPlanFile",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/projects/{projectID}/{name}",
+      "handler": "h.putPlanFile",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{projectID}/deliver",
+      "handler": "h.deliverPlan",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{projectID}/plan_history",
+      "handler": "h.listPlanHistory",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{projectID}/plan_history/{base}/{target}/diff",
+      "handler": "h.diffPlanHistory",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models/{id}/issues/{file}",
+      "handler": "h.serveIssueFile",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models/{id}/metadata.json",
+      "handler": "h.serveModelFile(\"metadata.json\")",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models/{id}/model.xkt",
+      "handler": "h.serveModelFile(\"model.xkt\")",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models/{id}/render.json",
+      "handler": "h.serveModelFile(\"render.json\")",
+      "file": "server/internal/api/api.go"
+    }
+  ]
+}
