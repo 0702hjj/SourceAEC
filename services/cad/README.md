@@ -10,14 +10,14 @@ CAD 业务逻辑核心（FastAPI + ezdxf）：与 `services/ifc` 完全同构的
 
 ```bash
 uv sync
-VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8200
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
 ```
 
 配置（环境变量）：`CAD_SERVICE_PORT`（默认 8200）、`VIEWER_DATA_DIR`（默认 `../data`，建议绝对路径，须与 Go server 指向同一 `data`）、`AIDXF_FLOWS_DIR`（默认 `flows`，即本目录下 `services/cad/flows`，沙箱脚本契约校验的 `cad_script_lib` 契约层——公共面 `cad_script_lib.add_entity` / `cad_script_lib.write_and_validate` / `cad_script_lib.validate_script_contract`）、`CAD_SERVICE_MAX_MODELS`（默认 8）。
 
-沙箱（W-0048，环境变量，与 services/ifc 同名同义）：`SCRIPT_MAX_FSIZE_BYTES`（RLIMIT_FSIZE 单文件写上限，默认 256 MiB）、`SCRIPT_MAX_OUTPUT_BYTES`（脚本 stdout+stderr 累计上限，超出杀进程组 422，默认 1 MiB）、`SCRIPT_MAX_PRODUCT_BYTES`（产物与 map sidecar 发布上限，超限 422 不落盘，默认 256 MiB）、`SCRIPT_RUN_CONCURRENCY`（进程级 run/save 并发闸，满即 429，默认 3）、`SANDBOX_BACKEND`（沙箱后端：`auto` 默认——bwrap 优先、缺失则 run/save fail-closed 503；`bwrap` 显式——不可用即 503；`rlimit` 不隔离网络与沙箱外 FS，**仅测试可设，生产勿设**）、`SANDBOX_ENV_CACHE_DIR`（T4 依赖环境缓存根，默认 `$XDG_CACHE_HOME/aibim-sandbox-envs`，勿配 data/ 下）、`SCRIPT_ENV_BUILD_TIMEOUT_S`（uv 解析+安装超时，默认 300）。
+沙箱环境变量（与 services/ifc 同名同义）：`SCRIPT_MAX_FSIZE_BYTES`（RLIMIT_FSIZE 单文件写上限，默认 256 MiB）、`SCRIPT_MAX_OUTPUT_BYTES`（脚本 stdout+stderr 累计上限，超出杀进程组 422，默认 1 MiB）、`SCRIPT_MAX_PRODUCT_BYTES`（产物与 map sidecar 发布上限，超限 422 不落盘，默认 256 MiB）、`SCRIPT_RUN_CONCURRENCY`（进程级 run/save 并发闸，满即 429，默认 3）、`SANDBOX_BACKEND`（沙箱后端：`auto` 默认——bwrap 优先、缺失则 run/save fail-closed 503；`bwrap` 显式——不可用即 503；`rlimit` 不隔离网络与沙箱外 FS，**仅测试可设，生产勿设**）、`SANDBOX_ENV_CACHE_DIR`（T4 依赖环境缓存根，默认 `$XDG_CACHE_HOME/aibim-sandbox-envs`，勿配 data/ 下）、`SCRIPT_ENV_BUILD_TIMEOUT_S`（uv 解析+安装超时，默认 300）。
 
-脚本依赖（W-0048 T4，与 services/ifc 同机制）：PEP 723 `# /// script` 块声明 `dependencies`（**声明即全量**，替换默认集）；无声明注入默认集 `ezdxf>=1.3`（存量脚本基线；archdxf/dxfkit 走 drawlib 源目录挂载，不经 pip）。**run/save 依赖 uv 二进制**（缺失 503；依赖不存在 422；断网 503）。
+脚本依赖（与 services/ifc 同机制）：PEP 723 `# /// script` 块声明 `dependencies`（**声明即全量**，替换默认集）；无声明注入默认集 `ezdxf>=1.3`（存量脚本基线；archdxf/dxfkit 走 drawlib 源目录挂载，不经 pip）。**run/save 依赖 uv 二进制**（缺失 503；依赖不存在 422；断网 503）。
 
 ## 编辑 API（chunk A+B+C 已交付）
 
@@ -37,7 +37,7 @@ VIEWER_DATA_DIR="$(cd ../data && pwd)" uv run uvicorn app.main:app --port 8200
 | `GET /models/{id}/render.json` | render payload v2（schemaVersion 2：实体带 XDATA key + unsupported 明面化；run/save 成功后原子更新，供前端 Canvas 2D 只读预览） |
 | `GET /health` | 存活探针 |
 
-配套链路均已交付：web DXF Canvas 查看器（W-0041）、DesignPanel 全套编辑面与 dxf 选中定位脚本、`viewer.staged` 中途预览（W-0045）、Go 按 kind 分流代理与 `GET /v1/models/{id}/render.json` 直挂（chunk C）。
+配套链路均已交付：web DXF Canvas 查看器、DesignPanel 全套编辑面与 dxf 选中定位脚本、`viewer.staged` 中途预览、Go 按 kind 分流代理与 `GET /v1/models/{id}/render.json` 直挂。
 
 ## 测试
 

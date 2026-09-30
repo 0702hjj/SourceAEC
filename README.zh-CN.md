@@ -5,7 +5,7 @@
 SourceAEC 是面向 AEC 的开源、自托管 AI 建模平台，提供 IFC 与 CAD/DXF 的
 script-as-source 编辑、语义版本对比，以及设计师和 AI agent 共用的编辑 API。
 
-> 文档：<https://0702hjj.github.io/AI_IFC/>
+> 文档：<https://0702hjj.github.io/SourceAEC/>
 
 ## 核心能力
 
@@ -57,11 +57,11 @@ cd ../cad && uv sync
 ```bash
 # 终端 1
 cd services/ifc
-VIEWER_DATA_DIR="$(cd ../../data && pwd)" uv run uvicorn app.main:app --port 8100
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
 
 # 终端 2
 cd services/cad
-VIEWER_DATA_DIR="$(cd ../../data && pwd)" uv run uvicorn app.main:app --port 8200
+VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
 
 # 终端 3
 cd server && go run ./cmd/server
@@ -106,6 +106,15 @@ scripts/check_public_snapshot.sh
 ```
 
 提交 PR 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+文档随源码维护：
+
+```bash
+cd docs
+npm install
+npm run docs:dev
+npm run docs:build
+```
 
 ## 许可证
 

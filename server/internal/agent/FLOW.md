@@ -40,7 +40,7 @@
   |  adk.ChatModelAgent                                        |
   |  Instruction = OrchestratorPersona (意图路由+派发纪律)      |
   |  Handlers    = [skill middleware(aiplan) +                  |
-  |                 skill middleware(aibim-orchestrator)]      |
+  |                 skill middleware(aiplan/aiifc/aidxf)]      |
   |  工具 = 领域交付 + run_aiplan_command (D11 工程层)          |
   |       + AgentAsTool(ifc/cad) + 交付审批 middleware          |
   +==========================+============================+

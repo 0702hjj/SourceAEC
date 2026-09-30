@@ -1,6 +1,6 @@
-# agent —— AI_IFC Agent 终端调试工具（textual TUI）
+# agent —— SourceAEC Agent 终端调试工具（textual TUI）
 
-W-0055 收编的本地 GUI（TUI 形态）调试工具：不起前端、不 curl，一条命令对话式调试
+本地 GUI（TUI 形态）调试工具：不起前端、不 curl，一条命令对话式调试
 chat agent——scriptedModel / 真实 LLM、SSE 帧序列、工具调用产物轨迹、ask_user 中断恢复。
 
 ## 三种用法
@@ -48,7 +48,7 @@ loadConfig：空 env **不**覆盖 json 值）——所以「强制 scripted」�
 `agent --replay frames.jsonl`：读回帧流按原序重放进帧面板 + 消息视图 + 轨迹视图，
 不连 server、不二次落盘。同帧流两跑渲染必然一致（解析/渲染/轨迹提取全是纯函数），
 用于对照回归：改了渲染逻辑后拿旧帧流验证视图不漂。scriptedModel 侧的确定性
-（同脚本两跑事件序列一致）由 server 契约测试保证（W-0051 范畴，`server/internal/agent/
+（同脚本两跑事件序列一致）由 server 契约测试保证（`server/internal/agent/
 scripted_test.go`）；本工具回放的是 SSE 帧层，不依赖 server 脚本可注入。
 `question.ask` 在回放中不弹交互框（文本化呈现）。
 
@@ -62,9 +62,9 @@ JSONL 行格式：`{"type":"frame","seq":1,"ts":"...","event":"...","sid":3,"cid
 modelId（`m_[0-9a-f]{16}`）、带扩展名路径（.json/.ifc/.dxf/.py/.md/.png/.txt，
 含 plans/、skill-work/ 产物链）。
 
-## 与 W-0051 契约测试的关系
+## 与 server 契约测试的关系
 
-W-0051 守 server 侧事件翻译/事件日志的契约（Go 测试）；本工具是消费侧观测面——
+server 测试守事件翻译/事件日志的契约（Go 测试）；本工具是消费侧观测面——
 帧落盘 JSONL 即「人肉可读的契约样本」，回放用于在不动 server 的前提下验证
 消费端渲染对既有帧形状的兼容。两层互补，不重复覆盖。
 
