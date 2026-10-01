@@ -3,7 +3,7 @@
 > 本页对应 `docs/site/public/ai-tools.openapi.json` 中发布的 OpenAPI schema。
 > 源 schema 由 edit-service 导出（`services/ifc/scripts/export_openapi.py`）；工作流与语义解释见 [IFC 编辑 API](/reference/edit-api)。
 
-- 服务：ifc-edit-service 0.1.0
+- 服务：SourceAEC IFC edit service 0.1.0
 - OpenAPI 版本：3.1.0
 
 ## 端点
