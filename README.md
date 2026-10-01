@@ -118,6 +118,17 @@ npm run docs:dev
 npm run docs:build
 ```
 
+## Development Provenance
+
+SourceAEC was independently implemented from public technical standards,
+open-source project documentation, public web research, and functional and
+design specifications written independently by the maintainer. The
+implementation was developed iteratively by AI coding agents through pull
+requests. Those agents were not provided with, and had no access to, any
+former employer's private repositories, source code, internal documentation,
+customer data, or other non-public technical materials. No such private
+materials were copied or migrated into this project.
+
 ## License
 
 SourceAEC is licensed under Apache-2.0, with nested MIT-licensed skills and
