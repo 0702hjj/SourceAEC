@@ -2,9 +2,10 @@
 
 [中文](README.zh-CN.md)
 
-An open-source, self-hosted AI modeling platform for AEC. SourceAEC provides
-script-as-source editing for IFC and CAD/DXF, semantic version diffs, and the
-same editing APIs for designers and AI agents.
+An open-source, self-hosted, agent-friendly interface for creating and editing
+IFC and CAD/DXF models. SourceAEC gives people and AI agents the same
+script-as-source APIs, sandboxed execution workflow, and semantic version
+history, so model operations are explicit, reviewable, and portable.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
@@ -120,14 +121,23 @@ npm run docs:build
 
 ## Development Provenance
 
-SourceAEC was independently implemented from public technical standards,
-open-source project documentation, public web research, and functional and
-design specifications written independently by the maintainer. The
-implementation was developed iteratively by AI coding agents through pull
-requests. Those agents were not provided with, and had no access to, any
-former employer's private repositories, source code, internal documentation,
-customer data, or other non-public technical materials. No such private
-materials were copied or migrated into this project.
+SourceAEC is an independent implementation based on public technical
+standards, documented open-source interfaces, public research, and functional
+and design specifications independently prepared by the maintainer. Its
+implementation was produced iteratively by AI coding agents through reviewed
+pull requests. No private or confidential third-party repository, source
+code, internal document, customer data, drawing, or other non-public technical
+material was supplied to those agents, used as an implementation input, or
+copied into this project. The repository history and pull requests preserve
+the development record.
+
+Contributions must have a documented, lawful provenance. Contributors certify
+their right to submit each contribution, disclose incorporated third-party
+material and its license, and must not submit confidential information or
+trade secrets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the DCO sign-off and
+provenance requirements. If you believe material in this repository infringes
+your rights, please open an Issue with the affected path and the basis of your
+claim so it can be investigated promptly.
 
 ## License
 
