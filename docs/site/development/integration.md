@@ -103,7 +103,7 @@ curl -X POST "$BASE/models/$MID/script/save" -H 'Content-Type: application/json'
 curl "$BASE/models"
 ```
 
-配套端点还有 `script/undo|redo|discard`、`script/rollback`、`script/staging/diff`、`GET .../scripts`、`script/locate`，以及只读的 `edit/versions`、`edit/diff`。逐个端点的 body 与响应见 [IFC 编辑 API](/reference/edit-api)；给 AI agent 用的完整走查见 [AI 接入](/reference/ai)。
+配套端点还有 `script/undo|redo|discard`、`script/rollback`、`script/staging/diff`、`GET .../scripts`、`script/locate`，以及只读的 `edit/versions`、`edit/diff`。逐个端点的 body 与响应见 [IFC 编辑 API](/reference/edit-api)；供外部 Agent 使用的完整走查见 [Agent 接入](/reference/ai)。
 
 ### 显示对接
 

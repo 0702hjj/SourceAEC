@@ -1,6 +1,6 @@
-# AI 接入
+# Agent 接入
 
-面向 AI agent 的接入指南。script-as-source 模式下，AI 的修改流程和设计师完全一致：**暂存脚本 → 沙箱试运行 → 保存大版本**。概念与版本语义见[编辑与版本](/guide/editing)，端点契约见 [IFC 编辑 API](/reference/edit-api)，机器可读 schema 见 [REST API 的 OpenAPI 一节](/reference/rest-api#机器可消费-openapi)。本页讲怎么接。
+面向外部 Agent 的 IFC 接入指南。script-as-source 模式下，Agent 与人在同一套契约上操作：**暂存脚本 → 沙箱试运行 → 保存大版本**。概念与版本语义见[编辑与版本](/guide/editing)，端点契约见 [IFC 编辑 API](/reference/edit-api)，机器可读 schema 见 [REST API 的 OpenAPI 一节](/reference/rest-api#机器可消费-openapi)。
 
 ## 平台内置 chat agent
 
@@ -17,17 +17,17 @@
 
 run_script 试运行成功即推 `viewer.staged` 事件，保存之前人就能看到中间结果。行为细节见[编辑与版本](/guide/editing#中途预览)。工具结果末尾还会附上 staging diff 摘要，优先给构件级计数，供 AI 对照预期自纠。
 
-## 双角色同一 API
+## Agent 与人共用 API
 
-人和 AI 用同一套编辑端点，只是入口不同：
+Agent 和人使用同一套编辑端点，只是入口不同：
 
 ```
 浏览器（人）──► Go server :8090 ──代理──► Python 编辑服务 :8100
                   /api/v1/models/{id}/script/...  │  /models/{id}/script/...
-AI agent ────────► REST 直连 ──────────────────────┘  （或经 Go 代理，端点一一对应）
+外部 Agent ──────► REST 直连 ──────────────────────┘  （或经 Go 代理，端点一一对应）
 ```
 
-人走 Go 代理，保存后自动重转 XKT。AI 可以直连编辑服务，也可以走代理；`script/edit-call` 只有直连可用。Python 服务自带 Swagger UI 在 `/docs`。
+人通过界面和 Go 代理操作，保存后自动重转 XKT。Agent 可以直连编辑服务，也可以走代理；`script/edit-call` 只有直连可用。Python 服务自带 Swagger UI 在 `/docs`。
 
 ## 快速开始
 
@@ -44,9 +44,9 @@ go run ./cmd/server
 
 `VIEWER_DATA_DIR` 必须和 Go 配置的 `dataDir` 指向同一目录，两边都按它定位模型文件。
 
-AI agent 可以不装 Go server、web、converter、PostgreSQL，只用 `services/ifc` 就能完成脚本编辑、版本和 diff。独立部署步骤见 [Edit Service 的独立部署一节](/development/edit-service#独立部署与移植)。
+外部 Agent 可以不安装 Go server、web、converter、PostgreSQL，只用 `services/ifc` 就能完成脚本编辑、版本和 diff。独立部署步骤见 [Edit Service 的独立部署一节](/development/edit-service#独立部署与移植)。
 
-## AI 直连全流程
+## Agent 直连全流程
 
 前提是已有一个模型，文件在 `{VIEWER_DATA_DIR}/uploads/{id}.ifc`。
 
@@ -110,4 +110,4 @@ curl -X POST "$BASE/models/$MID/diff" \
 
 ## 与 skill 的分工
 
-REST 编辑 API 适合在既有脚本上做定向修改和版本管理。从零建模型或大改几何用 [AI Skill](/reference/ai-skill)：agent 直接写符合契约的构建脚本，再交给平台执行、存版本、算 diff。
+REST 编辑 API 适合在既有脚本上做定向修改和版本管理。从零建模或大改几何可使用 [Agent Skills](/reference/ai-skill)：Agent 直接编写符合契约的构建脚本，再交给平台执行、存版本和计算 diff。

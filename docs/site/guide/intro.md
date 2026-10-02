@@ -1,28 +1,28 @@
 # 项目介绍
 
-SourceAEC 是一个自托管、开源的建筑 3D 建模平台，目标是让 AI 和设计师高效协作。它围绕一个核心构想构建：
+SourceAEC 是一个开源、自托管、面向 Agent 的 IFC 操作接口。它把 IFC 的创建、编辑、检查、试运行和版本管理组织成 Agent 与人都能调用的明确契约，并围绕一个核心构想构建：
 
-> AI 读 skill，写 Python 构建脚本；脚本经 IfcOpenShell 或 ezdxf 执行，产出 IFC 模型或 DXF 图纸。Python 脚本是模型的唯一事实源，前端的一切修改组件最终改的都是脚本。
+> Agent 通过 REST API 或 Skill 操作 Python 构建脚本；脚本经 IfcOpenShell 执行并产出 IFC。Python 脚本是模型的唯一事实源，界面编辑最终也落到同一份脚本。规划与 DXF 制图是可选的上游工作流。
 
 这样做的好处很直接。模型文件可以随时从脚本重建，存储很轻；版本控制就是脚本的版本控制；两个模型的差异就是两份脚本的差异，可以精确算出来。完整概念与操作见[编辑与版本](/guide/editing)。
 
-## 两条对等管线，外加一个推荐项
+## IFC 核心与可选扩展
 
-**逻辑一：AI 生成 IFC，已交付。** `skills/aiifc` 是给 AI 的建模参考包，`services/ifc` 是服务端运行时，负责脚本沙箱执行、版本快照、语义对比和编辑 API。
+**IFC 操作接口。** IFC Authoring Skill（技术标识 `skills/aiifc`）帮助 Agent 编写建模脚本；`services/ifc` 是服务端运行时，负责脚本沙箱执行、版本快照、语义对比和编辑 API。这是 SourceAEC 的核心能力。
 
-**逻辑二：AI 生成 CAD，已交付。** `skills/aiplan` 把外部资料整理成任务书，`skills/aidxf` 把任务书画成逐层 DXF 图纸；`services/cad` 与 ifc 侧同构。
+**可选规划与 DXF 工作流。** Plan Preparation Skill（`skills/aiplan`）把外部资料整理成任务书，DXF Authoring Skill（`skills/aidxf`）把任务书转成逐层 DXF 图纸；`services/cad` 提供配套运行时。它们可以独立使用，也可以为 IFC 建模提供上游输入。
 
-**推荐项：Agent 工作流，已落地。** 平台内置 Eino chat agent，按项目类型派发 ifc 或 cad 子 agent。网页右侧的 AI 对话栏就是它驱动的，不需要外部 agent 服务。
+**内置 Agent 工作流。** 平台提供 Eino chat agent，按项目类型派发 IFC 或 CAD 子 Agent；外部 Agent 也可以绕过界面直接调用 REST API 和 Skill。
 
-可复用性是设计原则：两个 skill、两个业务服务都可以单独拿出来用，前端和 PostgreSQL 都是可选的。
+可复用性是设计原则：IFC 接口可以脱离前端和 PostgreSQL 独立部署，各个 Skill 与业务服务也可以按需组合。
 
 ## 面向谁
 
 - 要**自托管 BIM 工具链**的团队：数据不出自己的机器，不依赖任何云服务。
 - 做 **IFC 或 CAD 工具**的开发者：`services/ifc` 与 `services/cad` 可脱离前端单独部署和移植。
-- 需要**「AI 可接入的编辑底座」**的研究者：人和 AI 共用同一套编辑 API，来源用 provenance 字段区分。
+- 需要 **Agent-friendly IFC 编辑底座**的研究者：Agent 和人共用同一套编辑 API，来源用 provenance 字段区分。
 
-当前端到端可用：创建项目 → AI 生成模型 → 三维或二维审查 → 提 Issue → 定位脚本并修改 → 沙箱验证 → 保存大版本 → 对比版本差异。走一遍见[创建第一个项目](/guide/first-project)。
+当前端到端可用：创建项目 → Agent 构建模型 → 三维或二维审查 → 提 Issue → 定位脚本并修改 → 沙箱验证 → 保存大版本 → 对比版本差异。走一遍见[创建第一个项目](/guide/first-project)。
 
 ## 组件一览
 
@@ -34,7 +34,7 @@ SourceAEC 是一个自托管、开源的建筑 3D 建模平台，目标是让 AI
 | `services/ifc` | Python FastAPI + IfcOpenShell | IFC 脚本沙箱、版本、定位、语义对比（:8100） |
 | `services/cad` | Python FastAPI + ezdxf | DXF 脚本沙箱、版本、对比、render.json 发布（:8200） |
 | `services/sandbox` | 共享包 `aibim_sandbox` | bwrap 沙箱后端与 script-as-source 领域模块，被两个服务引用 |
-| `skills/` | SKILL.md 加参考文档 | aiifc、aiplan、aidxf 等 skill，AI 侧入口，可脱离平台单独分发 |
+| `skills/` | SKILL.md 加参考文档 | IFC、规划与 DXF 的 Agent Skill；当前技术标识为 `aiifc`、`aiplan`、`aidxf`，可独立分发 |
 
 三个语言并存是生态现实：Go 适合网关，Python 绑定 IfcOpenShell 和 ezdxf，Node 绑定 xeokit 转换器。服务之间用 REST 和子进程解耦，任何组件都可以单独替换。详见[总体架构](/development/architecture)。
 

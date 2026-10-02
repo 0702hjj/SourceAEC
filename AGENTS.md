@@ -1,9 +1,9 @@
 # SourceAEC Contributor Guide
 
-SourceAEC is a self-hosted AI-editable AEC platform. It supports IFC and
-CAD/DXF workflows through Python build scripts, a Go gateway, a React web
-client, and two peer editing services. This file applies to the whole
-repository.
+SourceAEC is a self-hosted, agent-friendly interface for IFC operations. It
+supports IFC authoring, editing, inspection, and versioning through Python
+build scripts, REST APIs, and Agent Skills. Planning and CAD/DXF workflows are
+optional extensions. This file applies to the whole repository.
 
 ## Components
 

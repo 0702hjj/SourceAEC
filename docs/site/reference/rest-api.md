@@ -67,4 +67,4 @@ uv run python scripts/export_openapi.py   # 输出到 docs/site/public/ai-tools.
 
 完整 schema 见 [go-server.openapi.json](/go-server.openapi.json)，可以直接喂给 LLM、工具或代码生成器。路由清单与请求响应 schema 随公开文档版本发布；修改 Go API 时，请同步更新 `docs/site/public/` 下的 schema、路由清单和对应参考页，并运行 `npm run docs:build` 检查站点。
 
-对接方要自研前端或接自己的存储时，看[存储与前端对接](/development/integration)；AI agent 接入看 [AI 接入](/reference/ai)。
+对接方要自研前端或接自己的存储时，看[存储与前端对接](/development/integration)；外部 Agent 接入看 [Agent 接入](/reference/ai)。

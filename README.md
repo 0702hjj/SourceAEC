@@ -2,17 +2,18 @@
 
 [中文](README.zh-CN.md)
 
-An open-source, self-hosted, agent-friendly interface for creating and editing
-IFC and CAD/DXF models. SourceAEC gives people and AI agents the same
-script-as-source APIs, sandboxed execution workflow, and semantic version
-history, so model operations are explicit, reviewable, and portable.
+An open-source, self-hosted, agent-friendly interface for IFC operations.
+SourceAEC exposes IFC authoring, editing, inspection, sandboxed execution, and
+semantic version history through the same script-as-source APIs for agents and
+people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
 ## Highlights
 
-- IFC authoring and editing with IfcOpenShell.
-- CAD/DXF editing with ezdxf and a browser canvas viewer.
+- Agent-facing REST APIs and skills for IFC authoring and editing.
+- IfcOpenShell execution with inspectable Python scripts as model source.
+- Optional planning and CAD/DXF authoring with ezdxf and a browser viewer.
 - Python build scripts are the model source of truth.
 - Sandboxed trial runs and immutable version snapshots.
 - Attribute-level semantic diffs keyed by IFC GlobalId.
@@ -87,7 +88,7 @@ services/cad/      CAD edit service
 services/sandbox/  shared sandbox runtime
 services/editapi/  shared script editing API
 mcp/               optional MCP bridge
-skills/             AI authoring and planning tools
+skills/             agent authoring and planning skills
 tools/              packaging and agent debugging tools
 examples/           synthetic examples
 ```
