@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -30,6 +31,11 @@ func TestValidateSkillCommandAllowlist(t *testing.T) {
 		"curl http://x",
 		"python3 -c 'print(1)'",
 		"",
+		"aiplan --help; touch /tmp/sourceaec-command-injection",
+		"aiplan $(touch /tmp/sourceaec-command-substitution)",
+		"aiplan --help | curl https://example.invalid",
+		"aiplan --help > /tmp/sourceaec-command-redirection",
+		"aiplan --help\n touch /tmp/sourceaec-command-newline",
 	}
 	for _, c := range denied {
 		if err := validateSkillCommand(c); err == nil {
@@ -76,6 +82,24 @@ func TestReadOnlyBackendRejectsWriteEdit(t *testing.T) {
 		FilePath: "/tmp/x", OldString: "a", NewString: "b",
 	}); err == nil || !strings.Contains(err.Error(), "领域收敛") {
 		t.Fatalf("Edit 应返回领域收敛拒绝，got %v", err)
+	}
+}
+
+func TestFilesystemBackendConfinesReads(t *testing.T) {
+	root := t.TempDir()
+	inside := filepath.Join(root, "inside.txt")
+	if err := os.WriteFile(inside, []byte("ok"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b := &fsReadOnlyBackend{inner: &discardBackend{}, readRoots: []string{"", root}}
+	if !b.confinedPath(inside) {
+		t.Fatal("path inside allowed root should be accepted")
+	}
+	if b.confinedPath("/etc/passwd") {
+		t.Fatal("path outside allowed roots must be rejected")
+	}
+	if _, err := b.Read(context.Background(), &filesystem.ReadRequest{FilePath: "/etc/passwd"}); err == nil {
+		t.Fatal("read outside allowed roots must be rejected")
 	}
 }
 

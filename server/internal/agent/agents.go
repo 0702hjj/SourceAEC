@@ -21,8 +21,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudwego/eino/adk"
 	localbk "github.com/cloudwego/eino-ext/adk/backend/local"
+	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -42,6 +42,7 @@ import (
 //   - IFC 生成修改 → 直接派 ifc-agent（独立，不经 aiplan；ifc↔dxf 产物未对接，两条线独立）
 //   - 模糊想法/完整方案 → aiplan → cad →（ifc 可选，全链）
 //   - 设计规范/审查问答 → 直接回答，不派发
+//
 // OrchestratorPersona 是 cad->ifc 项目的编排者人格（全装：aiplan + cad + ifc——
 // cad->ifc 管线需要三个都装）。**kind 强制必选（create_project 强制 ifc|cad|cad->ifc，
 // 无空 kind）**——orchestrator 按 kind 强制装配：cad→personaCAD、ifc→personaIFC、
@@ -67,7 +68,6 @@ const OrchestratorPersona = `你是 AI_IFC 平台的设计师对话入口与编�
 断点主持（HITL ask_user）：plan 4 轮设计对话（aiplan）与 aidxf ⓪①② 断点由子 agent 弹框（ask_user），你汇总断点结论转述设计师。
 
 plan 工作区（aiplan 你亲自跑时）：aiplan 的 route/land 等命令加 --project-id <会话绑定 projectID>——CLI 内部自动算 skill-work/{projectID}/aiplan/ 落盘（结构性保证，不用你传 workspace 路径）；交付 deliver_plan 走工具（PlanStore 版本化）。`
-
 
 // OrchestratorPersonaCAD 是 CAD 项目的编排者人格（cad 管线）：只派 cad-agent，
 // aiplan 前置框定方案；无 IFC 分支。
@@ -211,7 +211,7 @@ func keysOf(m map[string]bool) string {
 //
 // 模型由此获得：read_file/glob/grep/ls（读 skill references）+ write_file（仅 skill-work）+
 // execute（跑 skill CLI）。
-func newFilesystemMiddleware(ctx context.Context, skillWorkRoot string) (adk.TypedChatModelAgentMiddleware[*schema.Message], error) {
+func newFilesystemMiddleware(ctx context.Context, skillWorkRoot string, readRoots ...string) (adk.TypedChatModelAgentMiddleware[*schema.Message], error) {
 	backend, err := localbk.NewBackend(ctx, &localbk.Config{
 		ValidateCommand: validateSkillCommand, // 命令白名单（领域收敛单点）
 	})
@@ -219,7 +219,7 @@ func newFilesystemMiddleware(ctx context.Context, skillWorkRoot string) (adk.Typ
 		return nil, fmt.Errorf("create local backend: %w", err)
 	}
 	mw, err := fsmw.NewTyped[*schema.Message](ctx, &fsmw.MiddlewareConfig{
-		Backend:        &fsReadOnlyBackend{inner: backend, skillWorkRoot: skillWorkRoot}, // 读透传 + skill-work 写白名单
+		Backend:        &fsReadOnlyBackend{inner: backend, skillWorkRoot: skillWorkRoot, readRoots: append(readRoots, skillWorkRoot)},
 		StreamingShell: backend, // execute + 白名单
 	})
 	if err != nil {
@@ -253,7 +253,7 @@ func newRoleAgent(ctx context.Context, cfg roleAgentConfig) (adk.Agent, error) {
 		}
 		handlers = append(handlers, skillMW)
 	}
-	fsMW, err := newFilesystemMiddleware(ctx, skillWorkRootFor(cfg.dataDir))
+	fsMW, err := newFilesystemMiddleware(ctx, skillWorkRootFor(cfg.dataDir), cfg.skillsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,8 @@ func newRoleAgent(ctx context.Context, cfg roleAgentConfig) (adk.Agent, error) {
 }
 
 // kindChildren 按项目类型选择 AgentAsTool 子 agent：
-//   cad->ifc/空（全装）→ cad + ifc；cad → 只 cad；ifc → 只 ifc。
+//
+//	cad->ifc/空（全装）→ cad + ifc；cad → 只 cad；ifc → 只 ifc。
 func kindChildren(kind string, cad, ifc adk.Agent) []adk.Agent {
 	var out []adk.Agent
 	if kind != "ifc" {

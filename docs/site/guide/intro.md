@@ -46,4 +46,4 @@ SourceAEC 是一个自托管、开源的建筑 3D 建模平台，目标是让 AI
 
 SourceAEC 以 Apache-2.0 发布，见 [LICENSE](https://github.com/0702hjj/SourceAEC/blob/main/LICENSE)。例外目录保留原许可：`skills/aiplan`、`skills/aidxf` 为 MIT。完整清单见根目录 [NOTICE](https://github.com/0702hjj/SourceAEC/blob/main/NOTICE)。
 
-需要特别注意 xeokit：`web/` 前端依赖 AGPL-3.0 的 `@xeokit/xeokit-sdk`，分发包含它的前端构建产物时，整个产物受 AGPL 约束，网络使用即触发。闭源或商用场景请改走 three.js 加 web-ifc 的路径。converter 以子进程方式使用 xeokit-convert，它输出的 XKT 数据不受 AGPL 覆盖。
+需要特别注意 xeokit：`web/` 前端依赖 AGPL-3.0 的 `@xeokit/xeokit-sdk`。分发或通过网络提供包含它的前端构建产物，可能触发 AGPL 的源码提供和其他义务；请按具体版本许可证和部署方式进行审查，不能仅凭本页判断合规。闭源或商用场景应在发布前取得专业许可意见，或改用不含该依赖的 three.js + web-ifc 路径。converter 以子进程方式使用 xeokit-convert，其输出的 XKT 数据是否受相关许可证影响，也应按具体依赖版本和使用方式单独核查。

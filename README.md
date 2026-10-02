@@ -137,7 +137,21 @@ material and its license, and must not submit confidential information or
 trade secrets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the DCO sign-off and
 provenance requirements. If you believe material in this repository infringes
 your rights, please open an Issue with the affected path and the basis of your
-claim so it can be investigated promptly.
+claim so it can be investigated promptly. Do not disclose confidential
+materials or personal data in a public Issue; use a private GitHub security
+report or private maintainer contact when available.
+
+## Use And Warranty Boundary
+
+SourceAEC is a developer tool and reference implementation, not a safety-
+critical, regulatory, surveying, or construction approval system. Generated
+IFC/DXF content, AI suggestions, conversions, and sandbox results require
+independent human review before they are used in design, procurement,
+construction, operation, or compliance decisions. The project does not make
+any promise that an output is accurate, fit for a particular purpose,
+interoperable with every downstream tool, compliant with a law or standard,
+or free of third-party rights claims. The Apache-2.0 license and the notices
+for bundled dependencies govern the applicable warranty and liability terms.
 
 ## License
 

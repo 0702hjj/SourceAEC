@@ -48,7 +48,9 @@ Go server（默认 `http://localhost:8090`）是平台唯一对外入口，对�
 
 浏览器端把 token 存在 localStorage 的 `aiifc_token` 键，遇到 401 会弹输入框，保存后自动重试原请求。chat 的事件流走 EventSource，没法带自定义头，**这是唯一放行 `?token=` 查询参数的路径**。
 
-CORS 是白名单制，用 `corsOrigins`（或 `VIEWER_CORS_ORIGINS`）配置，逗号分隔。两个 Python 编辑服务自身没有鉴权，安全完全靠只监听 127.0.0.1，不要把它们暴露到网络上。
+CORS 是白名单制，用 `corsOrigins`（或 `VIEWER_CORS_ORIGINS`）配置，逗号分隔。两个 Python 编辑服务自身没有鉴权，部署时必须限制为回环监听或受控内网；不要把它们直接暴露到不受信任网络。
+
+SSE 的 `?token=` 仅为浏览器 `EventSource` 的兼容性例外。查询参数可能出现在代理、访问日志、浏览器历史或监控系统中；生产环境应使用短时、最小权限 token，并配置日志脱敏和合适的传输加密。
 
 ## 机器可消费 OpenAPI
 

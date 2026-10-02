@@ -26,6 +26,12 @@ cd services/cad && uv sync && VIEWER_DATA_DIR=/srv/sourceaec/data uv run uvicorn
 - **沙箱依赖宿主机的 `bwrap` 与 `uv`**。缺任何一个，run/save 直接返回 503，不降级执行。安装与验证见[沙箱执行环境](/development/sandbox)。
 - **两个 Python 服务的 `VIEWER_DATA_DIR` 必须与 server 的 `dataDir` 指向同一个目录**，且 server 以哪个用户运行，该目录就要对那个用户可写。配错会 404 或改错文件。
 
+Agent 与 skill CLI 会处理用户输入和外部模型输出，两者都应视为不可信内容。请用专用、
+无登录权限的低权限系统账号运行 SourceAEC，只授予代码只读权限和 `data/`、skill 工作区
+的必要写权限；该账号及其环境中不要放置云凭据、SSH 私钥、其他项目源码或客户资料。
+当前 API token 是单一入口凭证，不提供用户级授权、租户隔离或审计归属；需要多人或公网
+服务时，应在前置网关实现独立身份认证、速率限制、请求日志脱敏和租户级数据隔离。
+
 ## systemd 最小示例
 
 ```ini
@@ -65,7 +71,8 @@ WantedBy=multi-user.target
 Go server 自带静态托管与 SPA fallback，**正常部署不需要 nginx**。只有在需要统一 TLS 终止、多站点复用一个入口或再加一层访问控制时才在前面挂反代，此时注意两件事：
 
 - **SSE 不能被缓冲或掐断**。chat 事件流走 `GET /api/v1/chat/sessions/{cid}/events`，需要 `proxy_buffering off`，且读取超时要大于 `sseHeartbeatS`（默认 15 秒的心跳间隔）。心跳过不了反代 idle timeout，前端会在长任务中途静默断流。
-- **只转发 8090**。8100 与 8200 没有鉴权，安全完全靠只监听回环，不要给它们开对外路由。
+- **只转发 8090**。8100 与 8200 没有鉴权，部署时必须限制为回环监听或受控内网；不要给它们开对外路由。
+- **观测端口默认只监听 127.0.0.1:6060**，且不经过主 API token；不要把 `VIEWER_PPROF_ADDR` 配成公网地址。若必须远程观测，请使用受限管理网络或额外的认证反向代理，并确认不会把 pprof、expvar 或 token 写入公共日志。
 
 ## PostgreSQL（可选）
 
