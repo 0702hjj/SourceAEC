@@ -155,7 +155,9 @@ for bundled dependencies govern the applicable warranty and liability terms.
 
 ## License
 
-SourceAEC is licensed under Apache-2.0, with nested MIT-licensed skills and
-third-party runtime components described in [NOTICE](NOTICE). The frontend
+SourceAEC is licensed under Apache-2.0. The `skills/aiplan` and
+`skills/aidxf` directories are MIT-licensed by default; file-level SPDX
+identifiers override that directory default. Third-party runtime components
+are described in [NOTICE](NOTICE). The frontend
 depends on AGPL-3.0 xeokit, and the tracked web-ifc WASM files remain subject
 to MPL-2.0.

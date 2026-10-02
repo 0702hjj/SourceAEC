@@ -142,6 +142,6 @@ SourceAEC 是开发者工具和参考实现，不是安全关键、法定审查�
 
 ## 许可证
 
-SourceAEC 主体采用 Apache-2.0；嵌套的 MIT skill 与第三方运行时见
-[NOTICE](NOTICE)。前端依赖 AGPL-3.0 的 xeokit，仓库内的 web-ifc WASM 文件
-仍受 MPL-2.0 约束。
+SourceAEC 主体采用 Apache-2.0。`skills/aiplan` 与 `skills/aidxf` 目录默认采用
+MIT；单个文件的 SPDX 标识优先于目录默认许可。第三方运行时见 [NOTICE](NOTICE)。
+前端依赖 AGPL-3.0 的 xeokit，仓库内的 web-ifc WASM 文件仍受 MPL-2.0 约束。
