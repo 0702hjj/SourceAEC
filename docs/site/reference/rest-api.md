@@ -39,7 +39,7 @@ Go server（默认 `http://localhost:8090`）是平台唯一对外入口，对�
 
 ## 鉴权与 CORS
 
-鉴权默认关闭。设置 `apiToken`（或 `VIEWER_API_TOKEN`）后，所有端点都要求 `Authorization: Bearer <token>`，只有 OPTIONS 预检和**四类只读文件端点**豁免——xeokit 和 `<img>` 标签带不了请求头：
+鉴权默认关闭。设置 `apiToken`（或 `VIEWER_API_TOKEN`）后，除 OPTIONS 预检外，所有端点都必须携带有效 token。普通 API 使用 `Authorization: Bearer <token>`；以下四类只读资源因为 xeokit 和 `<img>` 无法添加请求头，允许使用 `?token=`，但不允许匿名访问：
 
 - `GET /v1/models/{id}/model.xkt`
 - `GET /v1/models/{id}/metadata.json`
@@ -50,7 +50,7 @@ Go server（默认 `http://localhost:8090`）是平台唯一对外入口，对�
 
 CORS 是白名单制，用 `corsOrigins`（或 `VIEWER_CORS_ORIGINS`）配置，逗号分隔。两个 Python 编辑服务自身没有鉴权，部署时必须限制为回环监听或受控内网；不要把它们直接暴露到不受信任网络。
 
-SSE 的 `?token=` 仅为浏览器 `EventSource` 的兼容性例外。查询参数可能出现在代理、访问日志、浏览器历史或监控系统中；生产环境应使用短时、最小权限 token，并配置日志脱敏和合适的传输加密。
+SSE 与上述只读资源的 `?token=` 仅为浏览器 API 兼容性例外。查询参数可能出现在代理、访问日志、浏览器历史或监控系统中；生产环境应定期轮换 token，并配置 TLS、日志脱敏和严格的缓存策略。内置 token 是部署级共享凭证，不是短时令牌、用户级授权或多租户隔离。
 
 ## 机器可消费 OpenAPI
 

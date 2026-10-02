@@ -165,10 +165,9 @@ func TestAuthExemptWhitelistGuard(t *testing.T) {
 	}
 }
 
-// 豁免清单：GET /v1/models/{id}/model.xkt|metadata.json|render.json、
-// GET /v1/models/{id}/issues/{file} 为前端 xeokit/img 标签匿名可读
-// （无法携带 Authorization 头）。
-func TestAuthExemptsReadOnlyModelFiles(t *testing.T) {
+// xeokit/img 无法携带 Authorization 头，受保护部署只允许白名单内的只读资源
+// 使用 query token；不得匿名读取，也不得把 query token 放宽到其他路径。
+func TestAuthProtectsReadOnlyModelFilesWithQueryToken(t *testing.T) {
 	srv, st := setupSecure(t, "s3cret", nil)
 	m, err := st.Create("a.ifc", 4, strings.NewReader("fake"))
 	if err != nil {
@@ -181,8 +180,12 @@ func TestAuthExemptsReadOnlyModelFiles(t *testing.T) {
 		"/v1/models/" + m.ID + "/issues/i_0123456789ab.png",
 	} {
 		resp := do(t, "GET", srv.URL+p, "", "")
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("只读资源匿名访问应 401: %s -> %d", p, resp.StatusCode)
+		}
+		resp = do(t, "GET", srv.URL+p+"?token=s3cret", "", "")
 		if resp.StatusCode == http.StatusUnauthorized {
-			t.Fatalf("豁免路径不应 401: %s", p)
+			t.Fatalf("只读资源正确 query token 不应 401: %s", p)
 		}
 	}
 }
