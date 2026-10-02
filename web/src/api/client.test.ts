@@ -2,12 +2,15 @@
 // Copyright (C) 2026 0702hjj
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { listModels, fetchModel, uploadModel, deleteModel, downloadUrl, renderJsonUrl, listIssues, createIssue, updateIssue, deleteIssue, fetchEditVersions, postEditDiff, fetchScript, fetchScriptParams, stageScript, stageScriptParams, scriptUndo, scriptRedo, discardScript, runScript, saveScript, rollbackScript, fetchScriptVersions, postScriptDiff, fetchStagingDiff, locateScript, locateScriptByKey, createChatProject, chatEventsUrl } from "./client";
+import { listModels, fetchModel, uploadModel, deleteModel, downloadUrl, modelAssetUrl, renderJsonUrl, issueAssetUrl, listIssues, createIssue, updateIssue, deleteIssue, fetchEditVersions, postEditDiff, fetchScript, fetchScriptParams, stageScript, stageScriptParams, scriptUndo, scriptRedo, discardScript, runScript, saveScript, rollbackScript, fetchScriptVersions, postScriptDiff, fetchStagingDiff, locateScript, locateScriptByKey, createChatProject, chatEventsUrl } from "./client";
 import { setToken, clearToken, onUnauthorized } from "./auth";
 
 const envelope = (data: unknown) => ({ code: 0, message: "ok", data });
 
-beforeEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  vi.restoreAllMocks();
+  clearToken();
+});
 
 describe("api client", () => {
   it("listModels unwraps envelope", async () => {
@@ -34,6 +37,12 @@ describe("api client", () => {
   });
   it("renderJsonUrl format", () => {
     expect(renderJsonUrl("m_x")).toBe("/v1/models/m_x/render.json");
+  });
+  it("model assets carry the configured token", () => {
+    setToken("s3 cret");
+    expect(modelAssetUrl("m_x", "model.xkt")).toBe("/v1/models/m_x/model.xkt?token=s3%20cret");
+    expect(renderJsonUrl("m_x")).toBe("/v1/models/m_x/render.json?token=s3%20cret");
+    expect(issueAssetUrl("m_x", { screenshot: "issues/i_x.png" } as never)).toBe("/v1/models/m_x/issues/i_x.png?token=s3%20cret");
   });
   it("deleteModel uses DELETE", async () => {
     const spy = vi.fn(async () => new Response(JSON.stringify(envelope(null)), { status: 200 }));

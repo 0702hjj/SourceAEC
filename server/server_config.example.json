@@ -14,7 +14,7 @@
   "llmModel": "",
   "skillsDir": "../skills/dist",
   "skillVenv": "../skills/.venv",
-  "skillCLI": "aiplan,aidxfv3,aiifc",
+  "skillCLI": "",
   "pprofAddr": "127.0.0.1:6060",
   "llmTimeoutS": 120,
   "sseHeartbeatS": 15,

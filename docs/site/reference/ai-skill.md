@@ -90,4 +90,4 @@ python tools/skill_pack.py --skill-dir skills/aiplan --archive     # aiplan 走 
 
 ## 许可
 
-aiifc 是 Apache-2.0，文档参考自 IfcOpenShell 官方文档；aiplan 和 aidxf 是 MIT。
+aiifc 是 Apache-2.0，文档参考自 IfcOpenShell 官方文档；aiplan 和 aidxf 目录默认采用 MIT，单个文件的 SPDX 标识优先于目录默认许可。

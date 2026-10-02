@@ -3,10 +3,15 @@ Copyright (C) 2026 0702hjj and contributors
 
 Licensed under the Apache License, Version 2.0. See LICENSE.
 
-The following directories retain their own MIT license notices:
+The following directories are MIT-licensed by default under their local
+LICENSE files:
 
 - skills/aiplan/
 - skills/aidxf/
+
+An SPDX identifier or copyright notice in an individual file overrides the
+directory default for that file. In particular, files marked Apache-2.0 in
+`skills/aidxf/` remain Apache-2.0.
 
 Key third-party runtime dependencies include:
 
@@ -22,4 +27,3 @@ with that license. Dependency manifests and lockfiles contain exact versions.
 
 No private reference dataset or real-project drawing is distributed in this
 repository.
-

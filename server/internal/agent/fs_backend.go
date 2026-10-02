@@ -57,6 +57,13 @@ func validateSkillCommand(cmd string) error {
 	if c == "" {
 		return fmt.Errorf("命令为空")
 	}
+	// local backend executes through /bin/sh -c. Checking only the first token
+	// would therefore allow shell control operators after an allowed CLI name
+	// (for example: "aiplan --help; curl ..."). Reject shell syntax entirely;
+	// skill commands use ordinary executable arguments and do not need it.
+	if strings.ContainsAny(c, ";|&><$`(){}\\\n\r") {
+		return fmt.Errorf("命令包含被禁止的 shell 语法")
+	}
 	name := strings.Fields(c)[0]
 	for _, allow := range skillCommandAllowlist {
 		if name == allow {
@@ -72,22 +79,69 @@ func validateSkillCommand(cmd string) error {
 // design.json 等 LLM 意图中间产物），其它路径拒绝（领域收敛：不写 models/uploads/任意路径）。
 type fsReadOnlyBackend struct {
 	inner         filesystem.Backend
-	skillWorkRoot string // {DATA}/skill-work 绝对路径（前缀匹配；空 = 全拒绝）
+	skillWorkRoot string   // {DATA}/skill-work 绝对路径（前缀匹配；空 = 全拒绝）
+	readRoots     []string // filesystem 读写允许的绝对路径根
+}
+
+func (b *fsReadOnlyBackend) confinedPath(p string) bool {
+	if p == "" || !filepath.IsAbs(p) {
+		return false
+	}
+	clean := filepath.Clean(p)
+	for _, root := range b.readRoots {
+		if root == "" || !filepath.IsAbs(root) {
+			continue
+		}
+		root = filepath.Clean(root)
+		if clean != root && !strings.HasPrefix(clean, root+string(os.PathSeparator)) {
+			continue
+		}
+		resolved := clean
+		probe := clean
+		for {
+			if real, err := filepath.EvalSymlinks(probe); err == nil {
+				resolved = filepath.Join(real, strings.TrimPrefix(clean, probe))
+				break
+			}
+			next := filepath.Dir(probe)
+			if next == probe {
+				break
+			}
+			probe = next
+		}
+		resolved, err := filepath.Abs(resolved)
+		if err == nil && (resolved == root || strings.HasPrefix(resolved, root+string(os.PathSeparator))) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *fsReadOnlyBackend) LsInfo(ctx context.Context, req *filesystem.LsInfoRequest) ([]filesystem.FileInfo, error) {
+	if !b.confinedPath(req.Path) {
+		return nil, fmt.Errorf("filesystem 路径不在允许的 skill/project 工作区")
+	}
 	return b.inner.LsInfo(ctx, req)
 }
 
 func (b *fsReadOnlyBackend) Read(ctx context.Context, req *filesystem.ReadRequest) (*filesystem.FileContent, error) {
+	if !b.confinedPath(req.FilePath) {
+		return nil, fmt.Errorf("filesystem 路径不在允许的 skill/project 工作区")
+	}
 	return b.inner.Read(ctx, req)
 }
 
 func (b *fsReadOnlyBackend) GrepRaw(ctx context.Context, req *filesystem.GrepRequest) ([]filesystem.GrepMatch, error) {
+	if !b.confinedPath(req.Path) {
+		return nil, fmt.Errorf("filesystem 路径不在允许的 skill/project 工作区")
+	}
 	return b.inner.GrepRaw(ctx, req)
 }
 
 func (b *fsReadOnlyBackend) GlobInfo(ctx context.Context, req *filesystem.GlobInfoRequest) ([]filesystem.FileInfo, error) {
+	if !b.confinedPath(req.Path) {
+		return nil, fmt.Errorf("filesystem 路径不在允许的 skill/project 工作区")
+	}
 	return b.inner.GlobInfo(ctx, req)
 }
 
@@ -96,13 +150,13 @@ func (b *fsReadOnlyBackend) withinSkillWork(p string) bool {
 	if b.skillWorkRoot == "" {
 		return false
 	}
-	root := b.skillWorkRoot
-	clean := filepath.Clean(p)
-	// 允许 root 本身 + root/ 前缀；防目录穿越（../）
-	if clean == root || strings.HasPrefix(clean, root+string(os.PathSeparator)) {
-		return true
+	// Keep the small unit-test fixture usable when it supplies only the legacy
+	// skillWorkRoot field; production construction always supplies readRoots.
+	if len(b.readRoots) == 0 {
+		clean := filepath.Clean(p)
+		return clean == b.skillWorkRoot || strings.HasPrefix(clean, b.skillWorkRoot+string(os.PathSeparator))
 	}
-	return false
+	return b.confinedPath(p)
 }
 
 // Write 白名单放开：仅 skill 工作区（skill-work/）允许 agent 直接写（design.json 等

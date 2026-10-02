@@ -121,7 +121,7 @@ func New(cfg LLMConfig, opts ...Option) (*Agent, error) {
 		handlers = append(handlers, skillMW)
 	}
 	// filesystem middleware（D12/M2-0）：读 skill references + execute 白名单（orchestrator 也需读 aiplan references）
-	fsMW, err := newFilesystemMiddleware(ctx, skillWorkRootFor(o.dataDir))
+	fsMW, err := newFilesystemMiddleware(ctx, skillWorkRootFor(o.dataDir), o.skillsDir)
 	if err != nil {
 		return nil, err
 	}

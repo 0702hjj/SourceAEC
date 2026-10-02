@@ -141,9 +141,13 @@ export async function downloadIfcBytes(id: string): Promise<Uint8Array> {
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return new Uint8Array(await resp.arrayBuffer());
 }
-export const modelAssetUrl = (id: string, file: "model.xkt" | "metadata.json") => `/v1/models/${id}/${file}`;
+function protectedAssetUrl(path: string): string {
+  const token = getToken();
+  return token ? `${path}?token=${encodeURIComponent(token)}` : path;
+}
+export const modelAssetUrl = (id: string, file: "model.xkt" | "metadata.json") => protectedAssetUrl(`/v1/models/${id}/${file}`);
 // dxf 模型的实体级渲染载荷（Go 直挂只读，非 envelope）
-export const renderJsonUrl = (id: string) => `/v1/models/${id}/render.json`;
+export const renderJsonUrl = (id: string) => protectedAssetUrl(`/v1/models/${id}/render.json`);
 
 export function listIssues(modelId: string) {
   return request<Issue[]>(`/api/v1/models/${modelId}/issues`);
@@ -168,7 +172,7 @@ export function updateIssue(
 export function deleteIssue(modelId: string, issueId: string) {
   return request<null>(`/api/v1/models/${modelId}/issues/${issueId}`, { method: "DELETE" });
 }
-export const issueAssetUrl = (modelId: string, issue: Issue) => `/v1/models/${modelId}/${issue.screenshot}`;
+export const issueAssetUrl = (modelId: string, issue: Issue) => protectedAssetUrl(`/v1/models/${modelId}/${issue.screenshot}`);
 
 export function fetchOverrides(modelId: string) {
   return request<OverridesMap>(`/api/v1/models/${modelId}/overrides`);

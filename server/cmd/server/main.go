@@ -54,7 +54,7 @@ type config struct {
 	SkillsDir       string `json:"skillsDir"` // 扁平 skills 目录（BaseDir/*/SKILL.md），挂官方 skill middleware
 	MCPDir          string `json:"mcpDir"`    // mcp/ 目录（stdio MCP server 的 cwd，server.py 所在）；空=不接 MCP
 	SkillVenv       string `json:"skillVenv"` // 独立 skill venv 路径（bin 注入 PATH，execute 能调到 aiplan/aidxfv3）
-	SkillCLI        string `json:"skillCLI"`  // execute 命令白名单（逗号分隔；默认 aiplan,aidxfv3）
+	SkillCLI        string `json:"skillCLI"`  // execute 命令白名单（逗号分隔；空 = 默认关闭宿主命令）
 	APIToken        string `json:"apiToken"`
 	CORSOriginsRaw  string `json:"corsOrigins"`
 	// PprofAddr 是观测监听器（net/http/pprof + expvar /debug/vars）地址；
@@ -125,9 +125,6 @@ func loadConfig(path string) (*config, error) {
 	if c := os.Getenv("VIEWER_SKILLS_CLI"); c != "" {
 		cfg.SkillCLI = c
 	}
-	if cfg.SkillCLI == "" {
-		cfg.SkillCLI = "aiplan,aidxfv3,aiifc" // 默认 = dist 正式集合 CLI 入口（含 aiifc——P2 消费上游链）
-	}
 	if t := os.Getenv("VIEWER_API_TOKEN"); t != "" {
 		cfg.APIToken = t
 	}
@@ -194,11 +191,11 @@ func loadConfigOrExample(path string) (*config, error) {
 	return nil, fmt.Errorf("%w（且 example %s 也读不到: %v）", err, examplePath, exErr)
 }
 
-
 // buildRootMux 装配根 mux 的子树分发：
-//   /api/v1/chat/  与 /api/v1/projects/ 都归 chatHandler（chat/项目方案/交付域）；
-//   其余走 api.go handler + 静态托管。子树分发须显式注册——/api/v1/projects/
-//   若漏注册会落 "/" 兜底（api.go 无这些路由 → 方案端点 404，2026-08-21 实证）。
+//
+//	/api/v1/chat/  与 /api/v1/projects/ 都归 chatHandler（chat/项目方案/交付域）；
+//	其余走 api.go handler + 静态托管。子树分发须显式注册——/api/v1/projects/
+//	若漏注册会落 "/" 兜底（api.go 无这些路由 → 方案端点 404，2026-08-21 实证）。
 func buildRootMux(chatHandler http.Handler, rootHandler http.Handler) *http.ServeMux {
 	root := http.NewServeMux()
 	root.Handle("/api/v1/chat/", chatHandler)
@@ -335,9 +332,9 @@ func main() {
 	chatHandler := api.NewChatHandler(api.ChatDeps{
 		Ev: evStore,
 		// W-0061 S1：run/notify 挂 signal ctx（停机取消）+ SSE 心跳可配。
-		RootCtx:       ctx,
-		SSEHeartbeat:  time.Duration(cfg.SSEHeartbeatS) * time.Second,
-		Ed: ed, Cad: cad, St: st, Ps: store.NewProjectStore(cfg.DataDir),
+		RootCtx:      ctx,
+		SSEHeartbeat: time.Duration(cfg.SSEHeartbeatS) * time.Second,
+		Ed:           ed, Cad: cad, St: st, Ps: store.NewProjectStore(cfg.DataDir),
 		PlanSt: store.NewPlanStore(cfg.DataDir), AiplanBin: aiplanBin, Q: q, DataDir: cfg.DataDir,
 	})
 	llmCfg := agent.LLMConfig{

@@ -27,7 +27,7 @@
 | `llmModel` | `""` | `VIEWER_LLM_MODEL` | 模型名，如 `gpt-4o`、`deepseek-chat` |
 | `skillsDir` | `../skills/dist` | `VIEWER_SKILLS_DIR` | 正式 skill 集合目录，agent 只面对 dist，不感知开发版本 |
 | `skillVenv` | `../skills/.venv` | `VIEWER_SKILLS_VENV` | skill 专用 venv，装法：`bash tools/install_skill_venv.sh` |
-| `skillCLI` | `aiplan,aidxfv3,aiifc` | `VIEWER_SKILLS_CLI` | agent 可执行命令的白名单 |
+| `skillCLI` | `""` | `VIEWER_SKILLS_CLI` | agent 宿主命令白名单；空值默认关闭 `execute` |
 | `mcpDir` | `""` | `VIEWER_MCP_DIR` | `mcp/` 目录，作为 stdio MCP server 的 cwd。留空则不接 MCP |
 | `apiToken` | `""` | `VIEWER_API_TOKEN` | Bearer 鉴权。留空即关闭，只适合本机开发；生产必须设置 |
 | `corsOrigins` | `http://localhost:5173,http://localhost:8080` | `VIEWER_CORS_ORIGINS` | CORS 白名单，逗号分隔 |
@@ -52,7 +52,7 @@
   "cadServiceURL": "http://127.0.0.1:8200",
   "skillsDir": "../skills/dist",
   "skillVenv": "../skills/.venv",
-  "skillCLI": "aiplan,aidxfv3,aiifc"
+  "skillCLI": ""
 }
 ```
 
@@ -67,7 +67,7 @@
 ## chat agent
 
 - LLM 三参见上表。key 留空时回退确定性的离线 mock，界面流程能走通，但不产生真实智能回复。
-- skill 三项配置：`skillsDir` 指向正式集合，`skillVenv` 提供 CLI 运行环境，`skillCLI` 是命令白名单。
+- skill 三项配置：`skillsDir` 指向正式集合，`skillVenv` 提供 CLI 运行环境，`skillCLI` 是宿主命令白名单。默认空值会关闭 `execute`；只有在受信、单用户、专用低权限系统账号的部署中，确认 CLI 参数和可访问文件边界后，才显式设置为需要的命令，例如 `aiplan,aidxfv3,aiifc`。
 - 文件工具里 grep 依赖 ripgrep，没装会报错，用 `sudo apt install ripgrep` 装上。
 - 旧的 `VIEWER_OPENCODE_URL` 已退役，设置了也没有效果，可以从部署环境里删掉。
 - agent 的工具面、主子编排与提问机制见 [AI 接入](/reference/ai)。

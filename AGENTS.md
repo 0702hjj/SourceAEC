@@ -84,7 +84,8 @@ documentation tree.
 ## Licensing
 
 The repository is primarily Apache-2.0. The self-contained `skills/aiplan`
-and `skills/aidxf` directories retain their MIT licenses. Preserve attribution
+and `skills/aidxf` directories are MIT-licensed by default; an individual
+file's SPDX identifier overrides the directory default. Preserve attribution
 and license files when changing or packaging them. The web client includes
 AGPL-3.0 xeokit and MPL-2.0 web-ifc assets; review `NOTICE` before distributing
 frontend builds.
