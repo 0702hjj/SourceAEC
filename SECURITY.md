@@ -17,6 +17,10 @@ least-privilege operating-system account that has no unrelated credentials or
 private files. The built-in bearer token is a single deployment credential;
 it is not user-level authorization or multi-tenant isolation.
 
+Host-side agent command execution is disabled by default (`skillCLI` is
+empty). Enabling a skill CLI grants the agent the file operations exposed by
+that CLI and must not be treated as a general-purpose sandbox.
+
 SourceAEC is not a safety-critical or compliance certification system. Do not
 use generated models, AI output, conversion results, or sandbox behavior as a
 substitute for qualified human review. Do not include secrets, personal data,

@@ -31,6 +31,9 @@ func TestLoadConfigConcurrencyDefaults(t *testing.T) {
 	if cfg.ShutdownJoinS != 10 {
 		t.Errorf("shutdownJoinS 默认 = %d, want 10", cfg.ShutdownJoinS)
 	}
+	if cfg.SkillCLI != "" {
+		t.Errorf("skillCLI 默认 = %q, want 空（宿主 execute 默认关闭）", cfg.SkillCLI)
+	}
 
 	t.Setenv("VIEWER_PPROF_ADDR", "disable")
 	t.Setenv("VIEWER_LLM_TIMEOUT_S", "77")
