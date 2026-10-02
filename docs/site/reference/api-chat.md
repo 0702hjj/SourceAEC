@@ -1,6 +1,6 @@
 # 对话 API
 
-进程内 chat agent 的 REST 与 SSE 接口。项目是入口，一个项目绑定唯一会话；前端的历史项目列表就是会话列表。agent 的行为与工具面见 [AI 接入](/reference/ai)。
+进程内 chat agent 的 REST 与 SSE 接口。项目是入口，一个项目绑定唯一会话；前端的历史项目列表就是会话列表。Agent 的行为与工具面见 [Agent 接入](/reference/ai)。
 
 > 项目创建和删除在 `/api/v1/chat/projects`，方案读写在 `/api/v1/projects/{id}/...`。同一个项目 id 出现在两个前缀下是历史原因。
 
@@ -93,7 +93,7 @@ SSE 事件流。帧类型：
 
 ## 项目级方案产物
 
-plan→cad→ifc 管线的中间产物随项目版本化，`name` 取值 `plan`、`bim_supplement`、`building`。管线本身见 [AI Skill](/reference/ai-skill)。
+plan→cad→ifc 管线的中间产物随项目版本化，`name` 取值 `plan`、`bim_supplement`、`building`。管线本身见 [Agent Skills](/reference/ai-skill)。
 
 ### GET / PUT /api/v1/projects/{projectID}/{name} {#plan-file}
 

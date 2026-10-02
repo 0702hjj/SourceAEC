@@ -2,7 +2,7 @@
 
 CAD 业务逻辑核心（FastAPI + ezdxf）：与 `services/ifc` 完全同构的 **script-as-source 编辑 API**（`PUT /script` 暂存 → `script/run` 沙箱试运行 → `script/save` 大版本）+ DXF 版本快照。可脱离 Go server / web / converter / PostgreSQL 独立部署与调用。
 
-与 services/ifc 的关系：逻辑二「AI 生成 CAD」的业务逻辑核心，路由/暂存/沙箱/版本语义与 ifc 一一镜像（模型对象由 IFC 换成 DXF，构建脚本走本服务 `flows/` 目录的 `cad_script_lib` 契约，实体身份靠 XDATA）；但无 ModelRegistry/PendingStore（无内存实体缓存、无 L1 直改遗产）。
+与 `services/ifc` 的关系：这是可选 DXF 工作流的服务端运行时，路由/暂存/沙箱/版本语义与 IFC 服务一一镜像（模型对象由 IFC 换成 DXF，构建脚本走本服务 `flows/` 目录的 `cad_script_lib` 契约，实体身份靠 XDATA）；但无 ModelRegistry/PendingStore（无内存实体缓存、无 L1 直改遗产）。
 
 **无鉴权，务必只绑 127.0.0.1**（与 edit-service 同一约束；对外经 Go server 代理——chunk C 已交付：Go 按 model kind 分流代理 cad 全端点（edit-call 除外），`GET /v1/models/{id}/render.json` 直挂只读）。
 

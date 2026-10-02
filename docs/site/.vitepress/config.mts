@@ -6,7 +6,7 @@ export default defineConfig({
   base: '/SourceAEC/',
   lang: 'zh-CN',
   title: 'SourceAEC',
-  description: '自托管、开源的 AI 可编辑 3D 建模平台（IFC + CAD 双管线）',
+  description: '开源、自托管、面向 Agent 的 IFC 操作接口',
   cleanUrls: true,
   lastUpdated: true,
 
@@ -85,8 +85,8 @@ export default defineConfig({
             { text: '对话 API', link: '/reference/api-chat' },
             { text: 'IFC 编辑 API', link: '/reference/edit-api' },
             { text: '编辑 API 参考（自动生成）', link: '/reference/edit-api-reference' },
-            { text: 'AI 接入', link: '/reference/ai' },
-            { text: 'AI Skill', link: '/reference/ai-skill' },
+            { text: 'Agent 接入', link: '/reference/ai' },
+            { text: 'Agent Skills', link: '/reference/ai-skill' },
           ],
         },
         {

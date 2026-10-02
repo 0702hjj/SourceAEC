@@ -2,7 +2,7 @@
 
 平台里所有修改都是改构建脚本。IFC 和 DXF 永远是脚本跑出来的产物，所以任何一次保存，背后一定是一次脚本变更。
 
-本页讲设计师视角的模型与操作。端点契约见 [IFC 编辑 API](/reference/edit-api)，界面控件见[界面使用](/guide/interface)，AI 侧接入见 [AI 接入](/reference/ai)。
+本页讲界面用户视角的模型操作。端点契约见 [IFC 编辑 API](/reference/edit-api)，界面控件见[界面使用](/guide/interface)，Agent 侧接入见 [Agent 接入](/reference/ai)。
 
 ## 核心概念：script-as-source
 

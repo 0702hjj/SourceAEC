@@ -2,16 +2,17 @@
 
 [English](README.md)
 
-SourceAEC 是开源、自托管、Agent-friendly 的 IFC 与 CAD/DXF 模型创建和编辑
-接口。它为人和 AI Agent 提供同一套 script-as-source API、沙箱执行流程与语义
-版本历史，使模型操作明确、可审查且易于移植。
+SourceAEC 是开源、自托管、面向 Agent 的 IFC 操作接口。它通过同一套
+script-as-source API，为 Agent 和人提供 IFC 创建、编辑、检查、沙箱执行与语义
+版本管理；可选的规划与 DXF 工作流可以作为 IFC 建模的上游输入。
 
 > 文档：<https://0702hjj.github.io/SourceAEC/>
 
 ## 核心能力
 
-- 基于 IfcOpenShell 的 IFC 创建与编辑。
-- 基于 ezdxf 的 CAD/DXF 编辑和浏览器画布查看器。
+- 面向 Agent 的 IFC 创建与编辑 REST API 和 Skill。
+- 基于 IfcOpenShell、以可审查 Python 脚本为模型事实源的执行环境。
+- 可选的规划与 CAD/DXF 制图能力，以及浏览器二维查看器。
 - Python 构建脚本是模型唯一事实源。
 - 沙箱试运行与不可变版本快照。
 - 按 IFC GlobalId 的属性级语义对比。
@@ -85,7 +86,7 @@ services/cad/      CAD 编辑服务
 services/sandbox/  共享沙箱运行时
 services/editapi/  共享脚本编辑 API
 mcp/               可选 MCP 桥
-skills/             AI 建模与规划工具
+skills/             Agent 建模与规划 Skill
 tools/              打包与 agent 调试工具
 examples/           合成示例
 ```

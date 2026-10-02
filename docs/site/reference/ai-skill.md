@@ -1,10 +1,12 @@
-# AI Skill（aiifc / aiplan / aidxf）
+# Agent Skills
 
-平台的 AI 生成能力以 skill 包交付。skill 是给 AI agent 的工具包：agent 加载后直接写代码或跑命令来生成模型。它与 [AI 接入](/reference/ai) 的 REST 方式互补——REST 适合改参数这类小修改，skill 适合从零建模型这类大动作。skill 与平台解耦，不部署平台也能单独使用。
+SourceAEC 以 Skill 包提供面向 Agent 的建模能力。Agent 加载后可以编写代码或运行受支持的命令；Skill 与 [Agent 接入](/reference/ai) 的 REST 方式互补：REST 适合对既有脚本做定向操作，Skill 适合从零建模和大幅修改。Skill 与平台解耦，不部署整套平台也能单独使用。
+
+本文使用 **IFC Authoring Skill**、**Plan Preparation Skill** 和 **DXF Authoring Skill** 作为公开能力名称。`aiifc`、`aiplan`、`aidxf` 与 `aidxfv3` 是当前目录和 CLI 的技术标识，示例中保持原样。
 
 ## 管线总览
 
-plan 到 cad 是管线主干：aiplan 把外部资料整理成任务书，aidxf 把任务书画成图纸，aiifc 再把图纸转成 IFC。
+IFC Authoring Skill 可以独立从设计输入构建 IFC。需要二维图纸作为上游时，可选用 `aiplan` 把外部资料整理成任务书，再由 `aidxf` 生成 DXF，最后交给 `aiifc` 消化。
 
 ```
 外部资料 ──► aiplan ──┬─► plan.json（任务书）──────────► aidxf v3 ──► building.json + 各层 DXF ──┬─► bim（ifc）
@@ -17,13 +19,13 @@ plan 到 cad 是管线主干：aiplan 把外部资料整理成任务书，aidxf 
 
 | skill | 阶段 | 输入 | 输出 |
 | --- | --- | --- | --- |
-| `aiplan` | plan，管线入口 | 任意外部资料：图片、PPT、文档、对话 | `plan.json` 加 `bim_supplement.json` |
-| `aidxfv3` | cad，管线中段 | `plan.json` 只读，加用户补充描述 | `building.json` 加各层 DXF |
-| `aiifc` | bim，管线末段 | 消费上游：building、bim_supplement、DXF；或独立：design 草稿 | 构建脚本加 IFC |
+| `aiifc` | IFC 核心 | 独立使用 design 草稿，或消费 building、bim_supplement、DXF | 构建脚本加 IFC |
+| `aiplan` | 可选规划入口 | 任意外部资料：图片、PPT、文档、对话 | `plan.json` 加 `bim_supplement.json` |
+| `aidxfv3` | 可选 DXF 阶段 | `plan.json` 只读，加用户补充描述 | `building.json` 加各层 DXF |
 
-## aiifc：IFC 生成
+## IFC Authoring Skill（`aiifc`）
 
-面向 AI agent 的 IfcOpenShell 建模 skill，让 AI 直接写 `ifcopenshell.api` 代码。
+面向 Agent 的 IfcOpenShell 建模 Skill，让 Agent 直接编写 `ifcopenshell.api` 代码。
 
 skill 结构是 SKILL.md 加参考资产：SKILL.md 是行为宪法；references 里有 103 个 API 分页、8 个组件 recipe 和 13 个可运行 flows；templates 是可复制的完整脚本示例。
 
@@ -41,15 +43,15 @@ aiifc 提供五个 CLI，都支持 `--project-id` 把中间产物规范落到项
 
 cad 到 ifc 的消化路径：agent 先把上游产物桥接进工作区，跑 consume-upstream 和 design-build，然后在已有脚本上深化，是增量修改不是重写。
 
-## aiplan：plan 阶段
+## Plan Preparation Skill（`aiplan`）
 
 管线入口。把外部资料归一成下游可执行的任务书，全程用提问工具和用户确认设计意图。它不画图、不写 IFC、不做坐标级布局。
 
 输出两个文件，schema 事实源在包内 `references/schemas/`：plan.json 给 cad 用，说明要什么在哪盖按什么规范；bim_supplement.json 给 bim 用，补 CAD 覆盖不了的屋顶、特殊结构、属性集。成对产出，过门禁校验后落盘。仅依赖 jsonschema，自包含可迁移。
 
-## aidxf：plan 到 cad
+## DXF Authoring Skill（`aidxf`）
 
-CAD 生成正式版框架，后续迭代都在这上面。
+可选的 DXF 制图框架，后续相关迭代都在这上面。
 
 输入是 plan.json，全程只读，加用户的补充描述。输出是 building.json 和逐层 DXF。
 
@@ -74,15 +76,15 @@ python tools/skill_pack.py --skill-dir skills/aiplan --archive     # aiplan 走 
 
 运行依赖见各包内 requirements.txt：aiifc 要 ifcopenshell、ifcquery、numpy；aidxf 要 ezdxf 和 shapely；aiplan 只要 jsonschema。
 
-与平台的关系：skill 是 AI 侧入口，编辑服务是服务端运行时，两者配对但可独立使用。只做一次性生成不需要平台；要版本、diff、双角色编辑才需要部署平台。
+与平台的关系：Skill 是 Agent 侧入口，编辑服务是服务端运行时，两者配对但可独立使用。只做一次性生成不需要整套平台；需要版本、diff 以及 Agent 与人协作编辑时才需要部署平台。
 
 ## 与 REST API 的关系
 
 | 方式 | 场景 | 入口 |
 | --- | --- | --- |
-| REST 编辑 API | 在既有脚本上定向修改，版本与 diff | `:8100/models/{id}/...`，见 [AI 接入](/reference/ai) |
-| aiifc skill | 从零建模型、大改几何、复现上传 IFC | agent 直接写 Python |
-| aiplan 与 aidxf | plan 到 cad 全链路 | agent 跑 CLI 命令 |
+| REST 编辑 API | 在既有脚本上定向修改，版本与 diff | `:8100/models/{id}/...`，见 [Agent 接入](/reference/ai) |
+| IFC Authoring Skill（`aiifc`） | 从零建模型、大改几何、复现上传 IFC | Agent 直接写 Python |
+| Plan/DXF Skills（`aiplan`、`aidxf`） | 可选的 plan 到 DXF 工作流 | Agent 运行 CLI 命令 |
 
 ## 版本化发布
 

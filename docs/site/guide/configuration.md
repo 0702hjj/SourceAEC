@@ -70,7 +70,7 @@
 - skill 三项配置：`skillsDir` 指向正式集合，`skillVenv` 提供 CLI 运行环境，`skillCLI` 是宿主命令白名单。默认空值会关闭 `execute`；只有在受信、单用户、专用低权限系统账号的部署中，确认 CLI 参数和可访问文件边界后，才显式设置为需要的命令，例如 `aiplan,aidxfv3,aiifc`。
 - 文件工具里 grep 依赖 ripgrep，没装会报错，用 `sudo apt install ripgrep` 装上。
 - 旧的 `VIEWER_OPENCODE_URL` 已退役，设置了也没有效果，可以从部署环境里删掉。
-- agent 的工具面、主子编排与提问机制见 [AI 接入](/reference/ai)。
+- Agent 的工具面、主子编排与提问机制见 [Agent 接入](/reference/ai)。
 
 ## edit-service
 

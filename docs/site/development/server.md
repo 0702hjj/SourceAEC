@@ -51,7 +51,7 @@ internal/
 
 ## chat agent
 
-进程内 Eino agent，详见 [AI 接入](/reference/ai)；LLM 三参与 skill 三参的配置见[配置说明](/guide/configuration)。key 为空时回退离线 mock。
+进程内 Eino Agent，详见 [Agent 接入](/reference/ai)；LLM 三参与 Skill 三参的配置见[配置说明](/guide/configuration)。key 为空时回退离线 mock。
 
 ## 静态托管
 

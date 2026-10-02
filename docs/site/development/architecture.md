@@ -64,7 +64,7 @@ graph LR
 
 ```
 SourceAEC/
-├── skills/                   # ① AI 生成 skill 封装（agent-agnostic，可分发）
+├── skills/                   # ① Agent 建模 Skill（agent-agnostic，可分发）
 │   ├── aiifc/                #   IFC 生成/修改（ifcopenshell）
 │   ├── aiplan/               #   plan 阶段（外部资料 → plan.json + bim_supplement.json）
 │   └── aidxf/                #   plan→cad 建筑平面管线正式版（plan.json → building.json + 各层 DXF）
