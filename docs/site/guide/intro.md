@@ -44,6 +44,14 @@ SourceAEC 是一个开源、自托管、面向 Agent 的 IFC 操作接口。它�
 
 ## 许可
 
-SourceAEC 主体以 Apache-2.0 发布，见 [LICENSE](https://github.com/0702hjj/SourceAEC/blob/main/LICENSE)。`skills/aiplan` 与 `skills/aidxf` 目录默认采用 MIT；单个文件的 SPDX 标识优先于目录默认许可。完整清单见根目录 [NOTICE](https://github.com/0702hjj/SourceAEC/blob/main/NOTICE)。
+SourceAEC 自有材料以 Apache-2.0 发布，见 [LICENSE](https://github.com/0702hjj/SourceAEC/blob/main/LICENSE)。`skills/aiplan` 与 `skills/aidxf` 目录默认采用 MIT；单个文件的 SPDX 标识优先于目录默认许可。完整清单见根目录 [NOTICE](https://github.com/0702hjj/SourceAEC/blob/main/NOTICE)，项目的独立来源、开发记录和权利声明见 [PROJECT_PROVENANCE.md](https://github.com/0702hjj/SourceAEC/blob/main/PROJECT_PROVENANCE.md)。
 
-需要特别注意 xeokit：`web/` 前端依赖 AGPL-3.0 的 `@xeokit/xeokit-sdk`。分发或通过网络提供包含它的前端构建产物，可能触发 AGPL 的源码提供和其他义务；请按具体版本许可证和部署方式进行审查，不能仅凭本页判断合规。闭源或商用场景应在发布前取得专业许可意见，或改用不含该依赖的 three.js + web-ifc 路径。converter 以子进程方式使用 xeokit-convert，其输出的 XKT 数据是否受相关许可证影响，也应按具体依赖版本和使用方式单独核查。
+IFC Web 查看有两套实现：xeokit 路径通过 AGPL-3.0 的 `@xeokit/xeokit-sdk` 加载服务端预转换的 XKT；web-ifc 路径使用 MPL-2.0 的 web-ifc 与 Three.js 在浏览器中直接读取 IFC，运行时不使用 XKT。两条路径在功能上独立，但当前标准 Web 构建同时包含两者并声明 xeokit 依赖，因此仅在界面切换到 web-ifc 不会从已分发构建中移除 xeokit，也不会自动消除相应的 AGPL 义务。若部署目标是不包含 xeokit，必须制作并验证不引入 xeokit 的独立构建。`converter` 另行以子进程使用 xeokit-convert 与 web-ifc 生成 XKT 和元数据。分发或通过网络提供相关构建前，应按实际包含的组件、具体版本和部署方式审查许可证义务。
+
+## 开源背景与独立来源
+
+SourceAEC 源于维护者对 Agent-friendly CAD/BIM 接口的独立研究与工程探索。公开技术背景包括 SimpleCADAPI 项目及其发表于 *Computer-Aided Design* 的相关研究、buildingSMART IFC 标准、公开开源接口和其他公开技术资料。它们构成问题定义与工程方向的参考；SourceAEC 面向 IFC 创建、编辑、检查与版本管理进行了独立实现，引用这些公开来源不表示双方存在隶属、背书或共同作者关系。
+
+本项目在维护者实习合同约定的职责范围之外独立开展，并非为履行实习工作任务而开发；未利用实习单位的物质技术条件，完全基于公开资料及个人自费取得的设备、账号、算力与其他资源独立实现。项目未有意使用或收录实习单位的私有仓库、源代码、内部文档、Prompt、客户数据、图纸、模型、商业秘密或其他保密技术材料。公开 Git 历史始于首次源码快照，因此它本身不是发布前开发过程的完整记录；发布后的变更由 commit 与 Pull Request 记录，适当的同期开发材料由维护者另行保留。
+
+上述内容是维护者依据开发记录对事实所作的善意说明，不代表任何现任或前任雇主、客户或其他第三方发言，也不改变第三方材料各自的许可证。贡献者仍须遵守 DCO 和来源披露要求；具体声明及私密权利异议渠道见 [PROJECT_PROVENANCE.md](https://github.com/0702hjj/SourceAEC/blob/main/PROJECT_PROVENANCE.md)。

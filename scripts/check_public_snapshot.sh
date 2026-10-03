@@ -23,8 +23,8 @@ for path in "${forbidden_paths[@]}"; do
   fi
 done
 
-if rg -n -i \
-  '(AI_BIM|SimpleCADAPI-archive|cyvol0521|gaiahub|CADapi|IFC_front|wanda|万达|前排观景楼王|真实项目|真实图纸|gaia 商用|github\.com/0702hjj/AI_IFC|0702hjj\.github\.io/AI_IFC)' \
+if rg -n -i --pcre2 \
+  '(AI_BIM|SimpleCADAPI-archive|cyvol0521|gaiahub|(?<!Simple)CADapi|IFC_front|wanda|万达|前排观景楼王|真实项目|真实图纸|gaia 商用|github\.com/0702hjj/AI_IFC|0702hjj\.github\.io/AI_IFC)' \
   --hidden --glob '!.git' --glob '!**/.git/**' --glob '!scripts/check_public_snapshot.sh' \
   --glob '!**/node_modules/**' --glob '!**/.vitepress/dist/**' \
   --glob '!**/*.lock' --glob '!**/*.ifc' --glob '!**/*.dxf' .; then

@@ -2,6 +2,9 @@
 
 Contributions are welcome through GitHub Issues and pull requests.
 
+The project's origin and rights-handling principles are documented in
+[PROJECT_PROVENANCE.md](PROJECT_PROVENANCE.md).
+
 ## Workflow
 
 1. Open or reference an Issue for non-trivial changes.

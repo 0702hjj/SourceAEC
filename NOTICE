@@ -20,10 +20,24 @@ Key third-party runtime dependencies include:
 - IfcOpenShell and IfcDiff: LGPL-3.0-or-later
 - ezdxf, pgx, React, Vite, zustand, and FastAPI: permissive licenses
 
+The IFC web experience has two viewer implementations. The xeokit path loads
+server-generated XKT through `@xeokit/xeokit-sdk`. The web-ifc path reads IFC
+directly in the browser through web-ifc and Three.js, without using XKT at
+runtime. The server-side converter separately uses `@xeokit/xeokit-convert`
+and web-ifc to generate XKT and metadata.
+
 The tracked `web/public/wasm/web-ifc*.wasm` files are web-ifc distribution
-artifacts and remain subject to MPL-2.0. The web frontend also depends on
-AGPL-3.0 xeokit; deployments and redistributed frontend builds must comply
-with that license. Dependency manifests and lockfiles contain exact versions.
+artifacts and remain subject to MPL-2.0. Although the two viewer paths are
+separate implementations, the current standard web build includes both and
+declares xeokit as a dependency. Selecting web-ifc at runtime does not remove
+xeokit from the distributed build. Deployments and redistributed builds must
+therefore be reviewed against the licenses of the components actually included
+in the build. A xeokit-free deployment requires a separately verified build
+that does not include or depend on xeokit. Dependency manifests and lockfiles
+contain exact versions.
 
 No private reference dataset or real-project drawing is distributed in this
 repository.
+
+See PROJECT_PROVENANCE.md for the project's origin, authorship, contribution
+provenance, and rights-reporting statement.

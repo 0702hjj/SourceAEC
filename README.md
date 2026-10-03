@@ -122,15 +122,20 @@ npm run docs:build
 
 ## Development Provenance
 
-SourceAEC is an independent implementation based on public technical
-standards, documented open-source interfaces, public research, and functional
-and design specifications independently prepared by the maintainer. Its
-implementation was produced iteratively by AI coding agents through reviewed
-pull requests. No private or confidential third-party repository, source
-code, internal document, customer data, drawing, or other non-public technical
-material was supplied to those agents, used as an implementation input, or
-copied into this project. The repository history and pull requests preserve
-the development record.
+SourceAEC is an independent implementation informed by the public SimpleCADAPI
+project and its related research published in *Computer-Aided Design*, public
+IFC standards, documented open-source interfaces, and other public technical
+literature. No private or confidential third-party repository, source code,
+internal document, customer data, drawing, or other non-public technical
+material was intentionally used as an implementation input or copied into this
+project. The public Git history begins with an initial source snapshot;
+subsequent development is recorded through commits and pull requests.
+
+The project was independently undertaken outside the duties specified in the
+maintainer's internship agreement and was not developed to perform an
+internship work assignment. It did not use the internship organization's
+material or technical resources and was implemented from public materials
+using personally funded resources.
 
 Contributions must have a documented, lawful provenance. Contributors certify
 their right to submit each contribution, disclose incorporated third-party
@@ -141,6 +146,10 @@ your rights, please open an Issue with the affected path and the basis of your
 claim so it can be investigated promptly. Do not disclose confidential
 materials or personal data in a public Issue; use a private GitHub security
 report or private maintainer contact when available.
+
+The project's independent origin, development record, rights position, and
+third-party licensing boundaries are described in
+[PROJECT_PROVENANCE.md](PROJECT_PROVENANCE.md).
 
 ## Use And Warranty Boundary
 
@@ -156,9 +165,10 @@ for bundled dependencies govern the applicable warranty and liability terms.
 
 ## License
 
-SourceAEC is licensed under Apache-2.0. The `skills/aiplan` and
+SourceAEC-authored material is licensed under Apache-2.0. The `skills/aiplan` and
 `skills/aidxf` directories are MIT-licensed by default; file-level SPDX
 identifiers override that directory default. Third-party runtime components
-are described in [NOTICE](NOTICE). The frontend
-depends on AGPL-3.0 xeokit, and the tracked web-ifc WASM files remain subject
-to MPL-2.0.
+are described in [NOTICE](NOTICE). The IFC web experience has separate xeokit
+and web-ifc viewer paths. The current standard web build includes both, so
+selecting web-ifc at runtime does not remove xeokit or its AGPL-3.0 obligations
+from that build. The tracked web-ifc WASM files remain subject to MPL-2.0.
