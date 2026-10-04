@@ -59,6 +59,7 @@ export default defineConfig({
           text: '开发',
           items: [
             { text: '总体架构', link: '/development/architecture' },
+            { text: '引擎与集成边界', link: '/development/integration-boundaries' },
             { text: 'Web 前端', link: '/development/web' },
             { text: 'Go Server', link: '/development/server' },
             { text: 'IFC 编辑服务', link: '/development/edit-service' },
