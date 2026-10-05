@@ -9,6 +9,8 @@ people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
+SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与集成边界](docs/site/development/integration-boundaries.md)。
+
 ## Highlights
 
 - Agent-facing REST APIs and skills for IFC authoring and editing.
