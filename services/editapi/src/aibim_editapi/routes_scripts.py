@@ -22,6 +22,7 @@ from fastapi import APIRouter
 
 from .deps import ScriptsDeps
 from .profile import ServiceProfile
+from .routes_git import build_git_router
 from .routes_script_locate import build_locate_router
 from .routes_script_run import build_run_router
 from .routes_script_staging import build_staging_router
@@ -37,4 +38,5 @@ def build_scripts_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRoute
     router.include_router(build_run_router(profile, deps))
     router.include_router(build_script_versions_router(profile, deps))
     router.include_router(build_locate_router(profile, deps))
+    router.include_router(build_git_router(profile, deps))
     return router

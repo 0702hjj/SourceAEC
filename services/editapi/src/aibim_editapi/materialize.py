@@ -29,6 +29,7 @@ import threading
 from typing import Any, Optional
 
 from . import script_versions, versions
+from .version_inputs import replay
 from .config import Settings
 
 CACHE_MAX = 4
@@ -111,7 +112,8 @@ def materialize_version(
     # dest_tmp），此处再包一层使物化契约不依赖 runner 内部实现。
     tmp = f"{cached}.{os.getpid()}.{threading.get_ident()}.tmp"
     try:
-        runner.run_script(settings, script_text, tmp, map_out=None)
+        with replay(os.path.dirname(script), version):
+            runner.run_script(settings, script_text, tmp, map_out=None)
         os.replace(tmp, cached)
     except BaseException:
         _discard_partial(tmp, tmp + ".map.json")

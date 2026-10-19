@@ -113,6 +113,8 @@ def save(
     note: str = "",
     map_text: Optional[str] = None,
     building_text: Optional[str] = None,
+    inputs_text: Optional[str] = None,
+    manifest_text: Optional[str] = None,
     *,
     ext: str,
 ) -> str:
@@ -151,6 +153,9 @@ def save(
         _write_atomic(os.path.join(directory, f"{version}.map.json"), map_text)
     if building_text is not None:
         _write_atomic(os.path.join(directory, f"{version}.building.json"), building_text)
+    for suffix, text in (("inputs", inputs_text), ("build", manifest_text)):
+        if text is not None:
+            _write_atomic(os.path.join(directory, f"{version}.{suffix}.json"), text)
     versions.snapshot_as(data_dir, model_id, src_path, version, ext=ext)
     _prune_rebuildable_snapshots(data_dir, model_id, version, ext)
     return version
