@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 
 from fastapi import FastAPI
+from aibim_sandbox import artifacts
 
 from .config import load_settings
 from .pending import PendingStore
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     """Create the FastAPI app with a shared ModelRegistry."""
     app = FastAPI(title="ifc-edit-service")
     settings = load_settings()
+    artifacts.initialize(settings.data_dir)
     app.state.settings = settings
     app.state.registry = ModelRegistry(max_models=settings.max_models)
     # route_common.model_lock 的锁来源：registry 自身（与 registry.save/unload

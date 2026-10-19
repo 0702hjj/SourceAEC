@@ -137,7 +137,7 @@ export async function downloadIfcBytes(id: string): Promise<Uint8Array> {
   const headers = new Headers();
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const resp = await fetch(downloadUrl(id), { headers });
+  const resp = await fetch(downloadUrl(id), { headers, cache: "no-store" });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return new Uint8Array(await resp.arrayBuffer());
 }
@@ -200,18 +200,18 @@ export function fetchScript(modelId: string) {
 export function fetchScriptParams(modelId: string) {
   return request<ScriptParamsResponse>(`/api/v1/models/${modelId}/script/params`);
 }
-export function stageScript(modelId: string, script: string, note = "") {
+export function stageScript(modelId: string, script: string, note = "", baseRevision?: string) {
   return request<ScriptStageResult>(`/api/v1/models/${modelId}/script`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, note }),
+    body: JSON.stringify({ script, note, baseRevision }),
   });
 }
-export function stageScriptParams(modelId: string, params: Record<string, unknown>, note = "") {
+export function stageScriptParams(modelId: string, params: Record<string, unknown>, note = "", baseRevision?: string) {
   return request<ScriptStageResult>(`/api/v1/models/${modelId}/script`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ params, note }),
+    body: JSON.stringify({ params, note, baseRevision }),
   });
 }
 export function scriptUndo(modelId: string) {
@@ -268,4 +268,24 @@ export function locateScriptByKey(modelId: string, key: string) {
   return request<ScriptLocateResult>(
     `/api/v1/models/${modelId}/script/locate?key=${encodeURIComponent(key)}`
   );
+}
+
+
+export function editScriptCall(modelId: string, edit: {
+  designKey: string; argument: string; value: string | number | boolean;
+  baseRevision: string; mode: "parameter" | "override";
+}) {
+  return request<ScriptStageResult>(`/api/v1/models/${modelId}/script/edit-call`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edit),
+  });
+}
+export function fetchGitState(modelId: string) {
+  return request<import("./types").GitState>(`/api/v1/models/${modelId}/git`);
+}
+export function changeGitBranch(modelId: string, action: "branches" | "checkout" | "merge",
+  branch: string, baseRevision: string) {
+  return request<import("./types").GitState>(`/api/v1/models/${modelId}/git/${action}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch, baseRevision }),
+  });
 }

@@ -19,6 +19,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,7 +164,10 @@ func (b *fsReadOnlyBackend) withinSkillWork(p string) bool {
 // LLM 意图中间产物）；其余路径拒绝（领域收敛红线不破——不写 models/uploads/任意路径）。
 func (b *fsReadOnlyBackend) Write(ctx context.Context, req *filesystem.WriteRequest) error {
 	if b.withinSkillWork(req.FilePath) {
-		return b.inner.Write(ctx, req)
+		if err := b.inner.Write(ctx, req); err != nil {
+			return err
+		}
+		return artifact.Capture(req.FilePath)
 	}
 	return fmt.Errorf("领域收敛：filesystem 只允许写 skill 工作区（skill-work/{projectID}/，产 design.json 等中间产物）；目标 %q 不在白名单", req.FilePath)
 }
@@ -171,7 +175,10 @@ func (b *fsReadOnlyBackend) Write(ctx context.Context, req *filesystem.WriteRequ
 // Edit 拒绝：同上（仅 skill 工作区可改写）。
 func (b *fsReadOnlyBackend) Edit(ctx context.Context, req *filesystem.EditRequest) error {
 	if b.withinSkillWork(req.FilePath) {
-		return b.inner.Edit(ctx, req)
+		if err := b.inner.Edit(ctx, req); err != nil {
+			return err
+		}
+		return artifact.Capture(req.FilePath)
 	}
 	return fmt.Errorf("领域收敛：filesystem 只允许改 skill 工作区（skill-work/{projectID}/）；目标 %q 不在白名单", req.FilePath)
 }

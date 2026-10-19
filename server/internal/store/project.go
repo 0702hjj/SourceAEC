@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -63,10 +64,10 @@ func (s *ProjectStore) write(p *Project) error {
 		return err
 	}
 	tmp := s.path(p.ID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.path(p.ID))
+	return artifact.Rename(tmp, s.path(p.ID))
 }
 
 // Create 创建空项目（无模型）；模型随后经 AddModel 挂入（create_project 先建
@@ -128,7 +129,7 @@ func (s *ProjectStore) Get(id string) (*Project, error) {
 	if !validProjectID(id) {
 		return nil, ErrInvalidID
 	}
-	data, err := os.ReadFile(s.path(id))
+	data, err := artifact.ReadFile(s.path(id))
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
@@ -174,5 +175,5 @@ func (s *ProjectStore) Delete(id string) error {
 	if _, err := s.Get(id); err != nil {
 		return err
 	}
-	return os.RemoveAll(s.dir(id))
+	return artifact.RemoveAll(s.dir(id))
 }

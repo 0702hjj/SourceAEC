@@ -22,6 +22,11 @@ func (h *handler) registerScriptRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/models/{id}/script/undo", h.scriptPost("undo"))
 	mux.HandleFunc("POST /api/v1/models/{id}/script/redo", h.scriptPost("redo"))
 	mux.HandleFunc("POST /api/v1/models/{id}/script/discard", h.scriptPost("discard"))
+	mux.HandleFunc("POST /api/v1/models/{id}/script/edit-call", h.scriptMutatingPost("edit-call"))
+	mux.HandleFunc("GET /api/v1/models/{id}/git", h.scriptGitGet)
+	for _, action := range []string{"branches", "checkout", "merge"} {
+		mux.HandleFunc("POST /api/v1/models/{id}/git/"+action, h.gitMutatingPost(action))
+	}
 	mux.HandleFunc("POST /api/v1/models/{id}/script/run", h.scriptMutatingPost("run"))
 	mux.HandleFunc("POST /api/v1/models/{id}/script/save", h.scriptMutatingPost("save"))
 	mux.HandleFunc("POST /api/v1/models/{id}/script/rollback", h.scriptMutatingPost("rollback"))
@@ -72,18 +77,15 @@ func (h *handler) scriptMutatingPost(action string) func(http.ResponseWriter, *h
 		if cl == nil {
 			return
 		}
-		if !h.scriptProxyDo(w, r, http.MethodPost, "/models/"+modelID+"/script/"+action, body, cl.DoSlow) {
+		raw, err := cl.DoSlow(r.Context(), http.MethodPost, "/models/"+modelID+"/script/"+action, body)
+		if err != nil {
+			writeEditErr(w, err)
 			return
 		}
-		if m.Kind == store.KindDXF {
-			return
+		if m.Kind != store.KindDXF {
+			h.q.EnqueueIfStale(modelID)
 		}
-		if !h.q.EnqueueIfStale(modelID) {
-			// 同源未变：IFC mtime 不新于 XKT → 跳过冗余重转，保持 ready。
-			log.Printf("script %s %s: reconvert skipped (IFC not newer than XKT)", action, modelID)
-			return
-		}
-		log.Printf("script %s %s: reconvert queued", action, modelID)
+		writeJSON(w, raw)
 	}
 }
 
@@ -132,4 +134,30 @@ func (h *handler) scriptProxyDo(w http.ResponseWriter, r *http.Request, method, 
 	}
 	writeJSON(w, raw)
 	return true
+}
+
+func (h *handler) scriptGitGet(w http.ResponseWriter, r *http.Request) {
+	h.scriptProxy(w, r, http.MethodGet, "/models/"+r.PathValue("id")+"/git", nil)
+}
+func (h *handler) gitMutatingPost(action string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body := readBody(w, r)
+		if body == nil {
+			return
+		}
+		id := r.PathValue("id")
+		m, cl := h.editClientFor(w, id)
+		if cl == nil {
+			return
+		}
+		raw, err := cl.DoSlow(r.Context(), http.MethodPost, "/models/"+id+"/git/"+action, body)
+		if err != nil {
+			writeEditErr(w, err)
+			return
+		}
+		if m.Kind != store.KindDXF {
+			h.q.EnqueueIfStale(id)
+		}
+		writeJSON(w, raw)
+	}
 }

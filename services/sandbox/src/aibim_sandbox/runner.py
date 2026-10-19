@@ -30,6 +30,8 @@ flows helper + reset_state 后 runpy 跑用户脚本），否则直跑
 
 from __future__ import annotations
 
+from . import artifacts, build_cache, build_record, build_inputs
+
 import hashlib
 import importlib
 import json
@@ -278,10 +280,13 @@ def _run_in_sandbox(
         cmd = backend.sandbox_cmd(spec, workdir, extra_binds=env.ro_binds) + cmd_tail
         nproc = backend._nproc_budget(cfg.max_procs)  # 父进程算好，preexec 不扫 /proc
         fsize = _int_env("SCRIPT_MAX_FSIZE_BYTES", FSIZE_LIMIT_BYTES)
+        input_directory = build_inputs.project(workdir)
+        task_environment = build_cache.prepare(spec, script_text, out_path, workdir, env)
+        task_environment["SOURCEAEC_INPUT_DIR"] = input_directory
         proc = subprocess.Popen(
             cmd,
             cwd=workdir,
-            env=backend.sandbox_env(spec, workdir),
+            env={**backend.sandbox_env(spec, workdir), **task_environment},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=lambda: backend._limits(cfg, nproc, fsize),
@@ -357,6 +362,13 @@ def _run_in_sandbox(
         if os.path.isfile(tmp_map):
             map_entries = _validate_map_sidecar(tmp_map, product_limit)
 
+        with open(tmp_out, "rb") as product_file:
+            published = [(out_path, product_file.read())]
+        if map_entries is not None:
+            published.append((map_out or out_path + ".map.json", json.dumps(
+                {"scriptHash": script_hash(script_text), "map": map_entries}
+            ).encode()))
+        artifacts.publish(published)
         dest_tmp = out_path + ".tmp"
         shutil.copyfile(tmp_out, dest_tmp)
         os.replace(dest_tmp, out_path)
@@ -368,4 +380,8 @@ def _run_in_sandbox(
         if map_entries is not None:
             _publish_map_envelope(map_entries, script_text, map_dest)
         elif os.path.exists(map_dest):
+            artifacts.remove(map_dest)
             os.remove(map_dest)
+
+        task_stats = build_cache.publish(out_path, workdir)
+        build_record.publish(spec, script_text, out_path, map_dest, env, task_stats)

@@ -14,7 +14,8 @@ script-as-source API，为 Agent 和人提供 IFC 创建、编辑、检查、沙
 - 基于 IfcOpenShell、以可审查 Python 脚本为模型事实源的执行环境。
 - 可选的规划与 CAD/DXF 制图能力，以及浏览器二维查看器。
 - Python 构建脚本是模型唯一事实源。
-- 沙箱试运行与不可变版本快照。
+- 沙箱试运行、SQLite 持久化、Git 脚本提交与分支合并。
+- 显式依赖任务的增量构建，以及构件参数回写脚本。
 - 按 IFC GlobalId 的属性级语义对比。
 - React 前端、Go 网关和两个对等的 Python 编辑服务。
 - 进程内 AI agent；未配置 API key 时使用确定性离线模型。
@@ -44,7 +45,7 @@ Go 网关 :8090 ----> IFC 服务 :8100 ----> IfcOpenShell
 
 ## 快速开始
 
-需要 Go 1.26、Node.js 22、Python 3.10、`uv`，以及 Linux 上的 bubblewrap。
+需要 Go 1.26、Node.js 22、Python 3.10、`uv`、Git、支持 CGO 的 C 编译器，以及 Linux 上的 bubblewrap。
 生产环境缺少 bubblewrap 时，脚本执行会 fail-closed。
 
 ```bash

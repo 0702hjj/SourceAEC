@@ -2,6 +2,7 @@
 // Copyright (C) 2026 0702hjj
 
 export interface ModelInfo {
+  revision?: string;
   id: string;
   name: string;
   size: number;
@@ -92,6 +93,7 @@ export interface DiffResponse {
 // --- script-as-source 编辑（WPS 式暂存 + 大版本，W-0013） ---
 
 export interface ScriptState {
+  revision?: string;
   modelId: string;
   script: string;
   staged: number;
@@ -157,6 +159,8 @@ export interface ScriptRunResult {
 export type ScriptLocateOrigin = "literal" | "params" | "traced";
 
 export interface ScriptLocateResult {
+  revision?: string;
+  arguments?: { argument: string; value: string | number | boolean; paramPath: string[] | null }[];
   found: boolean;
   designKey?: string;
   line?: number;
@@ -168,4 +172,11 @@ export interface ScriptLocateResult {
   params_keys?: string[];
   // staging 与 ScriptMap 分叉（有未运行的脚本修改）→ true：行号不可信，不跳行
   stale?: boolean;
+}
+
+export interface GitState {
+  branch: string;
+  branches: string[];
+  commit?: string;
+  commits: { commit: string; parents: string[]; note: string }[];
 }

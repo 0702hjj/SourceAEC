@@ -113,3 +113,21 @@ Optional: **Type** (`type.assign_type`), **Material** (`material.assign_material
 | `references/docs/design/README.md` + recipes | Component building recipes (stairs, roof, windows, parapet, balcony) |
 | `templates/build_skeleton.py` | Minimal complete model (skeleton + wall + slab) — copy and edit |
 | `workflows/PLAN_IFC.md` | **工作流编排**：plan（可选草稿）→ script（事实源）→ IFC 的阶段顺序与跳步规则（辅助设计师） |
+
+## Versioned and incremental builds
+
+- Save through the platform API: each checkpoint creates a real Git commit.
+  Branches and merges use `/models/{id}/git`; check the current script revision
+  before edits. Do not invoke Git against a model's disposable workspace.
+- For editable wall dimensions, import `editable_elements.create_wall` from
+  the flows helpers. Use stable keys and direct `params["key"]` references;
+  the browser can then change shared parameters or override a single call.
+- For expensive independent geometry, use the sandbox-injected
+  `sourceaec_tasks.Task` and `run_tasks`. Declare every parameter and upstream
+  task dependency. Return JSON-compatible data or standalone IFC fragment
+  strings; assemble the final IFC and validate it on every build.
+- See `examples/incremental_walls.py` in the source distribution for a synthetic
+  fragment example. Ordinary scripts retain full-build behavior. Code, helper,
+  environment or input changes invalidate caches; cache reuse is an optimization.
+- Versioned external inputs are available under `SOURCEAEC_INPUT_DIR` inside
+  the sandbox. Never depend on host workspace paths for reproducibility.

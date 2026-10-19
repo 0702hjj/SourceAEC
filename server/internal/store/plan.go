@@ -14,6 +14,7 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -61,7 +62,7 @@ func (s *PlanStore) Get(projectID, name string) ([]byte, error) {
 	if !validProjectID(projectID) {
 		return nil, ErrInvalidID
 	}
-	data, err := os.ReadFile(s.currentPath(projectID, name))
+	data, err := artifact.ReadFile(s.currentPath(projectID, name))
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
@@ -91,7 +92,7 @@ func (s *PlanStore) Put(projectID, name string, content []byte) (string, error) 
 	// 归档旧当前态（首次 PUT 无旧文件 → v1）：
 	// 旧当前对应的版本 = 历史目录下一号（oldVer）；新当前版本 = oldVer+1。
 	version := "v1"
-	if old, err := os.ReadFile(s.currentPath(projectID, name)); err == nil {
+	if old, err := artifact.ReadFile(s.currentPath(projectID, name)); err == nil {
 		histDir := s.historyDir(projectID, name)
 		if err := os.MkdirAll(histDir, 0o755); err != nil {
 			return "", err
@@ -157,7 +158,7 @@ func (s *PlanStore) ListHistory(projectID, name string) ([]string, error) {
 // 版本不存在（含当前态版本——它不在 history/ 下）→ ErrNotFound。
 // Delete 删除项目全部方案产物（plans/{projectID} 目录）；幂等（不存在不报错）。
 func (s *PlanStore) Delete(projectID string) error {
-	return os.RemoveAll(s.dir(projectID))
+	return artifact.RemoveAll(s.dir(projectID))
 }
 
 func (s *PlanStore) LoadHistory(projectID, name, version string) ([]byte, error) {
@@ -170,7 +171,7 @@ func (s *PlanStore) LoadHistory(projectID, name, version string) ([]byte, error)
 	if !planVersionRe.MatchString(version) {
 		return nil, ErrNotFound
 	}
-	data, err := os.ReadFile(filepath.Join(s.historyDir(projectID, name), version+".json"))
+	data, err := artifact.ReadFile(filepath.Join(s.historyDir(projectID, name), version+".json"))
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
@@ -185,10 +186,10 @@ func writeAtomic(path string, content []byte) error {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, content, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, content, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	return artifact.Rename(tmp, path)
 }
 
 func atoiOrZero(s string) int {

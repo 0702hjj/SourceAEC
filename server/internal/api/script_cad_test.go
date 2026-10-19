@@ -248,19 +248,17 @@ func TestScriptProxyUnknownModel404(t *testing.T) {
 	}
 }
 
-// edit-call 按 spec 仅服务直连暴露：Go 路由表不注册 → mux 404（两 kind 同）。
-func TestEditCallRouteNotRegistered(t *testing.T) {
-	env, _, _ := newCadEnv(t)
-	for _, id := range []string{env.modelID} {
-		rec := doEditReq(t, env.mux, "POST", "/api/v1/models/"+id+"/script/edit-call", `{}`)
-		if rec.Code != http.StatusNotFound {
-			t.Fatalf("status = %d, want 404（edit-call 不经 Go 代理；body %s）", rec.Code, rec.Body)
-		}
+// Both model kinds expose edits through the authenticated public gateway.
+func TestEditCallProxyByKind(t *testing.T) {
+	env, edPy, cadPy := newCadEnv(t)
+	path := "/models/" + env.modelID + "/script/edit-call"
+	cadPy.set("POST", path, 200, `{"staged":1}`)
+	rec := doEditReq(t, env.mux, "POST", "/api/v1/models/"+env.modelID+"/script/edit-call", `{"key":"wall","argument":"name","value":"Updated"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
-	ifcEnv := newEditEnv(t, "")
-	rec := doEditReq(t, ifcEnv.mux, "POST", "/api/v1/models/"+ifcEnv.modelID+"/script/edit-call", `{}`)
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("ifc: status = %d, want 404（body %s）", rec.Code, rec.Body)
+	if cadPy.callCount() != 1 || edPy.callCount() != 0 {
+		t.Fatal("wrong edit service")
 	}
 }
 

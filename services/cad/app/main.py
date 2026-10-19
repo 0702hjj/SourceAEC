@@ -13,6 +13,7 @@ ModelRegistry/PendingStore (no in-memory entity cache, no L1 legacy).
 from __future__ import annotations
 
 from fastapi import FastAPI
+from aibim_sandbox import artifacts
 
 from aibim_sandbox.route_common import ModelLocks
 
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     """Create the FastAPI app with settings and the script staging registry."""
     app = FastAPI(title="cad-edit-service")
     settings = load_settings()
+    artifacts.initialize(settings.data_dir)
     app.state.settings = settings
     app.state.script_staging = StagingRegistry(settings.data_dir)
     # route_common.model_lock 的锁来源（W-0048 T1 统一签名；ifc 挂 ModelRegistry）。

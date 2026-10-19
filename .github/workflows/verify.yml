@@ -1,0 +1,75 @@
+name: Verify
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'services/**'
+      - 'web/**'
+      - 'skills/**'
+      - 'examples/**'
+      - 'docs/**'
+      - 'scripts/**'
+      - '.github/workflows/verify.yml'
+  push:
+    branches: [main]
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - run: go test ./... && go vet ./...
+        working-directory: server
+      - run: scripts/check_file_size.sh && scripts/check_public_snapshot.sh
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            docs/package-lock.json
+      - run: npm ci && npm test && npm run lint && npm run build
+        working-directory: web
+      - run: npm ci && npm run docs:build
+        working-directory: docs
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ifc, cad, sandbox]
+    env:
+      # Hosted runners may prohibit unprivileged user namespaces. Isolation
+      # behavior is tested separately; rlimit is explicitly test-only.
+      SANDBOX_BACKEND: rlimit
+      SCRIPT_ENV_BUILD_TIMEOUT_S: '120'
+      UV_HTTP_TIMEOUT: '30'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/aibim-sandbox-envs
+          key: sandbox-env-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles('services/**/uv.lock') }}
+      - run: uv run --python 3.10 --group dev pytest -q
+        working-directory: services/${{ matrix.service }}
+      - if: matrix.service != 'sandbox'
+        run: uv run --python 3.10 --group dev pytest ../editapi/tests -q
+        working-directory: services/${{ matrix.service }}

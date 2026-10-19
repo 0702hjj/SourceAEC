@@ -8,9 +8,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"ifcviewer/server/internal/artifact"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -24,10 +24,10 @@ type chatSession struct {
 	ModelID string `json:"modelId"`
 	// ProjectID 是项目级绑定（A2：1 session = 1 project）。旧会话无 ProjectID
 	// 视为单模型项目（模型即项目主体，兼容迁移）；幂等键 projectId 非空时优先。
-	ProjectID string `json:"projectId,omitempty"`
-	Title     string `json:"title"`
-	CreatedAt string `json:"createdAt"`
-	dirty     bool   `json:"-"` // write/edit 工具改过 uploads/{modelId}.ifc（file.edited 捕获）
+	ProjectID string    `json:"projectId,omitempty"`
+	Title     string    `json:"title"`
+	CreatedAt string    `json:"createdAt"`
+	dirty     bool      `json:"-"` // write/edit 工具改过 uploads/{modelId}.ifc（file.edited 捕获）
 	lastCheck time.Time `json:"-"` // 上次变更检测时刻；idle 时 mtime 晚于它即视为被改（兜底 bash/脚本改文件场景）
 }
 
@@ -39,7 +39,7 @@ func (h *ChatHandler) sessionsPath() string {
 // 去重：同 modelId 只保留最早 createdAt 一条——清理历史竞态残留（StrictMode 双发期产生），
 // 保证 createSession 的幂等检查（map 遍历）稳定命中同一条，不会因 map 顺序随机导致历史时有时无。
 func (h *ChatHandler) loadSessions() {
-	data, err := os.ReadFile(h.sessionsPath())
+	data, err := artifact.ReadFile(h.sessionsPath())
 	if err != nil {
 		return
 	}
@@ -99,11 +99,11 @@ func (h *ChatHandler) saveSessions() {
 		return
 	}
 	tmp := h.sessionsPath() + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		log.Printf("chat: save sessions: %v", err)
 		return
 	}
-	if err := os.Rename(tmp, h.sessionsPath()); err != nil {
+	if err := artifact.Rename(tmp, h.sessionsPath()); err != nil {
 		log.Printf("chat: save sessions rename: %v", err)
 	}
 }

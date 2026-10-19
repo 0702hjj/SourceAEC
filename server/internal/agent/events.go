@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -112,7 +113,7 @@ func (s *EventStore) Append(sessionID string, ev Event) error {
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(path, append(header, '\n'), 0o644); err != nil {
+		if err := artifact.WriteFile(path, append(header, '\n'), 0o644); err != nil {
 			return err
 		}
 	}
@@ -124,9 +125,14 @@ func (s *EventStore) Append(sessionID string, ev Event) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	_, err = f.Write(append(line, '\n'))
-	return err
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	return artifact.Capture(path)
 }
 
 // Load 读出会话全部事件；坏行（截断/非 JSON）跳过，不拖垮整个会话。
@@ -140,7 +146,7 @@ func (s *EventStore) LoadReport(sessionID string) (evs []Event, skipped int, err
 	if err := validateSessionID(sessionID); err != nil {
 		return nil, 0, err
 	}
-	raw, err := os.ReadFile(s.path(sessionID))
+	raw, err := artifact.ReadFile(s.path(sessionID))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, 0, nil
 	}
@@ -353,4 +359,3 @@ func compressHistoryMessages(evs []Event, budget int) []*schema.Message {
 	}
 	return out
 }
-

@@ -7,6 +7,7 @@ require (
 	github.com/cloudwego/eino-ext/adk/backend/local v0.2.1
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/mattn/go-sqlite3 v1.14.32
 )
 
 require (

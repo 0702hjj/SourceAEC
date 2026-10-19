@@ -66,6 +66,7 @@ export default defineConfig({
             { text: 'CAD 编辑服务', link: '/development/cad-service' },
             { text: '沙箱执行环境', link: '/development/sandbox' },
             { text: '存储与前端对接', link: '/development/integration' },
+            { text: '模型版本与增量构建', link: '/development/model-storage' },
             { text: '测试与调试', link: '/development/testing' },
           ],
         },

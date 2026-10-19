@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +49,7 @@ var idPattern = regexp.MustCompile(`^m_[0-9a-f]{16}$`)
 func validID(id string) bool { return idPattern.MatchString(id) }
 
 type Model struct {
+	Revision  string    `json:"revision,omitempty"`
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Size      int64     `json:"size"`
@@ -117,6 +119,9 @@ func (s *Store) CreateWithKind(name string, size int64, src io.Reader, kind stri
 	if closeErr != nil {
 		return nil, closeErr
 	}
+	if err := artifact.Capture(srcPath); err != nil {
+		return nil, err
+	}
 	m := &Model{ID: id, Name: name, Size: written, Status: status, Kind: kind, CreatedAt: time.Now().UTC()}
 	if err := s.write(m); err != nil {
 		return nil, err
@@ -144,17 +149,17 @@ func (s *Store) write(m *Model) error {
 		return err
 	}
 	tmp := filepath.Join(s.ModelDir(m.ID), "model.json.tmp")
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, filepath.Join(s.ModelDir(m.ID), "model.json"))
+	return artifact.Rename(tmp, filepath.Join(s.ModelDir(m.ID), "model.json"))
 }
 
 func (s *Store) Get(id string) (*Model, error) {
 	if !validID(id) {
 		return nil, ErrInvalidID
 	}
-	data, err := os.ReadFile(filepath.Join(s.ModelDir(id), "model.json"))
+	data, err := artifact.ReadFile(filepath.Join(s.ModelDir(id), "model.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrNotFound
 	}
@@ -168,6 +173,14 @@ func (s *Store) Get(id string) (*Model, error) {
 	// 存量迁移：无 kind 字段的旧记录按 ifc 处理（不破坏现有模型，W-0040）。
 	if m.Kind == "" {
 		m.Kind = KindIFC
+	}
+	if record, err := artifact.ReadFile(s.SourcePath(&m) + ".build.json"); err == nil {
+		var build struct {
+			Revision string `json:"revision"`
+		}
+		if json.Unmarshal(record, &build) == nil {
+			m.Revision = build.Revision
+		}
 	}
 	return &m, nil
 }
@@ -209,8 +222,8 @@ func (s *Store) Delete(id string) error {
 	if err != nil {
 		return err
 	}
-	_ = os.Remove(s.SourcePath(m))
-	return os.RemoveAll(s.ModelDir(id))
+	_ = artifact.Remove(s.SourcePath(m))
+	return artifact.RemoveAll(s.ModelDir(id))
 }
 
 func (s *Store) Recover() error {

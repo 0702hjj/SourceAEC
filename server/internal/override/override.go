@@ -6,6 +6,7 @@ package override
 import (
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"sync"
@@ -78,7 +79,7 @@ func (s *FileStore) overridesPath(modelID string) string {
 }
 
 func (s *FileStore) readAll(modelID string) (map[string]map[string]string, error) {
-	data, err := os.ReadFile(s.overridesPath(modelID))
+	data, err := artifact.ReadFile(s.overridesPath(modelID))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -98,10 +99,10 @@ func (s *FileStore) writeAll(modelID string, all map[string]map[string]string) e
 		return err
 	}
 	tmp := s.overridesPath(modelID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.overridesPath(modelID))
+	return artifact.Rename(tmp, s.overridesPath(modelID))
 }
 
 func (s *FileStore) GetAll(modelID string) (map[string]map[string]string, error) {
@@ -134,7 +135,7 @@ func (s *FileStore) Set(modelID, entityID string, patch map[string]string) (map[
 func (s *FileStore) DeleteModel(modelID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.Remove(s.overridesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := artifact.Remove(s.overridesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

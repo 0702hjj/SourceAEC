@@ -23,6 +23,7 @@
 None = 响应无该键）、``deps.compute_diff``（ifcopenshell vs ezdxf 引擎）。
 """
 
+import json
 import logging
 import os
 import shutil
@@ -32,12 +33,13 @@ from typing import Any, Callable, Dict, Optional
 from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel, Field
 
-from aibim_sandbox import script_versions
+from aibim_sandbox import script_versions, artifacts, git_store, build_record, build_inputs
 from aibim_sandbox.route_common import MODEL_ID_PATTERN
 from aibim_sandbox.route_common import model_lock, model_upload_path
 
 from .deps import ScriptsDeps
 from .profile import ServiceProfile
+from .version_inputs import replay
 from .routes_script_staging import bootstrap_path, staging_of, verify_current_script
 from .routes_script_versions import VERSION_NAME_PATTERN, verify_script_version
 
@@ -61,6 +63,7 @@ class SaveBody(BaseModel):
     """Optional body of POST /models/{id}/script/save."""
 
     note: str = ""
+    source: str = Field(default="human", pattern="^(human|ai)$")
 
 
 class RollbackBody(BaseModel):
@@ -100,14 +103,29 @@ def run_into_uploads(
     发布；None：无钩子）以调用时属性解析，保证测试 patch seam。
     """
     product_path = model_upload_path(request, model_id, ext)
-    runner.run_script(
-        request.app.state.settings,
-        script,
-        product_path,
-        map_out=current_map_path(request, model_id),
-    )
+    map_path = current_map_path(request, model_id)
+    root = request.app.state.settings.data_dir
+    inputs = build_inputs.current() if build_inputs.active() else build_inputs.collect(root, model_id)
+    with build_inputs.use(inputs):
+        reused = hasattr(runner, "_spec") and build_record.reusable(
+            runner._spec(request.app.state.settings), script, product_path, map_path
+        )
+        if not reused:
+            runner.run_script(request.app.state.settings, script, product_path, map_out=map_path)
+    input_path = os.path.join(root, "models", model_id, "current.inputs.json")
+    encoded = json.dumps(inputs, sort_keys=True).encode()
+    artifacts.publish([(input_path, encoded)])
+    with open(input_path, "wb") as fh:
+        fh.write(encoded)
     if after_run is not None:
+        if ext == "dxf":
+            artifacts.track_projection(os.path.join(root, "models", model_id, "render.json"))
         after_run(request, model_id, product_path)
+    record_path = product_path + ".build.json"
+    if os.path.isfile(record_path):
+        current_record = os.path.join(request.app.state.settings.data_dir, "models", model_id, "current.build.json")
+        shutil.copyfile(record_path, current_record)
+        artifacts.capture(current_record)
     return product_path
 
 
@@ -254,18 +272,43 @@ def build_run_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRouter:
             sidecars: Dict[str, str] = (
                 deps.save_sidecars(request, id) if deps.save_sidecars is not None else {}
             )
-            version = script_versions.save(
-                request.app.state.settings.data_dir,
-                id,
-                current,
-                product_path,
-                note=note,
-                map_text=map_text,
-                ext=ext,
-                **sidecars,
-            )
-            staging.save()
+            git_store.import_history(request.app.state.settings.data_dir, id)
+            previous = staging.to_dict()
+            try:
+                with artifacts.transaction(request.app.state.settings.data_dir):
+                    version = script_versions.save(
+                        request.app.state.settings.data_dir,
+                        id,
+                        current,
+                        product_path,
+                        note=note,
+                        map_text=map_text,
+                        ext=ext,
+                        inputs_text=artifacts.read(os.path.join(request.app.state.settings.data_dir, "models", id, "current.inputs.json")).decode(),
+                        manifest_text=artifacts.read(product_path + ".build.json").decode()
+                        if os.path.isfile(product_path + ".build.json") else None,
+                        **sidecars,
+                    )
+                    inputs = {}
+                    model_dir = os.path.join(request.app.state.settings.data_dir, "models", id)
+                    for filename in ("current.build.json", "current.map.json", "current.inputs.json"):
+                        path = os.path.join(model_dir, filename)
+                        if os.path.isfile(path):
+                            with open(path, encoding="utf-8") as fh:
+                                inputs[filename] = json.load(fh)
+                    revision = git_store.commit(
+                        request.app.state.settings.data_dir, id, current, note,
+                        source=body.source if body else "human", inputs=inputs, version=version,
+                    )
+                    artifacts.capture_tree(os.path.join(model_dir, "scripts"))
+                    staging.save()
+            except BaseException:
+                staging.base = previous["base"]
+                staging.history = previous["history"]
+                staging.cursor = previous["cursor"]
+                raise
             payload: Dict[str, Any] = {"modelId": id, "version": version, "staged": 0}
+            payload.update(revision)
             if deps.alignment is not None:
                 payload["alignment"] = deps.alignment(request, id, product_path)
             return payload
@@ -281,8 +324,11 @@ def build_run_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRouter:
         with model_lock(request, id, ext):
             data_dir = request.app.state.settings.data_dir
             script = verify_script_version(data_dir, id, body.version)
+            directory = script_versions.scripts_dir(data_dir, id)
+            with replay(directory, body.version):
+                _run_into_uploads(request, id, script)
+            git_store.commit(data_dir, id, script, f"Restore {body.version}", source="human")
             staging = request.app.state.script_staging.reset(id, base=script)
-            _run_into_uploads(request, id, script)
             return {"modelId": id, "version": body.version, "script": staging.current()}
 
     return router

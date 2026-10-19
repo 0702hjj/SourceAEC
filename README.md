@@ -22,6 +22,8 @@ SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与�
 - React frontend, Go gateway, and peer Python edit services.
 - In-process AI agent with deterministic offline fallback.
 
+Storage and incremental-build details: [model storage](https://0702hjj.github.io/SourceAEC/development/model-storage). The gateway SQLite driver requires CGO and a C compiler; script versioning requires Git.
+
 ## Architecture
 
 ```text

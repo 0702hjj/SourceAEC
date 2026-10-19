@@ -10,6 +10,8 @@ pattern as ``ModelRegistry.save``.
 
 from __future__ import annotations
 
+from aibim_sandbox import artifacts
+
 import json
 import os
 from typing import Any, Dict, List
@@ -39,5 +41,5 @@ def append_history(
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(entries_all, fh, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
+    artifacts.replace(tmp, path)
     return entries_all

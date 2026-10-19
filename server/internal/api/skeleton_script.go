@@ -5,8 +5,10 @@
 // 骨架脚本 = 满足 edit-service 脚本契约（PARAMS 顶层字面量 + build(params, out_path) +
 // __main__ 调 build）的最小可构建脚本——沙箱执行生成最小骨架模型（v1），后续 agent
 // 在骨架上增量深化（stage→run→save）。骨架内容对齐旧 skeletonIFC/skeletonDXF：
-//   IFC：IfcProject + 几何上下文 + 单位（最小聚合树，无 storey）
-//   DXF：空图纸（HEADER + 空 ENTITIES）
+//
+//	IFC：IfcProject + 几何上下文 + 单位（最小聚合树，无 storey）
+//	DXF：空图纸（HEADER + 空 ENTITIES）
+//
 // 自包含（不依赖 skills script_lib——沙箱内不保证 skills 引用路径）。
 package api
 

@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from fastapi import APIRouter, HTTPException, Path, Query, Request
 from pydantic import BaseModel, create_model
 
-from aibim_sandbox import script_edit
+from aibim_sandbox import script_edit, script_bindings
 from aibim_sandbox.route_common import MODEL_ID_PATTERN
 from aibim_sandbox.route_common import model_lock, model_upload_path
 from aibim_sandbox.runner import script_hash
@@ -135,7 +135,8 @@ def _edit_call_body_model(field: str) -> type:
     return create_model(
         "EditCallBody",
         __doc__="Body of POST /models/{id}/script/edit-call: scalar argument rewrite.",
-        **{field: (str, ...), "argument": (str, ...), "value": (Any, ...)},
+        **{field: (str, ...), "argument": (str, ...), "value": (Any, ...), "baseRevision": (Optional[str], None),
+           "mode": (str, "override")},
     )
 
 
@@ -177,7 +178,11 @@ def build_locate_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRouter
         entry = entries.get(key)
         if entry is None:
             return {"found": False, resp_field: key}
-        return {"found": True, resp_field: key, **entry}
+        current = staging.current()
+        return {"found": True, resp_field: key, **entry,
+                "revision": script_hash(current),
+                "arguments": script_bindings.bindings(current, entry["line"])
+                if entry.get("origin") != "traced" else []}
 
     @router.post("/models/{id}/script/edit-call")
     def edit_call(
@@ -195,12 +200,29 @@ def build_locate_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRouter
         with model_lock(request, id, ext):
             staging = staging_of(request, id)
             current = verify_current_script(staging, 409)
+            verify_base_revision(body.baseRevision, current)
             map_hash, entries = read_current_map(current_map_path(request, id))
             entries = verify_map_fresh(map_hash, entries, current, key)
             entry = verify_editable_origin(entries, key)
-            text = verify_rewritten_script(current, entry, body.argument, body.value)
+            text = verify_bound_edit(current, entry, body.argument, body.value, body.mode)
             _run_into_uploads(request, id, text)
             staging.push(text)
             return {"modelId": id, "staged": staging.staged_count(), "script": text}
 
     return router
+
+
+def verify_base_revision(revision: Optional[str], current: str) -> None:
+    if revision is not None and revision != script_hash(current):
+        raise HTTPException(status_code=409, detail="script revision changed; refresh before editing")
+
+
+def verify_bound_edit(current, entry, argument, value, mode):
+    if mode == "override":
+        return verify_rewritten_script(current, entry, argument, value)
+    if mode != "parameter":
+        raise HTTPException(status_code=422, detail="mode must be parameter or override")
+    try:
+        return script_bindings.update_parameter(current, entry["line"], argument, value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -93,7 +93,7 @@ func modelTools(deps ToolDeps) []tool.InvokableTool {
 				if errText != "" {
 					return errText, nil
 				}
-				body, _ := json.Marshal(map[string]string{"note": in.Note})
+				body, _ := json.Marshal(map[string]string{"note": in.Note, "source": "ai"})
 				out, err := cl.DoSlow(ctx, http.MethodPost, "/models/"+m.ID+"/script/save", body)
 				if err != nil {
 					return toolErr(err), nil

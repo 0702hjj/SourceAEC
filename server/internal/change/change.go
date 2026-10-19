@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"sort"
@@ -72,7 +73,7 @@ func newID() string {
 }
 
 func (s *FileStore) readAll(modelID string) ([]*Entry, error) {
-	data, err := os.ReadFile(s.changesPath(modelID))
+	data, err := artifact.ReadFile(s.changesPath(modelID))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -92,10 +93,10 @@ func (s *FileStore) writeAll(modelID string, entries []*Entry) error {
 		return err
 	}
 	tmp := s.changesPath(modelID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.changesPath(modelID))
+	return artifact.Rename(tmp, s.changesPath(modelID))
 }
 
 func (s *FileStore) List(modelID string) ([]*Entry, error) {
@@ -132,7 +133,7 @@ func (s *FileStore) Append(modelID string, entries ...*Entry) error {
 func (s *FileStore) DeleteModel(modelID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.Remove(s.changesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := artifact.Remove(s.changesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

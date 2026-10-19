@@ -41,11 +41,11 @@ vi.mock("@/dxfviewer/DxfViewer", async () => {
 });
 vi.mock("@/ifcviewer/IfcLiteViewer", async () => {
   const React = await import("react");
-  function MockIfcLiteViewer({ modelId }: { modelId: string }) {
+  function MockIfcLiteViewer({ modelId, revision }: { modelId: string; revision?: number }) {
     React.useEffect(() => {
       mounts.ifcLite += 1;
     }, []);
-    return <div data-testid="ifc-lite-viewer">{modelId}</div>;
+    return <div data-testid="ifc-lite-viewer" data-revision={revision}>{modelId}</div>;
   }
   return { default: MockIfcLiteViewer };
 });
@@ -287,7 +287,7 @@ describe("ViewerPage staged preview (viewer.staged 中途刷新)", () => {
     expect(screen.queryByText(/AI 中间结果/)).toBeNull();
   });
 
-  it("kind=ifc 且引擎 webifc：自动重挂 IfcLiteViewer，不出角标", async () => {
+  it("kind=ifc 且引擎 webifc：更新 revision 并保留查看器，不出角标", async () => {
     localStorage.setItem("viewerEngine", "webifc");
     api.fetchModel.mockResolvedValue(model("ready", "ifc"));
     renderPage();
@@ -295,7 +295,8 @@ describe("ViewerPage staged preview (viewer.staged 中途刷新)", () => {
     expect(mounts.ifcLite).toBe(1);
     staged("m_1", "ifc");
     await act(async () => {});
-    expect(mounts.ifcLite).toBe(2);
+    expect(mounts.ifcLite).toBe(1);
+    expect(screen.getByTestId("ifc-lite-viewer").getAttribute("data-revision")).toBe("1");
     expect(screen.queryByText(/AI 中间结果/)).toBeNull();
   });
 

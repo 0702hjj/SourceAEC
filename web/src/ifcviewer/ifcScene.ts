@@ -9,10 +9,12 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { groupMeshes, sameGeometry } from "./meshDiff";
 import type { IfcMeshData } from "./ifcLoader";
 
 export interface IfcSceneHandle {
   addMesh(mesh: IfcMeshData): void;
+  replaceMeshes?(meshes: IfcMeshData[]): void;
   fitToBoundingBox(): void;
   /** null 清除高亮；返回拾取到的 expressID（画布点击由组件层转发）。 */
   pick(clientX: number, clientY: number): number | null;
@@ -66,15 +68,19 @@ export function mountIfcScene(canvas: HTMLCanvasElement): IfcSceneHandle {
 
   const raycaster = new THREE.Raycaster();
 
-  return {
+  let previous = new Map<string, IfcMeshData[]>();
+  const handle: IfcSceneHandle = {
     addMesh(mesh: IfcMeshData) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
       geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+      geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       const material = new THREE.MeshLambertMaterial({
         color: new THREE.Color(mesh.color.x, mesh.color.y, mesh.color.z),
         side: THREE.DoubleSide,
+        transparent: mesh.color.w < 1,
+        opacity: mesh.color.w,
       });
       const object = new THREE.Mesh(geometry, material);
       object.matrixAutoUpdate = false;
@@ -86,12 +92,36 @@ export function mountIfcScene(canvas: HTMLCanvasElement): IfcSceneHandle {
       byExpress.set(mesh.expressID, group);
       originalColors.set(object, material.color.clone());
     },
+    replaceMeshes(meshes) {
+      const incoming = groupMeshes(meshes);
+      const retained = new Map<number, THREE.Mesh[]>();
+      for (const [key, old] of previous) {
+        const next = incoming.get(key);
+        const objects = byExpress.get(old[0].expressID) ?? [];
+        if (next && sameGeometry(old, next)) {
+          for (const object of objects) object.userData.expressID = next[0].expressID;
+          retained.set(next[0].expressID, objects);
+          incoming.delete(key);
+        } else {
+          for (const object of objects) {
+            scene.remove(object);
+            originalColors.delete(object);
+            object.geometry.dispose();
+            (object.material as THREE.Material).dispose();
+          }
+        }
+      }
+      byExpress.clear();
+      for (const [id, objects] of retained) byExpress.set(id, objects);
+      for (const group of incoming.values()) for (const mesh of group) handle.addMesh(mesh);
+      previous = groupMeshes(meshes);
+    },
     fitToBoundingBox() {
       const box = new THREE.Box3();
       for (const group of byExpress.values()) {
         for (const m of group) {
-          m.geometry.computeBoundingBox();
-          if (m.geometry.boundingBox) box.union(m.geometry.boundingBox);
+          m.updateMatrixWorld(true);
+          box.expandByObject(m);
         }
       }
       if (box.isEmpty()) return;
@@ -146,4 +176,5 @@ export function mountIfcScene(canvas: HTMLCanvasElement): IfcSceneHandle {
       renderer.dispose();
     },
   };
+  return handle;
 }
