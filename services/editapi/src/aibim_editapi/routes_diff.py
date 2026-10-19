@@ -104,12 +104,16 @@ def verify_diff_within_timeout(
 
     饱和降级态（接受）：executor max_workers=2 时，两个超时 diff 各占一个 worker
     直至跑完；排队中的后续 diff 在 future.result(timeout) 内等不到空闲 worker
-    → 必然 504，调用方应把 504 当「diff 未完成」重试。
+    → 必然 504；尚未开始的任务取消，避免请求过期后继续重建/计算。
+    调用方应把 504 当「diff 未完成」重试。
     """
     future = _DIFF_EXECUTOR.submit(compute)
     try:
         return future.result(timeout=settings.diff_timeout_s)
     except FutureTimeoutError:
+        # Queued requests must not rebuild models after their caller received
+        # 504. cancel() leaves already-running workers and their locks intact.
+        future.cancel()
         raise HTTPException(status_code=504, detail="diff timed out")
 
 
