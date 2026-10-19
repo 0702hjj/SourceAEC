@@ -24,6 +24,8 @@ XKT、metadata、render.json、任务缓存和历史 IFC/DXF 是可重建数据�
 保存检查点后只保留最新版本的产品快照；历史脚本长期保存，旧产物按需
 重建并进入有限缓存。上传原件 bootstrap 用于复现与对齐，独立保留。
 
+配置 PostgreSQL 时也须单独备份其业务数据库。
+
 SQLite 使用 WAL。在线备份应使用 SQLite backup API；停止全部写入进程后
 也可以备份数据库文件及尚未 checkpoint 的 WAL，不能只复制活动数据库主文件。
 可用 Python 标准库执行在线备份：
