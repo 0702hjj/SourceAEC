@@ -74,10 +74,13 @@ export function mountIfcScene(canvas: HTMLCanvasElement): IfcSceneHandle {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
       geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+      geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       const material = new THREE.MeshLambertMaterial({
         color: new THREE.Color(mesh.color.x, mesh.color.y, mesh.color.z),
         side: THREE.DoubleSide,
+        transparent: mesh.color.w < 1,
+        opacity: mesh.color.w,
       });
       const object = new THREE.Mesh(geometry, material);
       object.matrixAutoUpdate = false;
@@ -117,8 +120,8 @@ export function mountIfcScene(canvas: HTMLCanvasElement): IfcSceneHandle {
       const box = new THREE.Box3();
       for (const group of byExpress.values()) {
         for (const m of group) {
-          m.geometry.computeBoundingBox();
-          if (m.geometry.boundingBox) box.union(m.geometry.boundingBox);
+          m.updateMatrixWorld(true);
+          box.expandByObject(m);
         }
       }
       if (box.isEmpty()) return;

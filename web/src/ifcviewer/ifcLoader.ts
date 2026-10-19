@@ -21,6 +21,7 @@ export interface IfcGeometryLike {
   GetVertexDataSize(): number;
   GetIndexData(): number;
   GetIndexDataSize(): number;
+  delete?(): void;
 }
 
 export interface IfcPlacedGeometryLike {
@@ -59,7 +60,7 @@ export interface IfcApiLike {
 
 // --- 提取结果形状（three 挂载层的输入，序列化友好） ---
 
-/** 单条 placed geometry：位置砍掉 w 分量、索引原样、携带放置矩阵。 */
+/** 单条 placed geometry：提取位置分量、索引原样、携带放置矩阵。 */
 export interface IfcMeshData {
   guid?: string;
   expressID: number;
@@ -102,11 +103,11 @@ export function loadIfcGeometry(api: IfcApiLike, modelID: number): IfcMeshData[]
     const guid = row ? fieldText(row, "GlobalId") ?? undefined : undefined;
     for (const placed of flat.geometries) {
       const geom = api.GetGeometry(modelID, placed.geometryExpressID);
-      // web-ifc 顶点为 (x,y,z,w) 4 分量交错，three BufferGeometry 用 3 分量
+      // web-ifc vertices interleave position(x,y,z) and normal(x,y,z).
       const verts = api.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
       const indices = api.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
-      const positions = new Float32Array(Math.floor(verts.length / 4) * 3);
-      for (let i = 0, o = 0; i < verts.length; i += 4, o += 3) {
+      const positions = new Float32Array(Math.floor(verts.length / 6) * 3);
+      for (let i = 0, o = 0; i < verts.length; i += 6, o += 3) {
         positions[o] = verts[i];
         positions[o + 1] = verts[i + 1];
         positions[o + 2] = verts[i + 2];
@@ -117,8 +118,9 @@ export function loadIfcGeometry(api: IfcApiLike, modelID: number): IfcMeshData[]
         positions,
         indices: new Uint32Array(indices),
         color: placed.color,
-        transform: placed.flatTransformation,
+        transform: [...placed.flatTransformation],
       });
+      geom.delete?.();
     }
   });
   return meshes;

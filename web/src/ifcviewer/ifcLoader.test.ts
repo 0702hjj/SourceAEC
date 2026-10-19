@@ -53,7 +53,7 @@ function fakeApi(opts: FakeApiOptions = {}): IfcApiLike & {
   calls: { setWasmPath: string[]; closed: number[]; lines: number[]; psetElements: number[] };
 } {
   const calls = { setWasmPath: [] as string[], closed: [] as number[], lines: [] as number[], psetElements: [] as number[] };
-  const vertexStore = new Map<number, Float32Array>([[1, new Float32Array([0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1])]]);
+  const vertexStore = new Map<number, Float32Array>([[1, new Float32Array([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1])]]);
   const indexStore = new Map<number, Uint32Array>([[2, new Uint32Array([0, 1, 2])]]);
   const geoms = new Map<number, IfcGeometryLike>();
   const api: IfcApiLike = {
@@ -72,7 +72,7 @@ function fakeApi(opts: FakeApiOptions = {}): IfcApiLike & {
     GetGeometry: (_id: number, geometryExpressID: number) => {
       const g = geoms.get(geometryExpressID);
       if (g) return g;
-      const created = fakeGeometry([0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1], [0, 1, 2]);
+      const created = fakeGeometry([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1], [0, 1, 2]);
       geoms.set(geometryExpressID, created);
       return created;
     },
@@ -130,7 +130,7 @@ describe("initIfcApi", () => {
 // --- 几何提取 ---
 
 describe("loadIfcGeometry", () => {
-  it("提取 placed geometry：位置砍 4 分量→3，索引原样，保留变换矩阵", () => {
+  it("提取 placed geometry：位置从 6 分量位置/法线中提取，索引原样，保留变换矩阵", () => {
     const api = fakeApi({
       meshes: [
         {
@@ -141,7 +141,7 @@ describe("loadIfcGeometry", () => {
     });
     const meshes = loadIfcGeometry(api, 7);
     expect(meshes).toHaveLength(1);
-    // fake 顶点堆 12 floats = 3 顶点 × (x,y,z,w) → 砍 w 后 9
+    // 18 floats = 3 vertices × (position + normal); 9 position values.
     expect(Array.from(meshes[0].positions)).toEqual([0, 0, 0, 1, 0, 0, 1, 1, 1]);
     expect(Array.from(meshes[0].indices)).toEqual([0, 1, 2]);
     expect(meshes[0].transform).toHaveLength(16);
