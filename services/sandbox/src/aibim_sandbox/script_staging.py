@@ -23,6 +23,8 @@ payloads are incompatible, so script staging uses a fresh file name.)
 
 from __future__ import annotations
 
+from . import artifacts
+
 import json
 import os
 from collections import OrderedDict
@@ -156,8 +158,7 @@ class StagingRegistry:
         if not os.path.isfile(path):
             return None
         try:
-            with open(path, "r", encoding="utf-8") as fh:
-                return ScriptStaging.from_dict(json.load(fh))
+            return ScriptStaging.from_dict(json.loads(artifacts.read(path)))
         except (OSError, ValueError, KeyError, TypeError):
             return None
 
@@ -169,7 +170,7 @@ class StagingRegistry:
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(staging.to_dict(), fh, ensure_ascii=False)
-        os.replace(tmp, path)
+        artifacts.replace(tmp, path)
 
     def _attach(self, staging: ScriptStaging) -> ScriptStaging:
         if self._data_dir is not None:

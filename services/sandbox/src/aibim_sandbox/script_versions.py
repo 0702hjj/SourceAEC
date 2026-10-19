@@ -27,6 +27,8 @@ W-0048 T1：原 services/ifc 与 services/cad 的 script_versions.py 合一—�
 
 from __future__ import annotations
 
+from . import artifacts
+
 import json
 import os
 import re
@@ -81,7 +83,7 @@ def _write_atomic(path: str, content: str) -> None:
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(content)
-    os.replace(tmp, path)
+    artifacts.replace(tmp, path)
 
 
 def _prune_rebuildable_snapshots(

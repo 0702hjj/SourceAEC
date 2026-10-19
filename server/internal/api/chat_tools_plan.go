@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 )
@@ -58,7 +59,7 @@ func (h *ChatHandler) planToWorkdirForAgent(ctx context.Context, projectID strin
 			return nil, fmt.Errorf("读方案产物 %s: %w", name, err)
 		}
 		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, content, 0o644); err != nil {
+		if err := artifact.WriteFile(path, content, 0o644); err != nil {
 			return nil, fmt.Errorf("写工作区 %s: %w", name, err)
 		}
 		if name == "plan.json" {
@@ -102,7 +103,7 @@ func (h *ChatHandler) upstreamToWorkdirForAgent(ctx context.Context, projectID s
 			return nil, fmt.Errorf("读上游产物 %s: %w（需先 deliver_building/deliver_plan）", name, err)
 		}
 		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, content, 0o644); err != nil {
+		if err := artifact.WriteFile(path, content, 0o644); err != nil {
 			return nil, fmt.Errorf("写工作区 %s: %w", name, err)
 		}
 		if name == "building.json" {

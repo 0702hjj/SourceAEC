@@ -5,7 +5,9 @@
 // 读写 + 方案级版本化（plan_history 列表）。
 //
 // 路由：/api/v1/projects/{projectID}/{name}（name 白名单 plan.json|bim_supplement.json）
-//       /api/v1/projects/{projectID}/plan_history
+//
+//	/api/v1/projects/{projectID}/plan_history
+//
 // 归属：chat mux（方案/项目是 chat 模块引入的资源，与 create_project 同族）。
 package api
 
@@ -13,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"net/http"
 	"os"
 	"os/exec"
@@ -270,7 +273,7 @@ func (h *ChatHandler) deliverPlanCore(ctx context.Context, projectID string, pla
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(workdir)
+	defer artifact.RemoveAll(workdir)
 	inPlan := filepath.Join(workdir, "plan.json")
 	inBim := filepath.Join(workdir, "bim_supplement.json")
 	if err := writeAtomicFile(inPlan, plan); err != nil {
@@ -293,11 +296,11 @@ func (h *ChatHandler) deliverPlanCore(ctx context.Context, projectID string, pla
 		}
 		return nil, errors.New("aiplan land 失败: " + strings.TrimSpace(out.String()))
 	}
-	planOut, err := os.ReadFile(filepath.Join(outDir, "plan.json"))
+	planOut, err := artifact.ReadFile(filepath.Join(outDir, "plan.json"))
 	if err != nil {
 		return nil, errors.New("aiplan land 未产出 plan.json")
 	}
-	bimOut, err := os.ReadFile(filepath.Join(outDir, "bim_supplement.json"))
+	bimOut, err := artifact.ReadFile(filepath.Join(outDir, "bim_supplement.json"))
 	if err != nil {
 		return nil, errors.New("aiplan land 未产出 bim_supplement.json")
 	}
@@ -314,10 +317,10 @@ func (h *ChatHandler) deliverPlanCore(ctx context.Context, projectID string, pla
 
 func writeAtomicFile(path string, content []byte) error {
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, content, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, content, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	return artifact.Rename(tmp, path)
 }
 
 // verifyAiplanAvailable 检查 aiplan 可执行（verify 层单点）：未配置 → 503。
@@ -331,8 +334,10 @@ func verifyAiplanAvailable(w http.ResponseWriter, aiplanBin string) bool {
 
 // deleteProject 删除项目并级联清理绑定产物（D13 后的删除入口单点——
 // 会话/项目/kind/agent 已绑定，删项目即删全套）：
-//   会话（chat-sessions.json）+ 事件日志（chat/{agentID}.jsonl）+
-//   方案产物（plans/{projectID}）+ 项目下模型（issues/changes/overrides + store 目录）。
+//
+//	会话（chat-sessions.json）+ 事件日志（chat/{agentID}.jsonl）+
+//	方案产物（plans/{projectID}）+ 项目下模型（issues/changes/overrides + store 目录）。
+//
 // 幂等：项目不存在 404；模型/方案缺失自动跳过。
 func (h *ChatHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	pid := r.PathValue("id")
@@ -351,7 +356,7 @@ func (h *ChatHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 		if cs.ProjectID == pid {
 			delete(h.sessions, cid)
 			delete(h.byAgent, cs.AgentID)
-			_ = os.Remove(filepath.Join(h.deps.DataDir, "chat", cs.AgentID+".jsonl"))
+			_ = artifact.Remove(filepath.Join(h.deps.DataDir, "chat", cs.AgentID+".jsonl"))
 		}
 	}
 	h.mu.Unlock()
@@ -364,7 +369,7 @@ func (h *ChatHandler) deleteProject(w http.ResponseWriter, r *http.Request) {
 
 	// 级联 2.5：skill 工作区（skill-work/{projectID}——aidxf 中间产物 derived/missions/deliver）
 	if h.deps.DataDir != "" {
-		_ = os.RemoveAll(filepath.Join(h.deps.DataDir, "skill-work", pid))
+		_ = artifact.RemoveAll(filepath.Join(h.deps.DataDir, "skill-work", pid))
 	}
 
 	// 级联 3：项目下模型（issues/changes/overrides + store 目录）——同 delete model 清理

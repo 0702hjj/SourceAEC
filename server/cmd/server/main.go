@@ -9,6 +9,7 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	"ifcviewer/server/internal/artifact"
 	"log"
 	"net"
 	"net/http"
@@ -258,6 +259,9 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
+	if err := artifact.Open(cfg.DataDir); err != nil {
+		log.Fatalf("open artifact database: %v", err)
+	}
 	st := store.NewStore(cfg.DataDir)
 	if err := st.Recover(); err != nil {
 		log.Fatalf("recover store: %v", err)

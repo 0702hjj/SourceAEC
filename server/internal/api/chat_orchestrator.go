@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ifcviewer/server/internal/artifact"
 	"log"
 	"net/http"
 	"os"
@@ -158,7 +159,7 @@ func (h *ChatHandler) notify(cs *chatSession) {
 	// 先读 staging 再删 pending（discard 在 runShell 首轮）：read_staging_script 失败时
 	// pending 保留，行为更保守（与旧实现相反，有意为之——读不出脚本宁可中止也不丢变更）。
 	if fileExists(scriptPath) {
-		content, err := os.ReadFile(scriptPath)
+		content, err := artifact.ReadFile(scriptPath)
 		if err != nil {
 			h.runFailed(ctx, cs, "read_staging_script", err, cl)
 			return
@@ -177,15 +178,15 @@ func fileExists(path string) bool {
 
 // copyFile 复制文件（先写 tmp 再改名，同 viewer 原子写模式）。
 func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
+	data, err := artifact.ReadFile(src)
 	if err != nil {
 		return err
 	}
 	tmp := dst + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, dst)
+	return artifact.Rename(tmp, dst)
 }
 
 // archiveStagingArtifact 把 staging 区的一个制品归档到 models/{id}/{subdir}/v{n}.{dstSuffix}（随版本同步）。
@@ -209,7 +210,7 @@ func (h *ChatHandler) archiveStagingArtifact(modelID, version, stagingName, subd
 		log.Printf("chat: archive %s %s: %v", subdir, modelID, err)
 		return
 	}
-	os.Remove(src)
+	artifact.Remove(src)
 	log.Printf("chat: archived %s/%s.%s", subdir, version, dstSuffix)
 }
 

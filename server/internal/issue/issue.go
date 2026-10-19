@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"ifcviewer/server/internal/artifact"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -112,7 +113,7 @@ func prepare(iss *Issue) error {
 }
 
 func (s *FileStore) readAll(modelID string) ([]*Issue, error) {
-	data, err := os.ReadFile(s.issuesPath(modelID))
+	data, err := artifact.ReadFile(s.issuesPath(modelID))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -132,10 +133,10 @@ func (s *FileStore) writeAll(modelID string, issues []*Issue) error {
 		return err
 	}
 	tmp := s.issuesPath(modelID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.issuesPath(modelID))
+	return artifact.Rename(tmp, s.issuesPath(modelID))
 }
 
 func (s *FileStore) List(modelID string) ([]*Issue, error) {
@@ -237,7 +238,7 @@ func (s *FileStore) Delete(modelID, issueID string) error {
 	if err := s.writeAll(modelID, out); err != nil {
 		return err
 	}
-	_ = os.Remove(filepath.Join(s.issuesDir(modelID), issueID+".png"))
+	_ = artifact.Remove(filepath.Join(s.issuesDir(modelID), issueID+".png"))
 	return nil
 }
 
@@ -245,10 +246,10 @@ func (s *FileStore) Delete(modelID, issueID string) error {
 func (s *FileStore) DeleteModel(modelID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.Remove(s.issuesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := artifact.Remove(s.issuesPath(modelID)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.RemoveAll(s.issuesDir(modelID))
+	return artifact.RemoveAll(s.issuesDir(modelID))
 }
 
 func (s *FileStore) SaveScreenshot(modelID, issueID string, png []byte) (string, error) {
@@ -287,10 +288,10 @@ func writeScreenshot(dataDir, modelID, issueID string, png []byte) (string, erro
 	rel := "issues/" + issueID + ".png"
 	abs := filepath.Join(dataDir, "models", modelID, rel)
 	tmp := abs + ".tmp"
-	if err := os.WriteFile(tmp, png, 0o644); err != nil {
+	if err := artifact.WriteFile(tmp, png, 0o644); err != nil {
 		return "", err
 	}
-	if err := os.Rename(tmp, abs); err != nil {
+	if err := artifact.Rename(tmp, abs); err != nil {
 		return "", err
 	}
 	return rel, nil
