@@ -38,3 +38,22 @@ def test_conflict_keeps_saved_head(tmp_path):
         with git_store.prepare(root, "model", "merge", "feature"):
             pass
     assert git_store.state(root, "model")["commit"] == expected
+
+
+def test_derived_build_metadata_does_not_conflict_with_source_merge(tmp_path):
+    root = str(tmp_path)
+    artifacts.initialize(root)
+    source = "# first\na=1\n\n\n\n\n\n\n# last\nb=1\n"
+    git_store.commit(root, "model", source, inputs={"current.build.json": {"productHash": "first"}})
+    with git_store.prepare(root, "model", "create", "feature") as (repo, branch, _):
+        git_store.persist(root, "model", repo, branch)
+    git_store.commit(root, "model", source.replace("a=1", "a=2"),
+                     inputs={"current.build.json": {"productHash": "feature"}})
+    with git_store.prepare(root, "model", "checkout", "main") as (repo, branch, _):
+        git_store.persist(root, "model", repo, branch)
+    git_store.commit(root, "model", source.replace("b=1", "b=2"),
+                     inputs={"current.build.json": {"productHash": "main"}})
+    with git_store.prepare(root, "model", "merge", "feature") as (repo, branch, script):
+        assert "a=2" in script and "b=2" in script
+        git_store.persist(root, "model", repo, branch)
+    assert len(git_store.state(root, "model")["commits"]) == 4

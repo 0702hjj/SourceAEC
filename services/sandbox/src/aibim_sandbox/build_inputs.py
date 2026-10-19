@@ -22,15 +22,20 @@ def collect(root: str, model_id: str) -> dict[str, str]:
     if not project.startswith("p_") or not project[2:].isalnum() or "/" in project:
         return {}
     result = {}
+    total = 0
     for name in ("plans", "skill-work"):
         directory = base / name / project
         for path in directory.rglob("*"):
             if (path.is_file() and not path.is_symlink()
                     and path.suffix in {".json", ".py", ".dxf"}
                     and "plan_history" not in path.parts):
-                content = path.read_bytes()
-                if len(content) > 64 << 20:
+                size = path.stat().st_size
+                total += size
+                if total > 256 << 20:
+                    raise ValueError("build inputs exceed 256 MiB")
+                if size > 64 << 20:
                     raise ValueError("build input exceeds 64 MiB")
+                content = path.read_bytes()
                 result[path.relative_to(base).as_posix()] = base64.b64encode(content).decode()
     return result
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -30,7 +31,9 @@ def _git(repo: Path, *args: str) -> str:
     proc = subprocess.run(["git", "-C", str(repo), "-c", "user.name=SourceAEC",
                            "-c", "user.email=sourceaec@localhost",
                            "-c", "core.hooksPath=/dev/null", *args],
-                          capture_output=True, text=True, timeout=30)
+                          capture_output=True, text=True, timeout=30,
+                          env={"PATH": os.environ.get("PATH", ""), "LANG": "C.UTF-8",
+                               "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"})
     if proc.returncode:
         raise ValueError(proc.stderr.strip() or proc.stdout.strip() or "Git operation failed")
     return proc.stdout.strip()
@@ -56,7 +59,7 @@ def workspace(root: str, model_id: str) -> Iterator[tuple[Path, str]]:
             bundle = Path(directory) / "history.bundle"
             bundle.write_bytes(row[0])
             _git(repo, "fetch", str(bundle), "+refs/heads/*:refs/heads/*",
-                 "+refs/tags/*:refs/tags/*", "--update-head-ok")
+                 "+refs/tags/*:refs/tags/*", "+refs/notes/*:refs/notes/*", "--update-head-ok")
             branch = row[1]
             _git(repo, "checkout", branch)
         yield repo, branch
@@ -76,11 +79,21 @@ def _commit(repo: Path, script: str, note: str, source: str,
             inputs: dict | None = None) -> str:
     (repo / "build.py").write_text(script, encoding="utf-8")
     if inputs is not None:
-        (repo / "inputs.json").write_text(json.dumps(inputs, sort_keys=True), encoding="utf-8")
+        identity = inputs.get("current.build.json", {}).get("identity", {})
+        # Derived hashes and source maps change on every build. Store them as
+        # commit notes, so they do not create spurious source-merge conflicts.
+        environment = {name: identity[name] for name in
+                       ("python", "packages", "environment", "helpers", "engine") if name in identity}
+        tracked = {"current.inputs.json": inputs.get("current.inputs.json", {}),
+                   "current.build.json": {"identity": environment}}
+        (repo / "inputs.json").write_text(json.dumps(tracked, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     _git(repo, "add", "--", "build.py", "inputs.json")
     _git(repo, "commit", "--allow-empty", "-m", note or "Update model",
          "-m", f"SourceAEC-Source: {source}")
-    return _git(repo, "rev-parse", "HEAD")
+    revision = _git(repo, "rev-parse", "HEAD")
+    if inputs:
+        _git(repo, "notes", "--ref=build", "add", "-f", "-m", json.dumps(inputs, sort_keys=True), revision)
+    return revision
 
 
 def commit(root: str, model_id: str, script: str, note: str = "",
@@ -99,7 +112,7 @@ def state(root: str, model_id: str) -> dict:
         refs = _git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads").splitlines()
         if not refs:
             return {"branch": branch, "branches": [], "commits": []}
-        raw = _git(repo, "log", "--all", "--topo-order", "-100", "--format=%H%x09%P%x09%s")
+        raw = _git(repo, "log", "--branches", "--tags", "--topo-order", "-100", "--format=%H%x09%P%x09%s")
         commits = []
         for line in raw.splitlines():
             revision, parents, note = line.split("\t", 2)

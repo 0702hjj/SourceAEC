@@ -57,7 +57,7 @@ func Open(root string) error {
 	}
 	names := []string{}
 	if imported == 0 {
-		names = []string{"models", "uploads", "projects", "plans", "chat", "skill-work"}
+		names = []string{"models", "uploads", "projects", "plans", "chat", "skill-work", "chat-sessions.json"}
 	}
 	for _, name := range names {
 		err = filepath.WalkDir(filepath.Join(root, name), func(path string, d fs.DirEntry, walkErr error) error {
@@ -206,17 +206,34 @@ func RemoveAll(path string) error {
 		if _, e := db.Exec("DELETE FROM artifacts WHERE path=? OR substr(path,1,?)=?", key, len(key)+1, key+"/"); e != nil {
 			return e
 		}
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 && parts[0] == "models" {
+			var exists int
+			if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='repositories'").Scan(&exists); err != nil {
+				return err
+			}
+			if exists > 0 {
+				if _, err := db.Exec("DELETE FROM repositories WHERE model_id=?", parts[1]); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return os.RemoveAll(path)
 }
 
 // Capture publishes a file written by a streaming producer.
 func Capture(path string) error {
-	data, e := os.ReadFile(path)
-	if e != nil {
-		return e
+	db, key := lookup(path)
+	if db == nil {
+		return nil
 	}
-	return WriteFile(path, data, 0644)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("INSERT INTO artifacts(path,content) VALUES(?,?) ON CONFLICT(path) DO UPDATE SET content=excluded.content WHERE artifacts.content!=excluded.content", key, data)
+	return err
 }
 
 // CaptureTree persists CLI-produced inputs/deliverables. Cache directories,

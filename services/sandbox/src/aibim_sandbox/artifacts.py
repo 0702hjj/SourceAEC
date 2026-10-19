@@ -50,8 +50,9 @@ def initialize(root: str) -> None:
         with connect(base) as db:
             db.execute("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
             imported = db.execute("SELECT 1 FROM migrations WHERE name='files-v1'").fetchone()
-            for name in (() if imported else ("models", "uploads", "projects", "plans", "chat", "skill-work")):
-                for path in (base / name).rglob("*"):
+            for name in (() if imported else ("models", "uploads", "projects", "plans", "chat", "skill-work", "chat-sessions.json")):
+                location = base / name
+                for path in ([location] if location.is_file() else location.rglob("*")):
                     key = path.relative_to(base).as_posix()
                     if path.is_file() and not path.is_symlink() and durable(key):
                         db.execute("INSERT OR IGNORE INTO artifacts(path,content) VALUES(?,?)",
