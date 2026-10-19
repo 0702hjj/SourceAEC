@@ -52,3 +52,15 @@ aidxfv3 state reconcile --project <dir>
 Do not modify the input `plan.json`. Treat generated JSON and command exit
 codes as workflow state, and stop for user review before committing a layout.
 
+
+## Versioned and incremental builds
+
+The platform saves script checkpoints as Git commits, with explicit branch,
+checkout and merge endpoints at `/models/{id}/git`. Include `baseRevision` when
+editing a script so stale edits cannot replace a newer source.
+
+For expensive pure preprocessing, the sandbox injects `sourceaec_tasks.Task`
+and `run_tasks`. Declare every parameter and task dependency; return
+JSON-compatible drawing recipes and assemble the final DXF on each build.
+Direct drawing scripts keep their full-build behavior. External inputs must
+come from the versioned `SOURCEAEC_INPUT_DIR`, never a host workspace path.

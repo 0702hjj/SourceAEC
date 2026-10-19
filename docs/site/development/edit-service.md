@@ -27,6 +27,8 @@ VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8
 
 `pending` 在直改退役后只作运行簿记；`history` 只读保留，新记录来自外部修改登记。
 
+持久存储、Git 分支接口、历史重建与增量任务见[模型存储与增量构建](/development/model-storage)。
+
 ## 实现要点
 
 - 沙箱执行、暂存、版本、diff 这些领域逻辑的单一事实源在共享包 `aibim_sandbox`，REST 编辑面在 `aibim_editapi`，本服务只留薄适配层，详见[沙箱执行环境](/development/sandbox)。
