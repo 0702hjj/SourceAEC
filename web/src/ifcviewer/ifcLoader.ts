@@ -61,6 +61,7 @@ export interface IfcApiLike {
 
 /** 单条 placed geometry：位置砍掉 w 分量、索引原样、携带放置矩阵。 */
 export interface IfcMeshData {
+  guid?: string;
   expressID: number;
   positions: Float32Array;
   indices: Uint32Array;
@@ -97,6 +98,8 @@ export async function initIfcApi(api: IfcApiLike, base?: string): Promise<void> 
 export function loadIfcGeometry(api: IfcApiLike, modelID: number): IfcMeshData[] {
   const meshes: IfcMeshData[] = [];
   api.StreamAllMeshes(modelID, (flat) => {
+    const row = api.GetLine(modelID, flat.expressID) as Record<string, unknown> | null;
+    const guid = row ? fieldText(row, "GlobalId") ?? undefined : undefined;
     for (const placed of flat.geometries) {
       const geom = api.GetGeometry(modelID, placed.geometryExpressID);
       // web-ifc 顶点为 (x,y,z,w) 4 分量交错，three BufferGeometry 用 3 分量
@@ -110,6 +113,7 @@ export function loadIfcGeometry(api: IfcApiLike, modelID: number): IfcMeshData[]
       }
       meshes.push({
         expressID: flat.expressID,
+        ...(guid ? { guid } : {}),
         positions,
         indices: new Uint32Array(indices),
         color: placed.color,

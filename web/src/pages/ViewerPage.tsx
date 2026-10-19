@@ -36,6 +36,7 @@ export default function ViewerPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [status, setStatus] = useState<ModelInfo["status"] | null>(null);
   const [kind, setKind] = useState<ModelInfo["kind"] | null>(null);
+  const lastRevision = useRef<string | undefined>(undefined);
   const prevStatus = useRef<ModelInfo["status"] | null>(null);
   const [session, setSession] = useState<ChatSession | null>(null);
   const setChatOpen = useViewerStore((s) => s.setChatOpen);
@@ -51,10 +52,15 @@ export default function ViewerPage() {
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+    lastRevision.current = undefined;
     const check = () =>
       fetchModel(id)
         .then((m) => {
           if (!cancelled) {
+            if (m.status === "ready" && m.revision && lastRevision.current && lastRevision.current !== m.revision) {
+              setReloadKey((key) => key + 1);
+            }
+            if (m.status === "ready") lastRevision.current = m.revision;
             setStatus(m.status);
             setKind(m.kind ?? "ifc");
           }
@@ -172,7 +178,7 @@ export default function ViewerPage() {
             xeokit 引擎
           </button>
           <Suspense fallback={<div className="viewer-status">引擎加载中…</div>}>
-            <IfcLiteViewer key={`${reloadKey}-webifc`} modelId={id} />
+            <IfcLiteViewer key={`${id}-webifc`} modelId={id} revision={reloadKey} />
           </Suspense>
           <aside className="design-side">
             <DesignPanel modelId={id} />

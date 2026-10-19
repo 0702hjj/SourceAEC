@@ -22,6 +22,7 @@ import {
   type PropertyRow,
 } from "./ifcLoader";
 import { mountIfcScene, type IfcSceneHandle } from "./ifcScene";
+import { EntityScriptEditor } from "@/viewer/EntityScriptEditor";
 import "./IfcLiteViewer.css";
 
 // --- 文案（集中便于 i18n 化移植） ---
@@ -36,7 +37,7 @@ const TEXT = {
   locating: "定位中…",
 };
 
-export default function IfcLiteViewer({ modelId }: { modelId: string }) {
+export default function IfcLiteViewer({ modelId, revision = 0 }: { modelId: string; revision?: number }) {
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
   const [tree, setTree] = useState<SpatialTreeNode | null>(null);
   const [props, setProps] = useState<PropertyRow[] | null>(null);
@@ -51,47 +52,58 @@ export default function IfcLiteViewer({ modelId }: { modelId: string }) {
   const openedRef = useRef<OpenedIfcModel | null>(null);
   const sceneRef = useRef<IfcSceneHandle | null>(null);
 
-  // 加载编排：modelId 变化即整链重来（ViewerPage reloadKey 已保证重挂载）。
-  // 场景挂在下载成功之后——失败路径不创建 WebGL 资源。
+  // Keep the WebGL scene and camera alive across revisions; only changed
+  // GlobalId groups replace GPU resources. IFC parsing still uses a full file.
+  useEffect(() => {
+    if (!canvasEl) return;
+    return () => {
+      openedRef.current?.close(); openedRef.current = null;
+      sceneRef.current?.dispose(); sceneRef.current = null;
+    };
+  }, [canvasEl, modelId]);
+
   useEffect(() => {
     if (!canvasEl) return;
     let cancelled = false;
     setError(null);
-    setTree(null);
-    setProps(null);
-
     (async () => {
+      let opened: OpenedIfcModel | null = null;
       try {
         const data = await downloadIfcBytes(modelId);
         if (cancelled) return;
-        const scene = mountIfcScene(canvasEl);
-        sceneRef.current = scene;
-        const opened = await openIfcApi(data);
-        if (cancelled) {
-          opened.close();
-          return;
-        }
-        openedRef.current = opened;
-        for (const mesh of loadIfcGeometry(opened.api, opened.modelID)) {
-          scene.addMesh(mesh);
-        }
-        scene.fitToBoundingBox();
+        opened = await openIfcApi(data);
+        if (cancelled) { opened.close(); return; }
+        const meshes = loadIfcGeometry(opened.api, opened.modelID);
         const spatial = await loadSpatialTree(opened.api, opened.modelID);
-        if (cancelled) return;
+        if (cancelled) { opened.close(); return; }
+        const scene = sceneRef.current ?? mountIfcScene(canvasEl);
+        sceneRef.current = scene;
+        const first = openedRef.current == null;
+        const selected = useViewerStore.getState().selectedId;
+        const previous = openedRef.current;
+        let selectedGuid: string | undefined;
+        if (previous && selected) {
+          const row = previous.api.GetLine(previous.modelID, Number(selected)) as { GlobalId?: { value?: string } };
+          selectedGuid = row?.GlobalId?.value;
+        }
+        if (scene.replaceMeshes) scene.replaceMeshes(meshes);
+        else for (const mesh of meshes) scene.addMesh(mesh);
+        if (first) scene.fitToBoundingBox();
+        openedRef.current?.close();
+        openedRef.current = opened;
+        opened = null;
+        if (selectedGuid) {
+          const replacement = meshes.find((mesh) => mesh.guid === selectedGuid);
+          setSelected(replacement ? String(replacement.expressID) : null);
+        }
         setTree(spatial);
       } catch (e) {
+        opened?.close();
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
     })();
-
-    return () => {
-      cancelled = true;
-      openedRef.current?.close();
-      openedRef.current = null;
-      sceneRef.current?.dispose();
-      sceneRef.current = null;
-    };
-  }, [canvasEl, modelId]);
+    return () => { cancelled = true; };
+  }, [canvasEl, modelId, revision, setSelected]);
 
   // 选中 → 属性面板（选中也来自树点击，同一管路加载属性行）
   useEffect(() => {
@@ -206,6 +218,7 @@ export default function IfcLiteViewer({ modelId }: { modelId: string }) {
               {locating ? TEXT.locating : TEXT.locate}
             </button>
           )}
+          {selectedGuid && <EntityScriptEditor key={selectedGuid} modelId={modelId} guid={selectedGuid} />}
           {notice && <p className="ifc-lite-notice">{notice}</p>}
         </div>
       </aside>
