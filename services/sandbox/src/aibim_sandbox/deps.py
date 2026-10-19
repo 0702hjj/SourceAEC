@@ -26,6 +26,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 import hashlib
 import json
 import logging
@@ -109,8 +112,25 @@ def parse_pep723_deps(script_text: str) -> Optional[Tuple[str, ...]]:
     return tuple(deps)
 
 
+_LOCKED_DEPS = ContextVar("sourceaec_locked_deps", default=None)
+_LOCKED_ENV = ContextVar("sourceaec_locked_environment", default=None)
+
+
+@contextmanager
+def use_dependencies(requirements, environment=None):
+    token = _LOCKED_DEPS.set(requirements)
+    env_token = _LOCKED_ENV.set(environment)
+    try:
+        yield
+    finally:
+        _LOCKED_DEPS.reset(token)
+        _LOCKED_ENV.reset(env_token)
+
+
 def deps_for_script(spec: RunSpec, script_text: str) -> Tuple[str, ...]:
     """脚本生效依赖集：PEP 723 声明优先（替换），无声明用服务默认集。"""
+    if _LOCKED_DEPS.get() is not None:
+        return _LOCKED_DEPS.get()
     declared = parse_pep723_deps(script_text)
     if declared is not None:
         return declared
@@ -253,6 +273,11 @@ def ensure_env(spec: RunSpec, script_text: str) -> DepsEnv:
             status_code=422, detail=f"PEP 723 依赖声明解析失败: {exc}"
         )
     target = os.path.join(cache_root(), env_key(deps))
+    locked_environment = _LOCKED_ENV.get()
+    if locked_environment and re.fullmatch(r"[0-9a-f]{16}", locked_environment):
+        candidate = os.path.join(cache_root(), locked_environment)
+        if _env_ready(candidate) and _matches_packages(candidate, deps):
+            target = candidate
     if not _env_ready(target):
         _build_env(target, deps)
     if not _env_ready(target):  # pragma: no cover - 并发冲突兜底
@@ -266,3 +291,17 @@ def ensure_env(spec: RunSpec, script_text: str) -> DepsEnv:
         base_home=_base_home(target),
         deps=deps,
     )
+
+
+def _matches_packages(directory: str, requirements: Tuple[str, ...]) -> bool:
+    from pathlib import Path
+    installed = {}
+    for path in Path(directory).glob("lib/python*/site-packages/*.dist-info/METADATA"):
+        name = version = None
+        for line in path.read_text().splitlines():
+            if line.startswith("Name: "): name = line[6:]
+            if line.startswith("Version: "): version = line[9:]
+            if name and version: break
+        if name and version: installed[name.lower().replace("_", "-")] = version
+    return all("==" in requirement and installed.get(requirement.split("==")[0].lower().replace("_", "-"))
+               == requirement.split("==")[1] for requirement in requirements)
