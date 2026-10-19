@@ -80,3 +80,44 @@ def test_failed_candidate_preserves_branch_script_and_product(client, profile, d
     assert git_store.state(root, MODEL_ID)["branch"] == "main"
     assert product.read_bytes() == original_bytes
     assert client.get(f"/models/{MODEL_ID}/script").json()["script"] == original["script"]
+
+
+def test_failed_git_checkpoint_leaves_no_version_and_keeps_staging(client, profile, data_dir, monkeypatch):
+    import pytest
+    from aibim_sandbox import git_store
+    source = profile.key_script(profile.default_key)
+    assert client.put(f"/models/{MODEL_ID}/script", json={"script": source}).status_code == 200
+    def unavailable(*args, **kwargs):
+        raise OSError("repository storage unavailable")
+    monkeypatch.setattr(git_store, "persist", unavailable)
+    with pytest.raises(OSError, match="repository storage unavailable"):
+        client.post(f"/models/{MODEL_ID}/script/save", json={})
+    assert client.get(f"/models/{MODEL_ID}/script").json()["staged"] == 1
+    assert client.get(f"/models/{MODEL_ID}/scripts").json()["scripts"] == []
+    assert not list((data_dir / "models" / MODEL_ID / "versions").glob("v*." + profile.ext))
+
+
+def test_branch_storage_failure_restores_published_artifacts(client, profile, data_dir, monkeypatch):
+    from aibim_sandbox import git_store
+    source = profile.key_script(profile.default_key)
+    _save(client, source)
+    revision = client.get(f"/models/{MODEL_ID}/script").json()["revision"]
+    assert client.post(f"/models/{MODEL_ID}/git/branches", json={
+        "branch": "feature", "baseRevision": revision}).status_code == 200
+    _save(client, source + "\n# feature\n")
+    revision = client.get(f"/models/{MODEL_ID}/script").json()["revision"]
+    assert client.post(f"/models/{MODEL_ID}/git/checkout", json={
+        "branch": "main", "baseRevision": revision}).status_code == 200
+    revision = client.get(f"/models/{MODEL_ID}/script").json()["revision"]
+    directory = data_dir / "models" / MODEL_ID
+    before = {name: (directory / name).read_bytes() for name in
+              ("current.map.json", "current.build.json", "script_staging.json")}
+    def unavailable(*args, **kwargs):
+        raise OSError("repository storage unavailable")
+    monkeypatch.setattr(git_store, "persist", unavailable)
+    response = client.post(f"/models/{MODEL_ID}/git/checkout", json={
+        "branch": "feature", "baseRevision": revision})
+    assert response.status_code == 409
+    assert git_store.state(str(data_dir), MODEL_ID)["branch"] == "main"
+    assert client.get(f"/models/{MODEL_ID}/script").json()["script"] == source
+    assert all((directory / name).read_bytes() == content for name, content in before.items())

@@ -9,6 +9,7 @@ files and historical product caches are intentionally not durable artifacts.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 import os
 from pathlib import Path
 import sqlite3
@@ -17,10 +18,15 @@ from typing import Iterable
 
 _ROOTS: set[Path] = set()
 _LOCK = threading.RLock()
+_TRANSACTIONS = ContextVar("sourceaec_artifact_transactions", default={})
 
 
 @contextmanager
 def connect(root: str | Path):
+    existing = _TRANSACTIONS.get().get(str(Path(root).resolve()))
+    if existing:
+        yield existing[0]
+        return
     db = sqlite3.connect(str(Path(root) / "sourceaec.sqlite3"), timeout=30)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA foreign_keys=ON")
@@ -88,6 +94,11 @@ def publish(files: Iterable[tuple[str | Path, bytes]]) -> None:
             groups.setdefault(root, []).append((key, content))
     for root, entries in groups.items():
         with connect(root) as db:
+            active = _TRANSACTIONS.get().get(str(root))
+            if active:
+                for key, _ in entries:
+                    if key not in active[1]:
+                        active[1][key] = db.execute("SELECT content FROM artifacts WHERE path=?", (key,)).fetchone()
             db.executemany("INSERT INTO artifacts(path,content) VALUES(?,?) "
                            "ON CONFLICT(path) DO UPDATE SET content=excluded.content", entries)
 
@@ -103,6 +114,7 @@ def capture_tree(path: str | Path) -> None:
 
 
 def remove(path: str | Path) -> None:
+    track_projection(str(path))
     match = owner(path)
     if match:
         root, key = match
@@ -125,3 +137,46 @@ def replace(source: str, destination: str) -> None:
     capture_data = Path(source).read_bytes()
     publish([(destination, capture_data)])
     os.replace(source, destination)
+
+
+@contextmanager
+def transaction(root: str):
+    """Atomic checkpoint writes, including Git bundles and staging metadata.
+
+    File projections touched through publish/replace are restored on rollback.
+    Build execution occurs before this short database transaction.
+    """
+    base = Path(root).resolve()
+    if str(base) in _TRANSACTIONS.get():
+        yield
+        return
+    originals = {}
+    with connect(base) as db:
+        token = _TRANSACTIONS.set({**_TRANSACTIONS.get(), str(base): (db, originals)})
+        try:
+            yield
+            db.commit()
+        except BaseException:
+            db.rollback()
+            for key, row in originals.items():
+                path = base / key
+                if row is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(row[0])
+            raise
+        finally:
+            _TRANSACTIONS.reset(token)
+
+
+def track_projection(path: str) -> None:
+    """Include a disposable file in a checkpoint's projection rollback."""
+    target = Path(path).resolve()
+    for root, (_, originals) in _TRANSACTIONS.get().items():
+        base = Path(root)
+        if target.is_relative_to(base):
+            key = target.relative_to(base).as_posix()
+            if key not in originals:
+                originals[key] = (target.read_bytes(),) if target.exists() else None
+            return

@@ -17,6 +17,8 @@ W-0048 T1：原 services/ifc 与 services/cad 的 versions.py 合一，扩展名
 
 from __future__ import annotations
 
+from . import artifacts
+
 import os
 import re
 import shutil
@@ -89,6 +91,7 @@ def snapshot_as(
     directory = versions_dir(data_dir, model_id)
     os.makedirs(directory, exist_ok=True)
     dest = os.path.join(directory, f"{version}.{ext}")
+    artifacts.track_projection(dest)
     tmp = dest + ".tmp"
     shutil.copyfile(src_path, tmp)
     os.replace(tmp, dest)

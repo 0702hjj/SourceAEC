@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel
 
 import json
-from aibim_sandbox import git_store, build_inputs, deps as sandbox_deps
+from aibim_sandbox import git_store, build_inputs, artifacts, deps as sandbox_deps
 from aibim_sandbox.route_common import MODEL_ID_PATTERN, model_lock, model_upload_path
 from aibim_sandbox.runner import script_hash
 from .routes_script_run import make_run_into_uploads
@@ -51,15 +51,20 @@ def build_git_router(profile, deps) -> APIRouter:
             staging = staging_of(request, id)
             verify_clean(staging, body.baseRevision)
             def apply():
-                with git_store.prepare(root, id, action, body.branch) as (repo, branch, script):
-                    metadata = json.loads((repo / "inputs.json").read_text())
-                    inputs = metadata.get("current.inputs.json", {})
-                    packages = metadata.get("current.build.json", {}).get("identity", {}).get("packages", {})
-                    requirements = tuple(f"{name}=={version}" for name, version in sorted(packages.items())) or None
-                    with build_inputs.use(inputs), sandbox_deps.use_dependencies(requirements, metadata.get("current.build.json", {}).get("identity", {}).get("environment")):
-                        run(request, id, script)
-                    git_store.persist(root, id, repo, branch)
-                    request.app.state.script_staging.reset(id, base=script)
+                try:
+                    with artifacts.transaction(root):
+                        with git_store.prepare(root, id, action, body.branch) as (repo, branch, script):
+                            metadata = json.loads((repo / "inputs.json").read_text())
+                            inputs = metadata.get("current.inputs.json", {})
+                            packages = metadata.get("current.build.json", {}).get("identity", {}).get("packages", {})
+                            requirements = tuple(f"{name}=={version}" for name, version in sorted(packages.items())) or None
+                            with build_inputs.use(inputs), sandbox_deps.use_dependencies(requirements, metadata.get("current.build.json", {}).get("identity", {}).get("environment")):
+                                run(request, id, script)
+                            git_store.persist(root, id, repo, branch)
+                            request.app.state.script_staging.reset(id, base=script)
+                except BaseException:
+                    request.app.state.script_staging.restore(staging)
+                    raise
                 return {"modelId": id, **git_store.state(root, id)}
             return verify_git_operation(apply)
 

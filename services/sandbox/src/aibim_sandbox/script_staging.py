@@ -205,3 +205,9 @@ class StagingRegistry:
         self._evict_lru()
         self._persist(st)
         return st
+
+
+    def restore(self, staging: ScriptStaging) -> None:
+        """Restore the in-memory entry after its database transaction rolls back."""
+        self._staging[staging.model_id] = self._attach(staging)
+        self._staging.move_to_end(staging.model_id)

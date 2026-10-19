@@ -118,6 +118,8 @@ def run_into_uploads(
     with open(input_path, "wb") as fh:
         fh.write(encoded)
     if after_run is not None:
+        if ext == "dxf":
+            artifacts.track_projection(os.path.join(root, "models", model_id, "render.json"))
         after_run(request, model_id, product_path)
     record_path = product_path + ".build.json"
     if os.path.isfile(record_path):
@@ -271,32 +273,40 @@ def build_run_router(profile: ServiceProfile, deps: ScriptsDeps) -> APIRouter:
                 deps.save_sidecars(request, id) if deps.save_sidecars is not None else {}
             )
             git_store.import_history(request.app.state.settings.data_dir, id)
-            version = script_versions.save(
-                request.app.state.settings.data_dir,
-                id,
-                current,
-                product_path,
-                note=note,
-                map_text=map_text,
-                ext=ext,
-                inputs_text=artifacts.read(os.path.join(request.app.state.settings.data_dir, "models", id, "current.inputs.json")).decode(),
-                manifest_text=artifacts.read(product_path + ".build.json").decode()
-                if os.path.isfile(product_path + ".build.json") else None,
-                **sidecars,
-            )
-            inputs = {}
-            model_dir = os.path.join(request.app.state.settings.data_dir, "models", id)
-            for filename in ("current.build.json", "current.map.json", "current.inputs.json"):
-                path = os.path.join(model_dir, filename)
-                if os.path.isfile(path):
-                    with open(path, encoding="utf-8") as fh:
-                        inputs[filename] = json.load(fh)
-            revision = git_store.commit(
-                request.app.state.settings.data_dir, id, current, note,
-                source=body.source if body else "human", inputs=inputs, version=version,
-            )
-            artifacts.capture_tree(os.path.join(model_dir, "scripts"))
-            staging.save()
+            previous = staging.to_dict()
+            try:
+                with artifacts.transaction(request.app.state.settings.data_dir):
+                    version = script_versions.save(
+                        request.app.state.settings.data_dir,
+                        id,
+                        current,
+                        product_path,
+                        note=note,
+                        map_text=map_text,
+                        ext=ext,
+                        inputs_text=artifacts.read(os.path.join(request.app.state.settings.data_dir, "models", id, "current.inputs.json")).decode(),
+                        manifest_text=artifacts.read(product_path + ".build.json").decode()
+                        if os.path.isfile(product_path + ".build.json") else None,
+                        **sidecars,
+                    )
+                    inputs = {}
+                    model_dir = os.path.join(request.app.state.settings.data_dir, "models", id)
+                    for filename in ("current.build.json", "current.map.json", "current.inputs.json"):
+                        path = os.path.join(model_dir, filename)
+                        if os.path.isfile(path):
+                            with open(path, encoding="utf-8") as fh:
+                                inputs[filename] = json.load(fh)
+                    revision = git_store.commit(
+                        request.app.state.settings.data_dir, id, current, note,
+                        source=body.source if body else "human", inputs=inputs, version=version,
+                    )
+                    artifacts.capture_tree(os.path.join(model_dir, "scripts"))
+                    staging.save()
+            except BaseException:
+                staging.base = previous["base"]
+                staging.history = previous["history"]
+                staging.cursor = previous["cursor"]
+                raise
             payload: Dict[str, Any] = {"modelId": id, "version": version, "staged": 0}
             payload.update(revision)
             if deps.alignment is not None:
