@@ -56,6 +56,15 @@ DIFF_SCRIPT_V3 = DIFF_SCRIPT_V2.replace(
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolated_diff_executor(monkeypatch):
+    """Own and drain workers so timed-out requests cannot leak into other tests."""
+    from aibim_editapi import routes_diff as shared_diff
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        monkeypatch.setattr(shared_diff, "_DIFF_EXECUTOR", executor)
+        yield
+
+
 def _versions_dir(data_dir: Path) -> Path:
     return data_dir / "models" / MODEL_ID / "versions"
 
@@ -221,6 +230,15 @@ def test_diff_missing_model_returns_404(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def _write_timeout_snapshots(data_dir: Path) -> None:
+    """Exercise compute/locking timeouts independently of cold sandbox rebuilds."""
+    versions = _versions_dir(data_dir)
+    versions.mkdir(parents=True, exist_ok=True)
+    upload = data_dir / "uploads" / f"{MODEL_ID}.dxf"
+    for version in ("v1", "v2"):
+        shutil.copyfile(upload, versions / f"{version}.dxf")
+
+
 def test_diff_compute_timeout_returns_504(
     data_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -236,8 +254,7 @@ def test_diff_compute_timeout_returns_504(
     monkeypatch.setenv("CAD_SERVICE_DIFF_TIMEOUT_S", "1")
     client = TestClient(create_app())
     try:
-        _put_and_save(client, DIFF_SCRIPT_V1)
-        _put_and_save(client, DIFF_SCRIPT_V2)
+        _write_timeout_snapshots(data_dir)
 
         start = time.monotonic()
         resp = client.post(
@@ -301,8 +318,7 @@ def test_timeout_abandoned_worker_serializes_next_diff(
     monkeypatch.setenv("VIEWER_DATA_DIR", str(data_dir))
     monkeypatch.setenv("CAD_SERVICE_DIFF_TIMEOUT_S", "1")
     client = TestClient(create_app())
-    _put_and_save(client, DIFF_SCRIPT_V1)
-    _put_and_save(client, DIFF_SCRIPT_V2)
+    _write_timeout_snapshots(data_dir)
 
     try:
         first = client.post(

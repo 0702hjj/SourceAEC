@@ -17,12 +17,21 @@ import ifcopenshell.api.root
 import pytest
 from fastapi.testclient import TestClient
 
-from app import diffing, routes_diff
+from app import diffing, routes_diff, route_common
 from app.main import create_app
 from conftest import MODEL_ID
 
 WALL_GUID = "3ZYW59sxj8lei475l7EhLU"
 WALL_NAME = "Wall for Test Example"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_diff_executor(monkeypatch):
+    """Own and drain workers so timed-out requests cannot leak into other tests."""
+    from aibim_editapi import routes_diff as shared_diff
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        monkeypatch.setattr(shared_diff, "_DIFF_EXECUTOR", executor)
+        yield
 
 
 def _versions_dir(data_dir: Path) -> Path:
@@ -250,8 +259,10 @@ def test_diff_compute_timeout_returns_504(
     """compute_diff 阻塞超过 DIFF_TIMEOUT_S → 504，而不是无限挂住 handler 线程。"""
     _write_rename_versions(data_dir, "新名字")
 
+    release = threading.Event()
+
     def _blocking_diff(*args: object, **kwargs: object) -> dict:
-        time.sleep(5)
+        assert release.wait(10)
         return {}
 
     monkeypatch.setattr(diffing, "compute_diff", _blocking_diff)
@@ -259,16 +270,18 @@ def test_diff_compute_timeout_returns_504(
     monkeypatch.setenv("EDIT_SERVICE_DIFF_TIMEOUT_S", "1")
     client = TestClient(create_app())
 
-    start = time.monotonic()
-    resp = client.post(
-        f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"}
-    )
-    elapsed = time.monotonic() - start
-
-    assert resp.status_code == 504
-    assert resp.json()["detail"] == "diff timed out"
-    assert elapsed < 4  # 未等阻塞的 compute_diff 跑完（5s）就返回
-    assert not (_versions_dir(data_dir) / "diff-v1-v2.json").exists()
+    try:
+        start = time.monotonic()
+        resp = client.post(
+            f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"}
+        )
+        elapsed = time.monotonic() - start
+        assert resp.status_code == 504
+        assert resp.json()["detail"] == "diff timed out"
+        assert elapsed < 4
+        assert not (_versions_dir(data_dir) / "diff-v1-v2.json").exists()
+    finally:
+        release.set()
 
 
 def test_timeout_abandoned_worker_serializes_next_diff(
@@ -301,23 +314,41 @@ def test_timeout_abandoned_worker_serializes_next_diff(
             active -= 1
         return {}
 
+    real_model_lock = route_common.model_lock
+    attempts = 0
+    second_attempted = threading.Event()
+
+    def _spy_model_lock(request, model_id):
+        nonlocal attempts
+        with state_lock:
+            attempts += 1
+            if attempts >= 2:
+                second_attempted.set()
+        return real_model_lock(request, model_id)
+
+    monkeypatch.setattr(route_common, "model_lock", _spy_model_lock)
     monkeypatch.setattr(diffing, "compute_diff", _blocking_diff)
     monkeypatch.setenv("VIEWER_DATA_DIR", str(data_dir))
     monkeypatch.setenv("EDIT_SERVICE_DIFF_TIMEOUT_S", "1")
     client = TestClient(create_app())
 
-    first = client.post(f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"})
-    assert first.status_code == 504
-    assert entered.wait(5)  # 残余 worker 已进入 compute_diff 并持有锁
+    try:
+        first = client.post(f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"})
+        assert first.status_code == 504
+        assert entered.wait(5)
 
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        second = pool.submit(
-            client.post, f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"}
-        )
-        time.sleep(0.3)  # 让第二次请求进入执行器并尝试取锁
-        assert max_active == 1  # 被残余 worker 的锁挡住，未并发进入 compute_diff
-        release.set()  # 放行残余 worker → 释放锁 → 下一次请求接着跑完
-        second_resp = second.result(timeout=10)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            second = pool.submit(
+                client.post, f"/models/{MODEL_ID}/diff", json={"base": "v1", "target": "v2"}
+            )
+            try:
+                assert second_attempted.wait(5)
+                assert max_active == 1
+            finally:
+                release.set()
+            second_resp = second.result(timeout=10)
+    finally:
+        release.set()
 
     assert second_resp.status_code == 200
     assert (_versions_dir(data_dir) / "diff-v1-v2.json").exists()
