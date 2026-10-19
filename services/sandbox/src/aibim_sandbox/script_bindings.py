@@ -24,40 +24,34 @@ def _param_path(node) -> list[str] | None:
     return None
 
 
-def bindings(script: str, line: int) -> list[dict]:
+def _facts(script: str, line: int) -> list[dict]:
     call = _call(script, line)
     if call is None:
         return []
-    params = script_params.extract_params(script)
-    result = []
+    facts = []
     for kw in call.keywords:
-        if kw.arg is None or kw.arg in {"key", "GlobalId", "ifc_class"}:
-            continue
-        path = _param_path(kw.value)
+        fact = {"argument": kw.arg or "", "paramPath": _param_path(kw.value)}
         try:
-            value = params
-            if path:
-                for part in path:
-                    value = value[part]
-            else:
-                value = ast.literal_eval(kw.value)
-        except (ValueError, TypeError, KeyError):
-            continue
-        if isinstance(value, (str, int, float, bool)):
-            result.append({"argument": kw.arg, "value": value, "paramPath": path})
-    return result
+            value = ast.literal_eval(kw.value)
+            fact["literal"] = isinstance(value, (str, int, float, bool))
+            if fact["literal"]:
+                fact["value"] = value
+        except (ValueError, TypeError):
+            fact["literal"] = False
+        facts.append(fact)
+    return facts
+
+
+def bindings(script: str, line: int) -> list[dict]:
+    from .go_runtime import call
+    facts = _facts(script, line)
+    if not facts:
+        return []
+    return call("edit.bindings", args={"params": script_params.extract_params(script), "facts": facts})
 
 
 def update_parameter(script: str, line: int, argument: str, value) -> str:
-    binding = next((b for b in bindings(script, line) if b["argument"] == argument), None)
-    if not binding or not binding["paramPath"]:
-        raise ValueError("argument has no direct PARAMS binding")
-    if not isinstance(value, (str, int, float, bool)):
-        raise ValueError("value must be a scalar")
-    params = script_params.extract_params(script)
-    node = params
-    path = binding["paramPath"]
-    for part in path[:-1]:
-        node = node[part]
-    node[path[-1]] = value
+    from .go_runtime import call
+    params = call("edit.parameter", args={"params": script_params.extract_params(script),
+                  "facts": _facts(script, line), "argument": argument, "value": value})
     return script_params.replace_params(script, params)

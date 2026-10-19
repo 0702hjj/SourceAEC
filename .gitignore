@@ -39,3 +39,6 @@ analysis_results/
 
 # Go 编译产物（误在仓库内 go build 生成）
 server/server
+
+# Go business runtime (built by scripts/build_runtime.sh)
+/bin/

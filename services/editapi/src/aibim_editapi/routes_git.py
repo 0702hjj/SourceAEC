@@ -4,10 +4,9 @@
 from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel
 
-import json
 from aibim_sandbox import git_store, build_inputs, artifacts, deps as sandbox_deps
 from aibim_sandbox.route_common import MODEL_ID_PATTERN, model_lock, model_upload_path
-from aibim_sandbox.runner import script_hash
+from aibim_sandbox.go_runtime import call
 from .routes_script_run import make_run_into_uploads
 from .routes_script_staging import staging_of, verify_current_script
 
@@ -19,10 +18,8 @@ class BranchBody(BaseModel):
 
 def verify_clean(staging, revision: str) -> None:
     current = verify_current_script(staging, 409)
-    if script_hash(current) != revision:
-        raise HTTPException(status_code=409, detail="script revision changed; refresh before continuing")
-    if staging.staged_count():
-        raise HTTPException(status_code=409, detail="save or discard staged changes first")
+    verify_git_operation(lambda: call("edit.clean", args={
+        "script": current, "revision": revision, "staged": staging.staged_count()}))
 
 
 def verify_git_operation(operation):
@@ -54,11 +51,10 @@ def build_git_router(profile, deps) -> APIRouter:
                 try:
                     with artifacts.transaction(root):
                         with git_store.prepare(root, id, action, body.branch) as (repo, branch, script):
-                            metadata = json.loads((repo / "inputs.json").read_text())
-                            inputs = metadata.get("current.inputs.json", {})
-                            packages = metadata.get("current.build.json", {}).get("identity", {}).get("packages", {})
-                            requirements = tuple(f"{name}=={version}" for name, version in sorted(packages.items())) or None
-                            with build_inputs.use(inputs), sandbox_deps.use_dependencies(requirements, metadata.get("current.build.json", {}).get("identity", {}).get("environment")):
+                            metadata = git_store.candidate_inputs(root, id, repo)
+                            with build_inputs.use(metadata["inputs"]), sandbox_deps.use_dependencies(
+                                tuple(metadata["requirements"]) or None, metadata["environment"]
+                            ):
                                 run(request, id, script)
                             git_store.persist(root, id, repo, branch)
                             request.app.state.script_staging.reset(id, base=script)

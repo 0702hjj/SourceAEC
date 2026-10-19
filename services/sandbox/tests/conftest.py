@@ -16,6 +16,9 @@ from pathlib import Path
 
 import pytest
 
+pytest_plugins = ["aibim_sandbox.pytest_plugin"]
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from aibim_sandbox import backend  # noqa: E402

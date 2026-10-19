@@ -20,6 +20,9 @@ from pathlib import Path
 
 import pytest
 
+pytest_plugins = ["aibim_sandbox.pytest_plugin"]
+
+
 from script_runner_scripts import (
     PRODUCT_PAYLOADS,
     big_map_script,

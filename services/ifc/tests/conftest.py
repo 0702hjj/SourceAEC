@@ -9,6 +9,9 @@ import shutil
 from pathlib import Path
 
 import pytest
+
+pytest_plugins = ["aibim_sandbox.pytest_plugin"]
+
 from fastapi.testclient import TestClient
 
 from aibim_sandbox import backend as sandbox_backend

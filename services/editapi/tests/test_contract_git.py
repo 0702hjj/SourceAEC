@@ -89,7 +89,13 @@ def test_failed_git_checkpoint_leaves_no_version_and_keeps_staging(client, profi
     assert client.put(f"/models/{MODEL_ID}/script", json={"script": source}).status_code == 200
     def unavailable(*args, **kwargs):
         raise OSError("repository storage unavailable")
-    monkeypatch.setattr(git_store, "persist", unavailable)
+    from aibim_sandbox import go_runtime
+    transport = go_runtime.call
+    def fail_commit(op, *args, **kwargs):
+        if op == "git.commit":
+            return unavailable()
+        return transport(op, *args, **kwargs)
+    monkeypatch.setattr(git_store, "call", fail_commit)
     with pytest.raises(OSError, match="repository storage unavailable"):
         client.post(f"/models/{MODEL_ID}/script/save", json={})
     assert client.get(f"/models/{MODEL_ID}/script").json()["staged"] == 1
