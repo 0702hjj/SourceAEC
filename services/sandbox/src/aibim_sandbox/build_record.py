@@ -33,6 +33,8 @@ def identity(spec, script: str, env) -> dict:
     return {"scriptHash": hashlib.sha256(script.encode()).hexdigest(),
             "python": sys.version.split()[0], "packages": packages,
             "helpers": helpers, "product": spec.config.product_name,
+            "engine": {name: digest(str(Path(__file__).with_name(name))) for name in
+                       ("runner.py", "backend.py", "task_runtime.py", "build_cache.py", "build_inputs.py", "deps.py", "build_record.py")},
             "environment": Path(env.env_dir).name, "dependencies": list(env.deps), "inputsHash": build_inputs.fingerprint()}
 
 

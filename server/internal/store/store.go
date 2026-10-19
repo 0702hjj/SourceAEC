@@ -49,6 +49,7 @@ var idPattern = regexp.MustCompile(`^m_[0-9a-f]{16}$`)
 func validID(id string) bool { return idPattern.MatchString(id) }
 
 type Model struct {
+	Revision  string    `json:"revision,omitempty"`
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Size      int64     `json:"size"`
@@ -172,6 +173,14 @@ func (s *Store) Get(id string) (*Model, error) {
 	// 存量迁移：无 kind 字段的旧记录按 ifc 处理（不破坏现有模型，W-0040）。
 	if m.Kind == "" {
 		m.Kind = KindIFC
+	}
+	if record, err := artifact.ReadFile(s.SourcePath(&m) + ".build.json"); err == nil {
+		var build struct {
+			Revision string `json:"revision"`
+		}
+		if json.Unmarshal(record, &build) == nil {
+			m.Revision = build.Revision
+		}
 	}
 	return &m, nil
 }

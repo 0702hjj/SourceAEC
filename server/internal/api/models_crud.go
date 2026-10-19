@@ -146,6 +146,7 @@ func (h *handler) download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(m.Name))
+	w.Header().Set("Cache-Control", "no-store")
 	http.ServeFile(w, r, h.st.SourcePath(m))
 }
 
@@ -155,6 +156,7 @@ func (h *handler) serveModelFile(name string) http.HandlerFunc {
 		if m == nil {
 			return
 		}
+		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, filepath.Join(h.st.ModelDir(m.ID), name))
 	}
 }
@@ -163,4 +165,3 @@ const maxIssueUpload = 6 << 20 // 6MB
 const maxScreenshot = 5 << 20  // 5MB
 
 var issueFilePattern = regexp.MustCompile(`^i_[0-9a-f]{12}\.png$`)
-

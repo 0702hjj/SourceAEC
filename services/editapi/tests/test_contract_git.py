@@ -59,3 +59,24 @@ def test_run_then_save_reuses_successful_build(client, profile, data_dir, monkey
     artifacts._ROOTS.discard(data_dir.resolve())
     artifacts.initialize(str(data_dir))
     assert product.read_bytes() == expected
+
+
+def test_failed_candidate_preserves_branch_script_and_product(client, profile, data_dir):
+    from aibim_sandbox import git_store
+    _save(client, profile.key_script(profile.default_key))
+    original = client.get(f"/models/{MODEL_ID}/script").json()
+    product = data_dir / "uploads" / f"{MODEL_ID}.{profile.ext}"
+    original_bytes = product.read_bytes()
+    root = str(data_dir)
+    with git_store.prepare(root, MODEL_ID, "create", "broken") as (repo, branch, _):
+        git_store.persist(root, MODEL_ID, repo, branch)
+    broken = original["script"].replace("def build(params, out_path):", "def build(params, out_path):\n    raise RuntimeError('candidate fails')")
+    git_store.commit(root, MODEL_ID, broken)
+    with git_store.prepare(root, MODEL_ID, "checkout", "main") as (repo, branch, _):
+        git_store.persist(root, MODEL_ID, repo, branch)
+    response = client.post(f"/models/{MODEL_ID}/git/checkout", json={
+        "branch": "broken", "baseRevision": original["revision"]})
+    assert response.status_code == 422
+    assert git_store.state(root, MODEL_ID)["branch"] == "main"
+    assert product.read_bytes() == original_bytes
+    assert client.get(f"/models/{MODEL_ID}/script").json()["script"] == original["script"]

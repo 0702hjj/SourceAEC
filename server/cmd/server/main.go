@@ -273,6 +273,9 @@ func main() {
 	runner := convert.ExecRunner{NodeBin: cfg.NodeBin, Script: cfg.ConverterScript}
 	q := convert.NewQueue(st, runner, 2)
 	q.Start(ctx)
+	if err := q.RestoreMissing(); err != nil {
+		log.Fatalf("restore viewer caches: %v", err)
+	}
 
 	var iss issue.Store
 	var chg change.Store

@@ -218,3 +218,29 @@ func Capture(path string) error {
 	}
 	return WriteFile(path, data, 0644)
 }
+
+// CaptureTree persists CLI-produced inputs/deliverables. Cache directories,
+// symlinks and temporary files are excluded by the shared storage policy.
+func CaptureTree(root string) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if d.IsDir() {
+			if strings.HasSuffix(d.Name(), "_cache") || d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if db, _ := lookup(path); db == nil {
+			return nil
+		}
+		return Capture(path)
+	})
+}

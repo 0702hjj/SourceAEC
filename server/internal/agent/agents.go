@@ -220,7 +220,7 @@ func newFilesystemMiddleware(ctx context.Context, skillWorkRoot string, readRoot
 	}
 	mw, err := fsmw.NewTyped[*schema.Message](ctx, &fsmw.MiddlewareConfig{
 		Backend:        &fsReadOnlyBackend{inner: backend, skillWorkRoot: skillWorkRoot, readRoots: append(readRoots, skillWorkRoot)},
-		StreamingShell: backend, // execute + 白名单
+		StreamingShell: &artifactShell{inner: backend, root: skillWorkRoot}, // persist CLI outputs
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create filesystem middleware: %w", err)

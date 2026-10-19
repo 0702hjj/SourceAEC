@@ -19,6 +19,8 @@ the flagging itself stays as script-run/LRU bookkeeping (W-0009, see
 
 from __future__ import annotations
 
+from aibim_sandbox import artifacts
+
 import json
 import logging
 import os
@@ -63,13 +65,14 @@ class PendingStore:
         entries = self._pending.get(model_id, [])
         if not entries:
             if os.path.isfile(path):
+                artifacts.remove(path)
                 os.remove(path)
             return
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(entries, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
+        artifacts.replace(tmp, path)
 
     def get(self, model_id: str) -> List[Dict[str, Any]]:
         """Pending entries for a model (pure read: never mutates memory state)."""

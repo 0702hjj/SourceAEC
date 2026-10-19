@@ -37,3 +37,25 @@ def test_incremental_wall_matches_full_rebuild(tmp_path):
     shutil.rmtree(str(product) + ".tasks_cache")
     script_runner.run_script(settings, changed, str(product))
     assert _geometry(product) == incremental
+
+
+def test_selected_wall_height_edits_source_and_reuses_other_fragment(client, data_dir):
+    from conftest import MODEL_ID
+    source = EXAMPLE.read_text()
+    assert client.put(f"/models/{MODEL_ID}/script", json={"script": source}).status_code == 200
+    assert client.post(f"/models/{MODEL_ID}/script/run").status_code == 200
+    from script_lib import deterministic_guid
+    located = client.get(f"/models/{MODEL_ID}/script/locate", params={
+        "guid": deterministic_guid("wall:a")}).json()
+    assert located["found"]
+    assert next(a for a in located["arguments"] if a["argument"] == "height")["paramPath"] == ["a_height"]
+    response = client.post(f"/models/{MODEL_ID}/script/edit-call", json={
+        "designKey": "wall:a", "argument": "height", "value": 4.0,
+        "mode": "parameter", "baseRevision": located["revision"],
+    })
+    assert response.status_code == 200, response.text
+    script = client.get(f"/models/{MODEL_ID}/script").json()["script"]
+    assert script_params.extract_params(script)["a_height"] == 4.0
+    assert 'height=params["a_height"]' in script
+    record = json.loads((data_dir / "uploads" / f"{MODEL_ID}.ifc.build.json").read_text())
+    assert record["tasks"] == {"executed": ["wall:a"], "reused": ["wall:b"]}
