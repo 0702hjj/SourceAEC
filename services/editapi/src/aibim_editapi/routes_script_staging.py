@@ -32,8 +32,9 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel
 
-from aibim_sandbox import script_params, script_staging
+from aibim_sandbox import script_params, script_staging, artifacts
 from aibim_sandbox import script_versions
+from aibim_sandbox.runner import script_hash
 from aibim_sandbox.route_common import MODEL_ID_PATTERN
 from aibim_sandbox.route_common import model_lock
 from aibim_sandbox.route_common import model_upload_path
@@ -63,6 +64,7 @@ class ScriptBody(BaseModel):
     script: Optional[str] = None
     params: Optional[Dict[str, Any]] = None
     note: str = ""
+    baseRevision: Optional[str] = None
 
 
 def verify_script_body(body: ScriptBody) -> None:
@@ -148,7 +150,7 @@ def preserve_bootstrap(
     os.makedirs(os.path.dirname(bootstrap), exist_ok=True)
     tmp = bootstrap + ".tmp"
     shutil.copyfile(uploads, tmp)
-    os.replace(tmp, bootstrap)
+    artifacts.replace(tmp, bootstrap)
 
 
 def staging_or_seed(
@@ -203,6 +205,7 @@ def build_staging_router(profile: ServiceProfile, runner) -> APIRouter:
         return {
             "modelId": id,
             "script": current,
+            "revision": script_hash(current),
             "staged": staging.staged_count(),
             "canUndo": staging.can_undo(),
             "canRedo": staging.can_redo(),
@@ -220,6 +223,7 @@ def build_staging_router(profile: ServiceProfile, runner) -> APIRouter:
         verify_script_body(body)
         with model_lock(request, id, ext):
             staging = staging_of(request, id)
+            verify_stage_revision(staging, body.baseRevision)
             if body.script is not None:
                 text = body.script
             else:
@@ -283,3 +287,8 @@ def build_staging_router(profile: ServiceProfile, runner) -> APIRouter:
             return {"modelId": id, "discarded": dropped, "script": staging.current()}
 
     return router
+
+
+def verify_stage_revision(staging, revision: Optional[str]) -> None:
+    if revision is not None and script_hash(staging.current() or "") != revision:
+        raise HTTPException(status_code=409, detail="script revision changed; refresh before editing")

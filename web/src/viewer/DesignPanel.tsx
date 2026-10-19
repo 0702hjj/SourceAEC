@@ -29,6 +29,7 @@ import {
 import type { ScriptDiffResponse, ScriptState, ScriptVersionsResponse } from "@/api/types";
 import { useViewerStore } from "./store";
 import { applyDrafts, draftOf, flattenParams, type ParamField } from "./scriptEdit";
+import { VersionPanel } from "./VersionPanel";
 import "./DesignPanel.css";
 
 function fmtVal(v: unknown): string {
@@ -100,6 +101,12 @@ export function DesignPanel({ modelId }: { modelId: string }) {
     refresh().catch(() => setNoScript(true));
   }, [refresh]);
 
+  useEffect(() => {
+    const changed = () => { refresh().catch(() => {}); };
+    window.addEventListener("sourceaec:script-changed", changed);
+    return () => window.removeEventListener("sourceaec:script-changed", changed);
+  }, [refresh]);
+
   // entering the editor syncs its text from the current staged script
   useEffect(() => {
     if (mode === "editor" && state) setEditorText(state.script);
@@ -155,6 +162,7 @@ export function DesignPanel({ modelId }: { modelId: string }) {
     try {
       await fn();
       await refresh();
+      window.dispatchEvent(new Event("sourceaec:script-changed"));
       if (reloadModel) useViewerStore.getState().flagPendingModelReload();
     } catch (e) {
       setError((e as Error).message);
@@ -172,7 +180,7 @@ export function DesignPanel({ modelId }: { modelId: string }) {
       setError((e as Error).message);
       return;
     }
-    run(() => stageScriptParams(modelId, next));
+    run(() => state?.revision ? stageScriptParams(modelId, next, "", state.revision) : stageScriptParams(modelId, next));
   };
 
   // 回滚：端点把该版本脚本重置进 staging 并重跑进 uploads——复用 run() 刷新路径
@@ -191,6 +199,7 @@ export function DesignPanel({ modelId }: { modelId: string }) {
 
   return (
     <div className="design-panel">
+      <VersionPanel modelId={modelId} />
       <div className="design-panel-header">
         <span>脚本参数</span>
         <span className="design-staged">暂存 {state.staged}/{state.maxSteps}</span>
@@ -270,7 +279,7 @@ export function DesignPanel({ modelId }: { modelId: string }) {
             />
           </div>
           <div className="design-actions">
-            <button onClick={() => run(() => stageScript(modelId, editorText))} disabled={busy}>
+            <button onClick={() => run(() => state.revision ? stageScript(modelId, editorText, "", state.revision) : stageScript(modelId, editorText))} disabled={busy}>
               暂存脚本
             </button>
           </div>

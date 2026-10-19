@@ -11,6 +11,7 @@ import { locateScript } from "@/api/client";
 import { useViewer } from "./ViewerContext";
 import { useViewerStore } from "./store";
 import { applyOverrides } from "./overrides";
+import { EntityScriptEditor } from "./EntityScriptEditor";
 import "./PropertyPanel.css";
 
 export function PropertyPanel({ modelId }: { modelId: string }) {
@@ -111,6 +112,7 @@ export function PropertyPanel({ modelId }: { modelId: string }) {
             {locating ? "定位中…" : "定位脚本"}
           </button>
           {notice && <p className="property-notice">{notice}</p>}
+          {selectedId && <EntityScriptEditor key={selectedId} modelId={modelId} guid={selectedId} />}
           {entity.propertySets.map((pset, index) => {
             const props = (pset.properties ?? []).filter(
               (p) => !searching || matches(p.name, p.value) || pset.name.toLowerCase().includes(q)

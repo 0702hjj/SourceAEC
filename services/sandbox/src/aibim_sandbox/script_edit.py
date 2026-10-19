@@ -19,7 +19,7 @@ def _literal(value: Scalar) -> cst.BaseExpression:
     if isinstance(value, bool):
         return cst.Name("True" if value else "False")
     if isinstance(value, (int, float)):
-        return cst.Float(repr(value)) if isinstance(value, float) else cst.Integer(repr(value))
+        return cst.parse_expression(repr(value))
     return cst.SimpleString(json.dumps(value, ensure_ascii=False))
 
 
