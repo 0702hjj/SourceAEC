@@ -22,9 +22,16 @@ func TestRestoreMissingQueuesIFCCache(t *testing.T) {
 	runner := newBlockingRunner()
 	q := NewQueue(st, runner, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	q.Start(ctx)
-	defer close(runner.release)
+	t.Cleanup(func() {
+		close(runner.release)
+		cancel()
+		deadline, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		if !q.WaitIdle(deadline) {
+			t.Error("conversion worker did not finish before cleanup")
+		}
+	})
 	if err = q.RestoreMissing(); err != nil {
 		t.Fatal(err)
 	}

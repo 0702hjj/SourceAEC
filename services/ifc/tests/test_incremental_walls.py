@@ -17,8 +17,19 @@ def _geometry(path):
     model = ifcopenshell.open(str(path))
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
-    return {wall.GlobalId: tuple(ifcopenshell.geom.create_shape(settings, wall).geometry.verts)
-            for wall in model.by_type("IfcWall")}
+    result = {}
+    for wall in model.by_type("IfcWall"):
+        # Keep the owning C++ shape alive while reading its buffers. Compare
+        # triangles independent of tessellator vertex/index ordering.
+        shape = ifcopenshell.geom.create_shape(settings, wall)
+        vertices = shape.geometry.verts
+        faces = shape.geometry.faces
+        points = [tuple(round(value, 8) for value in vertices[i:i + 3])
+                  for i in range(0, len(vertices), 3)]
+        triangles = [tuple(sorted(points[index] for index in faces[i:i + 3]))
+                     for i in range(0, len(faces), 3)]
+        result[wall.GlobalId] = tuple(sorted(triangles))
+    return result
 
 
 def test_incremental_wall_matches_full_rebuild(tmp_path):
