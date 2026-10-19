@@ -14,7 +14,7 @@ script-as-source API，为 Agent 和人提供 IFC 创建、编辑、检查、沙
 - 基于 IfcOpenShell、以可审查 Python 脚本为模型事实源的执行环境。
 - 可选的规划与 CAD/DXF 制图能力，以及浏览器二维查看器。
 - Python 构建脚本是模型唯一事实源。
-- 沙箱试运行、SQLite 持久化、Git 脚本提交与分支合并。
+- 沙箱试运行、PostgreSQL 持久化、Git 脚本提交与分支合并。
 - 显式依赖任务的增量构建，以及构件参数回写脚本。
 - 按 IFC GlobalId 的属性级语义对比。
 - React 前端、Go 网关和两个对等的 Python 编辑服务。
@@ -45,7 +45,7 @@ Go 网关 :8090 ----> IFC 服务 :8100 ----> IfcOpenShell
 
 ## 快速开始
 
-需要 Go 1.26、Node.js 22、Python 3.10、`uv`、Git、支持 CGO 的 C 编译器，以及 Linux 上的 bubblewrap。
+需要 Go 1.26、Node.js 22、Python 3.10、`uv`、Git、PostgreSQL，以及 Linux 上的 bubblewrap。
 生产环境缺少 bubblewrap 时，脚本执行会 fail-closed。
 
 ```bash
@@ -53,6 +53,15 @@ cd converter && npm install
 cd ../web && npm install
 cd ../services/ifc && uv sync
 cd ../cad && uv sync
+```
+
+先构建 Go 业务运行时。每个服务终端都配置相同的 PostgreSQL 数据库与存储命名空间，DSN 替换为本机数据库：
+
+```bash
+./scripts/build_runtime.sh
+export SOURCEAEC_RUNTIME_BIN="$(pwd)/bin/sourceaec-runtime"
+export VIEWER_PG_DSN='postgres://localhost/sourceaec'
+export VIEWER_STORAGE_NAMESPACE=sourceaec
 ```
 
 分别启动两个 Python 服务、Go 网关和 Vite 开发服务器：

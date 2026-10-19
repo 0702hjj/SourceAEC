@@ -22,7 +22,7 @@ SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与�
 - React frontend, Go gateway, and peer Python edit services.
 - In-process AI agent with deterministic offline fallback.
 
-Storage and incremental-build details: [model storage](https://0702hjj.github.io/SourceAEC/development/model-storage). The gateway SQLite driver requires CGO and a C compiler; script versioning requires Git.
+Storage and incremental-build details: [model storage](https://0702hjj.github.io/SourceAEC/development/model-storage). PostgreSQL and Git are required. Storage, Git and incremental task scheduling are implemented in Go.
 
 ## Architecture
 
@@ -49,7 +49,7 @@ Go gateway :8090 ----> IFC service :8100 ----> IfcOpenShell
 
 ## Quick Start
 
-Requirements include Go 1.26, Node.js 22, Python 3.10, `uv`, and bubblewrap
+Requirements include Go 1.26, Node.js 22, Python 3.10, `uv`, Git, PostgreSQL, and bubblewrap
 on Linux. Production script execution fails closed when bubblewrap is absent.
 
 ```bash
@@ -57,6 +57,15 @@ cd converter && npm install
 cd ../web && npm install
 cd ../services/ifc && uv sync
 cd ../cad && uv sync
+```
+
+Build the Go runtime first. In each service terminal, configure the same PostgreSQL database and storage namespace (replace the DSN with your local database):
+
+```bash
+./scripts/build_runtime.sh
+export SOURCEAEC_RUNTIME_BIN="$(pwd)/bin/sourceaec-runtime"
+export VIEWER_PG_DSN='postgres://localhost/sourceaec'
+export VIEWER_STORAGE_NAMESPACE=sourceaec
 ```
 
 Run the two Python services, the Go gateway, and the Vite development server:

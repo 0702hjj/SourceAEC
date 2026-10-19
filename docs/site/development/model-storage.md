@@ -1,10 +1,18 @@
 # 模型存储与增量构建
 
-平台以 Python 构建脚本为模型编辑事实源，使用 SQLite 保存业务文件和
-Git 仓库 bundle。Go 网关与 IFC/CAD 服务必须使用相同的绝对
-`VIEWER_DATA_DIR`，数据库位于该目录的 `sourceaec.sqlite3`。
-SQLite 是本机部署的默认持久化方案；已有可选 PostgreSQL 业务表保持兼容。
-Go SQLite 驱动需要 CGO 和 C 编译器；服务器还需要 Git 可执行文件。
+平台以 Python 构建脚本为模型编辑事实源，业务持久化统一使用 PostgreSQL。
+Go 实现业务文件存储、事务、Git bundle、构建身份、任务调度与缓存校验；
+Python 负责 IfcOpenShell/ezdxf 调用、Python AST 分析和脚本函数执行。
+Python 适配层通过私有 stdin/stdout JSON 协议调用 `sourceaec-runtime`，
+不直接访问数据库或启动 Git。沙箱内的 Go 调度器使用独立 `--tasks` 模式，
+不接收数据库凭据；生产隔离仍强制使用 bubblewrap。
+
+三个服务设置相同的 `VIEWER_PG_DSN`、绝对 `VIEWER_DATA_DIR` 和
+`VIEWER_STORAGE_NAMESPACE`。后者决定业务文件与 Git 的 PostgreSQL schema，
+建议显式设置，移动工作区时保持不变。未设置时按绝对数据目录派生。
+IFC/CAD 服务另需 `SOURCEAEC_RUNTIME_BIN` 指向 Go 运行时的绝对路径，
+可在仓库根执行 `scripts/build_runtime.sh` 构建；需要 Git 可执行文件。
+数据库不可用时启动失败，不回退到文件存储。
 
 ## 持久数据与工作区
 
@@ -24,21 +32,30 @@ XKT、metadata、render.json、任务缓存和历史 IFC/DXF 是可重建数据�
 保存检查点后只保留最新版本的产品快照；历史脚本长期保存，旧产物按需
 重建并进入有限缓存。上传原件 bootstrap 用于复现与对齐，独立保留。
 
-配置 PostgreSQL 时也须单独备份其业务数据库。
+## SQLite 升级与备份
 
-SQLite 使用 WAL。在线备份应使用 SQLite backup API；停止全部写入进程后
-也可以备份数据库文件及尚未 checkpoint 的 WAL，不能只复制活动数据库主文件。
-可用 Python 标准库执行在线备份：
+旧版本 SQLite 数据库必须显式离线迁移，不能只导入工作区文件，后者不包含
+完整 Git bundle。停止全部服务，备份原数据目录及 SQLite 数据库与 WAL，
+准备空的 PostgreSQL 命名空间，再从 `server/` 执行：
 
-```python
-import sqlite3
-with sqlite3.connect("data/sourceaec.sqlite3") as source:
-    with sqlite3.connect("sourceaec-backup.sqlite3") as destination:
-        source.backup(destination)
+```bash
+export VIEWER_PG_DSN='postgres://localhost/sourceaec'
+export VIEWER_STORAGE_NAMESPACE=sourceaec
+# data-dir 必须与后续服务指向同一工作区
+go run ./cmd/migrate-sqlite --source ../data/sourceaec.sqlite3 --data-dir ../data
 ```
 
-恢复时停止所有服务，把备份恢复为数据库文件，再启动服务重建工作区。
-启动时会为缺失 XKT 的已就绪模型重新排队转换；CAD render.json 可由服务重建。
+迁移工具只读打开 SQLite，将业务文件、模式位和 Git bundle 一起提交到
+PostgreSQL。目标已有数据或已初始化时拒绝覆盖；失败整批回滚。
+仅迁移工具需要 CGO 与 C 编译器，网关和业务运行时不依赖 SQLite 驱动。
+存在旧 SQLite 且尚未迁移时，服务会拒绝启动，避免静默丢失 Git 历史。
+迁移成功后启动服务恢复工作区。原有 JSON 审查记录会导入已有的 PostgreSQL
+审查表，保留 ID 和时间；导入标记防止删除记录在重启时复活。
+
+日常备份使用 `pg_dump` 备份完整业务数据库，包含 schema 内的 artifacts、
+repositories、迁移标记，以及审查表。恢复到 PostgreSQL 后，以相同命名空间
+启动服务即可恢复工作区；转换器与沙箱缓存可重建。辅助库源码和依赖环境
+仍需随部署版本保存。首次验证完成前保留旧备份。
 
 ## Git 版本控制
 

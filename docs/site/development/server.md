@@ -61,7 +61,10 @@ internal/
 
 鉴权与 CORS 的配置项见[配置说明](/guide/configuration)，协议行为见 [REST API](/reference/rest-api#鉴权与-cors)。
 
-三个领域 store 各有文件和 PostgreSQL 两套实现，用 `pgDSN` 切换，建表自动完成。模型文件本身始终在文件系统，数据目录布局与第三方整合方式见[存储与前端对接](/development/integration)。
+业务存储统一使用 PostgreSQL，Go 负责 artifact、Git bundle、构建记录与任务调度。
+原有审查表继续使用 pgx，旧 JSON 记录首次启动时导入。文件接口保留为工具投影的兼容层。
+Python 编辑服务通过 Go 运行时的私有 stdio 协议存取业务状态。
+数据目录布局与第三方整合方式见[存储与前端对接](/development/integration)。
 
 ## Converter 子进程
 

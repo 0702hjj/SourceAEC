@@ -2,6 +2,10 @@
 
 生产形态是**宿主机直跑，不用 Docker**。对外只有 8090 一个端口：Go server 托管前端构建产物，浏览器只访问它；两个 Python 编辑服务只监听回环，不暴露到网络。
 
+三个服务环境都需要 `VIEWER_PG_DSN` 和相同的 `VIEWER_STORAGE_NAMESPACE`。
+编辑服务另需 `SOURCEAEC_RUNTIME_BIN=/opt/SourceAEC/bin/sourceaec-runtime`。
+旧 SQLite 部署先按[迁移说明](/development/model-storage#sqlite-升级与备份)停机迁移。
+
 ## 构建与启动
 
 每行都从**仓库根目录**执行，不链式 `cd`（下面三个进程各自一个终端）：
@@ -12,6 +16,7 @@ cd web && npm ci && npm run build
 
 # 2. 构建 server（默认托管 ../web/dist，可用 webDist / VIEWER_WEB_DIST 改路径）
 cd server && go build -o server ./cmd/server
+./scripts/build_runtime.sh
 
 # 3. 依次启动：server 对外，两个编辑服务只绑回环
 cd server && ./server
@@ -46,6 +51,7 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/SourceAEC/server
 Environment=VIEWER_API_TOKEN=换成强随机串
+EnvironmentFile=/etc/sourceaec/runtime.env
 ExecStart=/opt/SourceAEC/server/server -config server_config.json
 Restart=on-failure
 
@@ -62,6 +68,7 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/SourceAEC/services/ifc
 Environment=VIEWER_DATA_DIR=/opt/SourceAEC/data
+EnvironmentFile=/etc/sourceaec/runtime.env
 ExecStart=/usr/local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8100
 Restart=on-failure
 
@@ -77,20 +84,21 @@ Go server 自带静态托管与 SPA fallback，**正常部署不需要 nginx**�
 - **只转发 8090**。8100 与 8200 没有鉴权，部署时必须限制为回环监听或受控内网；不要给它们开对外路由。
 - **观测端口默认只监听 127.0.0.1:6060**，且不经过主 API token；不要把 `VIEWER_PPROF_ADDR` 配成公网地址。若必须远程观测，请使用受限管理网络或额外的认证反向代理，并确认不会把 pprof、expvar 或 token 写入公共日志。
 
-## PostgreSQL（可选）
+## PostgreSQL 与升级
 
-不配置时 Issue、override、修改记录全部落文件，零外部依赖。装好 14+ 版本后给 server 传 DSN 即可，建表自动完成：
+PostgreSQL 14+ 是必需依赖。把实际 DSN、存储命名空间和运行时路径配置到
+仅服务账号可读的 `/etc/sourceaec/runtime.env`，示例：
 
 ```bash
-VIEWER_PG_DSN=postgres://user:pass@127.0.0.1:5432/sourceaec
+VIEWER_PG_DSN=postgres://localhost/sourceaec
+VIEWER_STORAGE_NAMESPACE=sourceaec
+SOURCEAEC_RUNTIME_BIN=/opt/SourceAEC/bin/sourceaec-runtime
 ```
 
-注意模型文件与版本快照**始终在文件系统**，PG 只承接网关侧的三张表，所以备份要覆盖两边。
-
-## 备份与升级
-
-- **要备份的是 `data/` 目录**。模型原件、大版本脚本（`scripts/v{n}.py` + `v{n}.map.json`）、暂存链、方案文件（`plans/{projectID}/`）、Issue 截图都在里面；历史版本的 IFC/DXF 产物可从脚本重建，丢了不致命。数据目录的完整布局见[存储与前端对接](/development/integration#数据目录布局)。
-- 升级就是重新 `npm run build` 前端、重新 `go build` server，然后重启三个服务。大版本脚本与定位 map 成对追加写，跨版本可读；暂存链也是原子落盘的（`script_staging.json`），**重启会恢复而非丢失**。唯一要注意的是暂存脚本如果没跑过，它的定位 map 会和它分叉，重启后仍需要先运行一次才能定位。
+备份完整 PostgreSQL 数据库及对应部署版本。业务文件和 Git bundle 在数据库，
+数据目录作为工具工作区；XKT、渲染文件和历史派生产物可重建。
+升级时同时构建前端、Go server 和 Go 业务运行时，再重启三个服务。
+迁移步骤与数据保留边界见[模型存储](/development/model-storage)。
 
 ## 验证
 

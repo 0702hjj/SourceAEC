@@ -18,10 +18,10 @@ Go server 和两个 Python 服务必须共享同一个数据目录，配错会 4
     ├── model.xkt                       # converter 产物（静态直挂路径）
     ├── metadata.json                   # converter 产物（xeokit 元模型）
     ├── render.json                     # CAD 渲染载荷（仅 dxf，run/save 后原子发布）
-    ├── issues.json                     # issue 列表（仅文件存储模式）
-    ├── issues/{issueId}.png            # issue 截图（文件与 PG 模式均在此）
-    ├── changes.json                    # 修改记录（仅文件存储模式）
-    ├── overrides.json                  # 属性 override（仅文件存储模式）
+    ├── issues.json                     # 旧版审查文件的兼容投影
+    ├── issues/{issueId}.png            # 截图的工作区投影，内容持久化到 PostgreSQL
+    ├── changes.json                    # 旧版修改记录的兼容投影
+    ├── overrides.json                  # 旧版属性覆盖的兼容投影
     ├── edit-history.json               # services/ifc 持久化编辑历史
     ├── pending.json                    # script-run 回放簿记（内部）
     ├── script_staging.json             # 暂存脚本链（原子写，重启恢复）
@@ -32,22 +32,13 @@ Go server 和两个 Python 服务必须共享同一个数据目录，配错会 4
     └── ifc_cache/                      # diff/下载时按需重建的历史版本 + .map.json sidecar
 ```
 
-写入方分两组：uploads、model.json、XKT、metadata、projects、plans 和 issues/changes/overrides 由 Go server 与 converter 写；其余由 Python 服务直接读写，不经过 Go store。Go 和 Python 共享的是**目录契约**，不是同一个 store 实例。
+所有业务持久化由 Go 实现。网关直接调用 Go artifact store，Python 服务通过
+私有 stdio 适配层调用 Go 业务运行时；共享目录用于需要文件名的脚本、转换器
+和下载接口。模型元数据、上传文件、截图、脚本、Git bundle 都保存在 PostgreSQL。
+XKT、metadata、render.json 和历史产品缓存仍是可重建投影。
 
-跨语言共享目录只有一条硬约束：**先写临时文件再 rename，禁止原地截断写**。
-
-## 两种存储实现
-
-文件存储是默认实现，零依赖：所有状态落在数据目录里，JSON 文件加原子写。
-
-PostgreSQL 可选：设置 `VIEWER_PG_DSN` 即切换。三张表由各自的 `pgstore.go` 在构造时自动建立。
-
-两处不对称要知道：
-
-1. **模型注册表不进 PG**。模型元数据和上传文件始终是文件存储，PG 只承接 issue、change、override 三个网关侧数据。
-2. **Issue 截图不进 PG**。PG 模式下 PNG 仍落盘，库里只存相对路径。
-
-这两点决定了备份要同时覆盖数据目录和 PG，缺一不可。
+工作区发布使用临时文件和 rename；检查点的数据库事务与投影回滚由 Go 统一管理。
+备份、命名空间、SQLite 升级与当前增量边界见[模型存储](/development/model-storage)。
 
 ## 第三方整合路径
 

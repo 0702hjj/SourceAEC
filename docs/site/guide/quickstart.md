@@ -11,7 +11,7 @@
 | Python + [uv](https://docs.astral.sh/uv/) | 3.10+ | 两个编辑服务 | 编辑和 diff 功能必需，纯浏览可不装 |
 | Linux + bubblewrap | — | 脚本沙箱 | 生产必需。缺失时 run/save 直接拒绝执行 |
 | ripgrep (`rg`) | — | chat agent 的搜索工具后端 | chat agent 必需 |
-| PostgreSQL | 14+ | Issue 等数据的持久化 | 可选，默认用文件存储 |
+| PostgreSQL | 14+ | 全部业务数据与 Git bundle | 必需 |
 
 几点说明：
 
@@ -22,6 +22,15 @@
 ## 启动
 
 开四个终端，都从**仓库根目录**起。每段命令都假设自己在仓库根，不要顺着上一段往下走。DXF 功能不需要时，终端 1b 里的 cad 服务可以不启。
+
+先在仓库根构建 Go 业务运行时，并在三个服务终端配置：
+
+```bash
+./scripts/build_runtime.sh
+export SOURCEAEC_RUNTIME_BIN="$(pwd)/bin/sourceaec-runtime"
+export VIEWER_PG_DSN='postgres://localhost/sourceaec'
+export VIEWER_STORAGE_NAMESPACE=sourceaec
+```
 
 ```bash
 # 0. 一次性：安装依赖（子 shell 保证每行都从仓库根解析）
@@ -63,4 +72,4 @@ cd web && npm test
 cd converter && npm test
 ```
 
-浏览、上传、转换不依赖编辑服务和 PostgreSQL；编辑、版本、diff 需要编辑服务在运行。各模块的完整测试矩阵与手工验收清单见[测试与调试](/development/testing)。
+所有业务持久化都需要 PostgreSQL；编辑、版本、diff 还需要 Go 业务运行时与编辑服务。各模块的完整测试矩阵与手工验收清单见[测试与调试](/development/testing)。

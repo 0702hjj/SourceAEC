@@ -44,7 +44,7 @@ go run ./cmd/server
 
 `VIEWER_DATA_DIR` 必须和 Go 配置的 `dataDir` 指向同一目录，两边都按它定位模型文件。
 
-外部 Agent 可以不安装 Go server、web、converter、PostgreSQL，只用 `services/ifc` 就能完成脚本编辑、版本和 diff。独立部署步骤见 [Edit Service 的独立部署一节](/development/edit-service#独立部署与移植)。
+外部 Agent 可以不运行 Go HTTP 网关、web 和 converter；`services/ifc` 配合 Go 业务运行时与 PostgreSQL 提供脚本编辑、版本和 diff。独立部署步骤见 [Edit Service 的独立部署一节](/development/edit-service#独立部署与移植)。
 
 ## Agent 直连全流程
 

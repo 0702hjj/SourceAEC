@@ -18,7 +18,11 @@
 | agent TUI | textual Pilot | `tools/agent/agent --test` |
 | 端到端 | bash 冒烟 | `./scripts/smoke.sh`，需 server 运行 |
 
-server 的 18 个 PG 测试需要 `VIEWER_TEST_PG_DSN`（指向专用测试库，测试会删表），未设时自动跳过。各组件当前的用例规模随迭代变动，以仓库根 `AGENTS.md` 的组件表为准。
+测试前构建 `scripts/build_runtime.sh`，设置绝对 `SOURCEAEC_RUNTIME_BIN`。
+Go 存储与服务契约测试需要 `VIEWER_PG_DSN`；原有审查表测试另需
+`VIEWER_TEST_PG_DSN`。两者都应指向专用测试库，测试会建 schema 并删表。
+CI 为 Go 和三个 Python job 提供隔离的 PostgreSQL 服务，实际运行数据库测试。
+本地未配置 DSN 时，Go 数据库测试跳过，Python 服务测试则需要先配置依赖。各组件当前的用例规模随迭代变动，以仓库根 `AGENTS.md` 的组件表为准。
 
 ## 端到端冒烟
 
