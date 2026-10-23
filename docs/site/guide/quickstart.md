@@ -6,7 +6,7 @@
 
 | 依赖 | 版本 | 用途 | 必需性 |
 | --- | --- | --- | --- |
-| Go | 1.26+ | server | 必需 |
+| Go | 1.27.3+ | server | 必需 |
 | Node.js | 22+ | converter 与 web 构建 | 必需 |
 | Python + [uv](https://docs.astral.sh/uv/) | 3.10+ | 两个编辑服务 | 编辑和 diff 功能必需，纯浏览可不装 |
 | Linux + bubblewrap | — | 脚本沙箱 | 生产必需。缺失时 run/save 直接拒绝执行 |

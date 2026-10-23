@@ -1,6 +1,6 @@
 # Go Server
 
-`server/` 是 Go 1.26 服务，默认端口 8090，是平台唯一对外入口。它承担 REST API、上传与转换编排、存储抽象、进程内 chat agent，并托管 `web/dist` 静态产物。
+`server/` 是 Go 1.27.3 服务，默认端口 8090，是平台唯一对外入口。它承担 REST API、上传与转换编排、存储抽象、进程内 chat agent，并托管 `web/dist` 静态产物。
 
 ## 命令
 

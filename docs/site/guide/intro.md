@@ -29,7 +29,7 @@ SourceAEC 是一个开源、自托管、面向 Agent 的 IFC 操作接口。它�
 | 组件 | 技术 | 职责 |
 | --- | --- | --- |
 | `web` | React 19，xeokit 与 web-ifc 双引擎，DXF 用 Fabric Canvas | 项目库、查看器、编辑面板、Issue、Diff、AI 对话栏 |
-| `server` | Go 1.26 | 唯一对外入口（:8090）：REST API、转换队列、编辑编排、chat agent，并托管前端构建产物 |
+| `server` | Go 1.27.3 | 唯一对外入口（:8090）：REST API、转换队列、编辑编排、chat agent，并托管前端构建产物 |
 | `converter` | Node CLI | 把 IFC 转成 XKT 几何和元数据，由 server 当子进程调用 |
 | `services/ifc` | Python FastAPI + IfcOpenShell | IFC 脚本沙箱、版本、定位、语义对比（:8100） |
 | `services/cad` | Python FastAPI + ezdxf | DXF 脚本沙箱、版本、对比、render.json 发布（:8200） |

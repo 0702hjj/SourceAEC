@@ -43,6 +43,7 @@ jobs:
           cache-dependency-path: server/go.sum
       - run: go test ./... && go vet ./...
         working-directory: server
+      - run: python3 -m unittest discover -s scripts -p 'test_build_server_release.py'
       - run: scripts/check_file_size.sh && scripts/check_public_snapshot.sh
   web:
     runs-on: ubuntu-latest

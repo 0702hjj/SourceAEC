@@ -43,7 +43,7 @@ graph LR
 | 组件 | 技术 | 职责 | 选型原因 |
 | --- | --- | --- | --- |
 | web | React 19 + TS + Vite + zustand + xeokit-sdk + web-ifc/three | 全部交互界面 | xeokit 提供 XKT 加载与 BIM 工具链；web-ifc 直读 IFC，两条链路并存 |
-| server | Go 1.26，stdlib net/http + pgx/v5 + cloudwego/eino | 上传转换队列、REST、编辑编排、存储抽象、chat agent | 静态编译、并发模型 |
+| server | Go 1.27.3，stdlib net/http + pgx/v5 + cloudwego/eino | 上传转换队列、REST、编辑编排、存储抽象、chat agent | 静态编译、并发模型 |
 | converter | Node CLI，web-ifc + xeokit-convert | IFC 转 XKT，提取语义元数据 | xeokit-convert 只有 npm 形态 |
 | edit-service | Python 3.10 + FastAPI + ifcopenshell + ifcdiff | IFC 脚本沙箱、版本、定位、语义 diff | IfcOpenShell 是 IFC 编辑的事实标准 |
 | cad-edit-service | Python 3.10 + FastAPI + ezdxf | DXF 脚本沙箱、版本、diff、render.json | ezdxf 是 DXF 编辑的事实标准 |

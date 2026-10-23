@@ -49,7 +49,7 @@ Go gateway :8090 ----> IFC service :8100 ----> IfcOpenShell
 
 ## Quick Start
 
-Requirements include Go 1.26, Node.js 22, Python 3.10, `uv`, Git, PostgreSQL, and bubblewrap
+Requirements include Go 1.27.3, Node.js 22, Python 3.10, `uv`, Git, PostgreSQL, and bubblewrap
 on Linux. Production script execution fails closed when bubblewrap is absent.
 
 ```bash

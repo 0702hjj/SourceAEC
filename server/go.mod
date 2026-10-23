@@ -1,6 +1,6 @@
 module ifcviewer/server
 
-go 1.26.5
+go 1.27.3
 
 require (
 	github.com/cloudwego/eino v0.9.13
