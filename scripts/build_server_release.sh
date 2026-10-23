@@ -16,9 +16,10 @@ for arch in amd64 arm64; do
   name="sourceaec_${VERSION}_linux_${arch}"
   package="$STAGE/$name"
   mkdir -p "$package/bin" "$package/server"
-  for command in server edit-runtime; do
+  for command in server edit-runtime sourceaec-mcp; do
     binary=sourceaec-server
     if [[ "$command" == edit-runtime ]]; then binary=sourceaec-runtime; fi
+    if [[ "$command" == sourceaec-mcp ]]; then binary=sourceaec-mcp; fi
     CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
       -ldflags='-s -w' -o "$package/bin/$binary" "./cmd/$command"
     go version -m "$package/bin/$binary" > "$package/bin/$binary.buildinfo.txt"

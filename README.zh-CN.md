@@ -2,131 +2,53 @@
 
 [English](README.md)
 
-SourceAEC 是开源、自托管、面向 Agent 的 IFC 操作接口。它通过同一套
-script-as-source API，为 Agent 和人提供 IFC 创建、编辑、检查、沙箱执行与语义
-版本管理；可选的规划与 DXF 工作流可以作为 IFC 建模的上游输入。
+SourceAEC 是开源、自托管、面向 Agent 的 IFC/CAD 操作接口。业务代码全部使用
+Go：编辑 API、暂存、校验、沙箱编排、持久化、Git、版本、方案交付和 MCP。
 
-> 文档：<https://0702hjj.github.io/SourceAEC/>
+Python 仅作为外部几何运行时。模型源码由用户或 Agent 生成，在沙箱中执行；
+仓库不维护 Python 应用、SDK、CLI、hooks 或测试。skill 只保留必要的声明和参考，
+不捆绑上游 SDK。IfcOpenShell、ezdxf、SimpleCADAPI 等属于外部运行能力。
 
-## 核心能力
+## 启动
 
-- 面向 Agent 的 IFC 创建与编辑 REST API 和 Skill。
-- 基于 IfcOpenShell、以可审查 Python 脚本为模型事实源的执行环境。
-- 可选的规划与 CAD/DXF 制图能力，以及浏览器二维查看器。
-- Python 构建脚本是模型唯一事实源。
-- 沙箱试运行、PostgreSQL 持久化、Git 脚本提交与分支合并。
-- 显式依赖任务的增量构建，以及构件参数回写脚本。
-- 按 IFC GlobalId 的属性级语义对比。
-- React 前端、Go 网关和两个对等的 Python 编辑服务。
-- 进程内 AI agent；未配置 API key 时使用确定性离线模型。
-
-## 架构
-
-```text
-浏览器（React、xeokit/web-ifc、Fabric）
-        |
-        v
-Go 网关 :8090 ----> IFC 服务 :8100 ----> IfcOpenShell
-        |            CAD 服务 :8200 ----> ezdxf
-        |                     |
-        +----> converter      +----> 共享沙箱与编辑 API 包
-        +----> 进程内 AI agent
-```
-
-## 界面
-
-| 模型库 | IFC 属性 |
-|---|---|
-| ![模型库](assets/screenshots/library.png) | ![IFC 属性](assets/screenshots/properties.png) |
-
-| 版本对比 | AI 对话 |
-|---|---|
-| ![版本对比](assets/screenshots/diff.png) | ![AI 对话](assets/screenshots/chat.png) |
-
-## 快速开始
-
-需要 Go 1.26、Node.js 22、Python 3.10、`uv`、Git、PostgreSQL，以及 Linux 上的 bubblewrap。
-生产环境缺少 bubblewrap 时，脚本执行会 fail-closed。
+需要 Go 1.27.3+、PostgreSQL、Git、Linux bubblewrap 和 `prlimit`。
+前端与转换器需要 Node.js 22。通过 uv 准备 Python 3.12 几何环境，或用
+`SOURCEAEC_PYTHON` 指定已安装所需依赖的解释器绝对路径。
 
 ```bash
-cd converter && npm install
-cd ../web && npm install
-cd ../services/ifc && uv sync
-cd ../cad && uv sync
-```
-
-先构建 Go 业务运行时。每个服务终端都配置相同的 PostgreSQL 数据库与存储命名空间，DSN 替换为本机数据库：
-
-```bash
-./scripts/build_runtime.sh
-export SOURCEAEC_RUNTIME_BIN="$(pwd)/bin/sourceaec-runtime"
 export VIEWER_PG_DSN='postgres://localhost/sourceaec'
-export VIEWER_STORAGE_NAMESPACE=sourceaec
+cd converter && npm ci
+cd ../web && npm ci && npm run build
+cd ../server && go run ./cmd/server
 ```
 
-分别启动两个 Python 服务、Go 网关和 Vite 开发服务器：
+可复制 `server/server_config.example.json` 为 `server/server_config.json` 配置路径。
+网关在进程内处理业务，不需要启动 Python HTTP 服务。对外部署需配置
+`VIEWER_API_TOKEN` 和 `VIEWER_CORS_ORIGINS`；缺少 bubblewrap 时拒绝执行脚本。
+
+编辑仍走 stage → run → save。读取当前脚本后携带 `baseRevision` 暂存修改，
+试运行成功并检查真实产物后再保存。方案交付只校验并版本化声明性数据，
+不包含旧规划 CLI 的自动设计或合规判断。
+
+## 验证
 
 ```bash
-# 终端 1
-cd services/ifc
-VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
-
-# 终端 2
-cd services/cad
-VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
-
-# 终端 3
-cd server && go run ./cmd/server
-
-# 终端 4
-cd web && npm run dev
-```
-
-两个 Python 服务和 Go 网关必须使用同一个绝对数据目录。`VIEWER_LLM_API_KEY`
-为空时，agent 使用确定性离线模型。
-
-## 仓库结构
-
-```text
-web/               React 前端
-server/            Go REST 网关与进程内 agent
-converter/         IFC 到 XKT 转换器
-services/ifc/      IFC 编辑服务
-services/cad/      CAD 编辑服务
-services/sandbox/  共享沙箱运行时
-services/editapi/  共享脚本编辑 API
-mcp/               可选 MCP 桥
-skills/             Agent 建模与规划 Skill
-tools/              打包与 agent 调试工具
-examples/           合成示例
-```
-
-## 开发验证
-
-修改哪个组件，就运行对应套件。主要命令：
-
-```bash
-cd web && npm test && npm run lint && npm run build
 cd server && go test ./... && go vet ./...
+cd web && npm test && npm run lint && npm run build
 cd converter && npm test
-cd services/ifc && uv run --group dev pytest
-cd services/cad && uv run --group dev pytest
-cd services/sandbox && uv run --group dev pytest
-cd mcp && uv run --group dev pytest
-scripts/check_file_size.sh
-scripts/check_public_snapshot.sh
+cd docs && npm run docs:build
 ```
 
-提交 PR 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+Go 集成测试使用独立 PostgreSQL 数据库，配置 `VIEWER_PG_DSN` 和
+`VIEWER_TEST_PG_DSN`。根目录执行 `scripts/check_file_size.sh`、
+`scripts/check_public_snapshot.sh` 和 `scripts/check_go_business.sh`。
 
-文档随源码维护：
+发布包用 `scripts/build_server_release.sh VERSION` 构建，包含 Go 网关、业务运行时和
+Go MCP 桥。前端、转换器和几何依赖单独安装。MCP 通过 `SOURCEAEC_API_URL` 与
+`VIEWER_API_TOKEN` 访问 Go 网关。
 
-```bash
-cd docs
-npm install
-npm run docs:dev
-npm run docs:build
-```
+文档：<https://0702hjj.github.io/SourceAEC/>。贡献与授权要求见
+[CONTRIBUTING.md](CONTRIBUTING.md)，许可证与依赖声明见 [NOTICE](NOTICE)。
 
 ## 开发来源声明
 

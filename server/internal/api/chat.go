@@ -50,7 +50,6 @@ type ChatDeps struct {
 	St      *store.Store
 	Ps      *store.ProjectStore // 项目级聚合（A1：create_project 项目级）；nil 时 create_project 降级单模型
 	PlanSt  *store.PlanStore    // 方案级存储（B1：plans/{projectID}/plan.json + bim_supplement.json + 版本化）
-	AiplanBin string            // aiplan 可执行路径（B2 plan 交付；空 = 未配置 → 503）
 	Q       *convert.Queue
 	DataDir string
 }

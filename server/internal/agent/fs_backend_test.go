@@ -14,6 +14,8 @@ import (
 // TestValidateSkillCommandAllowlist：execute 命令白名单（领域收敛单点）——
 // 放行 skill 捆绑 CLI（aiplan/aidxfv3），拒绝其他命令（sh/rm/curl/python 等）。
 func TestValidateSkillCommandAllowlist(t *testing.T) {
+	SetSkillCommandAllowlist([]string{"aiplan", "aidxfv3"})
+	defer SetSkillCommandAllowlist(nil)
 	allowed := []string{
 		"aiplan validate plan.json",
 		"aiplan gate plan.json",
@@ -47,7 +49,7 @@ func TestValidateSkillCommandAllowlist(t *testing.T) {
 // TestSetSkillCommandAllowlist：白名单配置化（第二层）——SetSkillCommandAllowlist
 // 覆盖默认集，空/去重/非法名处理；调用后 validateSkillCommand 用新集。
 func TestSetSkillCommandAllowlist(t *testing.T) {
-	defer SetSkillCommandAllowlist([]string{"aiplan", "aidxfv3"}) // 恢复默认
+	defer SetSkillCommandAllowlist(nil) // 恢复默认
 
 	SetSkillCommandAllowlist([]string{"myskill", "myskill", "", "aiplan"})
 	if err := validateSkillCommand("myskill run"); err != nil {
@@ -203,7 +205,7 @@ func TestSkillReferencesReadFlow(t *testing.T) {
 	if _, err := os.Stat(distSkillsDir()); err != nil {
 		t.Skipf("skills/dist 未打包（本地先跑 tools/skill_pack.py；CI 无 dist 跳过集成）: %v", err)
 	}
-	ref := "/opt/sourceaec/skills/dist/aiplan/references/predicate_vocabulary.md"
+	ref := filepath.Join(distSkillsDir(), "aiplan", "SKILL.md")
 	ag, err := New(LLMConfig{},
 		WithSkillsDir(distSkillsDir()),
 		WithModel(NewScriptedModel(Script{Steps: []ScriptStep{
@@ -230,7 +232,7 @@ func TestSkillReferencesReadFlow(t *testing.T) {
 	if got == "" {
 		t.Fatalf("read_file 未返回内容；types=%v", eventTypes(evs))
 	}
-	if !strings.Contains(got, "predicate") && !strings.Contains(got, "语义") {
+	if !strings.Contains(got, "Planning inputs") {
 		t.Fatalf("read_file 内容不像 aiplan references：%s...", truncate(got, 120))
 	}
 }

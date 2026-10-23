@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	localbk "github.com/cloudwego/eino-ext/adk/backend/local"
 	"github.com/cloudwego/eino/adk/middlewares/skill"
 	"os"
-	localbk "github.com/cloudwego/eino-ext/adk/backend/local"
+	"path/filepath"
 )
 
 // TestSkillDistOnlyFormalSet：agent 只面对 skills/dist 正式发布集合——
@@ -55,5 +56,6 @@ func TestSkillDistOnlyFormalSet(t *testing.T) {
 }
 
 func distSkillsDir() string {
-	return "/opt/sourceaec/skills/dist"
+	path, _ := filepath.Abs("../../../skills")
+	return path
 }

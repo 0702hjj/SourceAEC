@@ -17,11 +17,8 @@ import (
 	"errors"
 	"ifcviewer/server/internal/artifact"
 	"net/http"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"ifcviewer/server/internal/store"
 )
@@ -213,9 +210,6 @@ func (h *ChatHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 	if !h.verifyPlanProject(w, projectID) {
 		return
 	}
-	if !verifyAiplanAvailable(w, h.deps.AiplanBin) {
-		return
-	}
 	var body struct {
 		Plan          json.RawMessage `json:"plan"`
 		BimSupplement json.RawMessage `json:"bimSupplement"`
@@ -245,91 +239,28 @@ func (h *ChatHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"projectId": projectID, "planVersion": v["planVersion"], "bimVersion": v["bimVersion"]})
 }
 
-// cappedOutputMax 是 aiplan land 子进程输出的保留上限（W-0061 S1：防错误
-// 路径内存放大——子进程刷屏时错误信息只留尾部）。
-const cappedOutputMax = 64 << 10 // 64 KiB
-
-// cappedOutput 收集子进程输出，只保留最后 cappedOutputMax 字节（尾部——
-// 错误信息通常在末尾；仿 convert.cappedBuffer 的 500 字节纪律，放宽到诊断够用）。
-type cappedOutput struct{ buf []byte }
-
-func (c *cappedOutput) Write(p []byte) (int, error) {
-	c.buf = append(c.buf, p...)
-	if len(c.buf) > cappedOutputMax {
-		c.buf = c.buf[len(c.buf)-cappedOutputMax:]
-	}
-	return len(p), nil
-}
-
-func (c *cappedOutput) String() string { return string(c.buf) }
-
-// deliverPlanCore 是 plan 交付的执行核心（REST handler 与 agent deliver_plan 工具
-// 共用——单一事实源）：临时输入 → aiplan land → 读产出 → PlanStore.Put 版本化。
+// deliverPlanCore validates and versions declarative plan inputs in Go.
 func (h *ChatHandler) deliverPlanCore(ctx context.Context, projectID string, plan, bimSupplement []byte) (map[string]any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if len(plan) == 0 || len(bimSupplement) == 0 {
-		return nil, errors.New("plan/bimSupplement 缺失")
+		return nil, errors.New("plan/bimSupplement required")
 	}
-	workdir, err := os.MkdirTemp("", "aiplan-deliver-*")
+	if err := verifyPlanContent(plan, projectID); err != nil {
+		return nil, err
+	}
+	if err := verifyPlanContent(bimSupplement, projectID); err != nil {
+		return nil, err
+	}
+	if h.deps.PlanSt == nil {
+		return nil, errors.New("plan store unavailable")
+	}
+	versions, err := h.deps.PlanSt.PutBundle(ctx, projectID, map[string][]byte{"plan.json": plan, "bim_supplement.json": bimSupplement})
 	if err != nil {
 		return nil, err
 	}
-	defer artifact.RemoveAll(workdir)
-	inPlan := filepath.Join(workdir, "plan.json")
-	inBim := filepath.Join(workdir, "bim_supplement.json")
-	if err := writeAtomicFile(inPlan, plan); err != nil {
-		return nil, err
-	}
-	if err := writeAtomicFile(inBim, bimSupplement); err != nil {
-		return nil, err
-	}
-	outDir := filepath.Join(workdir, "out")
-	// W-0061 S1：CommandContext——ctx 取消（用户 abort/server 停机）即收割
-	// 子进程，不再无限占用 HTTP goroutine / agent 工具调用（先红后绿用例
-	// TestDeliverPlanCtxCancelKillsSubprocess 钉住）。
-	cmd := exec.CommandContext(ctx, h.deps.AiplanBin, "land", inPlan, inBim, "--outdir", outDir)
-	var out cappedOutput
-	cmd.Stdout, cmd.Stderr = &out, &out
-	err = cmd.Run()
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err() // 取消优先报 ctx 语义（调用方翻译 499/abort）
-		}
-		return nil, errors.New("aiplan land 失败: " + strings.TrimSpace(out.String()))
-	}
-	planOut, err := artifact.ReadFile(filepath.Join(outDir, "plan.json"))
-	if err != nil {
-		return nil, errors.New("aiplan land 未产出 plan.json")
-	}
-	bimOut, err := artifact.ReadFile(filepath.Join(outDir, "bim_supplement.json"))
-	if err != nil {
-		return nil, errors.New("aiplan land 未产出 bim_supplement.json")
-	}
-	planVer, err := h.deps.PlanSt.Put(projectID, "plan.json", planOut)
-	if err != nil {
-		return nil, err
-	}
-	bimVer, err := h.deps.PlanSt.Put(projectID, "bim_supplement.json", bimOut)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"planVersion": planVer, "bimVersion": bimVer}, nil
-}
-
-func writeAtomicFile(path string, content []byte) error {
-	tmp := path + ".tmp"
-	if err := artifact.WriteFile(tmp, content, 0o644); err != nil {
-		return err
-	}
-	return artifact.Rename(tmp, path)
-}
-
-// verifyAiplanAvailable 检查 aiplan 可执行（verify 层单点）：未配置 → 503。
-func verifyAiplanAvailable(w http.ResponseWriter, aiplanBin string) bool {
-	if aiplanBin == "" {
-		writeErr(w, http.StatusServiceUnavailable, codeBadGateway, "aiplan 未配置（skill venv 缺失），plan 交付不可用")
-		return false
-	}
-	return true
+	return map[string]any{"planVersion": versions["plan.json"], "bimVersion": versions["bim_supplement.json"]}, nil
 }
 
 // deleteProject 删除项目并级联清理绑定产物（D13 后的删除入口单点——

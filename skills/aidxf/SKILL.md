@@ -1,66 +1,29 @@
 ---
 name: aidxf
-description: Convert plan.json inputs into layered DXF drawings with declarative skeleton and room DSLs plus deterministic validation and rendering.
-version: 3.0.0
+description: Create or revise CAD drawings through SourceAEC's script API using external geometry libraries.
 license: MIT
-compatibility: Self-contained Python packages with ezdxf and shapely runtime dependencies.
-metadata:
-  project: aidxf
 ---
 
-# aidxf
+# CAD model authoring
 
-Use this skill to turn a validated building plan into per-zone DXF drawings.
-The agent declares intent in JSON; the CLI performs coordinate derivation,
-schema validation, geometry checks, rendering, and readback.
+Read the project's existing drawings and requirements. Author runtime model
+source with a literal `PARAMS` dictionary, stage with `baseRevision`, run it,
+inspect the drawing, and save only a validated result. The first process
+argument names the output ASCII DXF file.
 
-## Workflow
+Use external geometry libraries directly. For DXF, use `ezdxf`. For part and
+assembly geometry, SimpleCADAPI can supply the external modeling runtime and
+its own workflow/API references; consult the documentation for the installed
+version. Do not copy an upstream SDK into this skill or assume a library exists
+in the selected execution environment. Additional dependencies require pinned
+registry versions in the source's PEP 723 block or an administrator-provided
+runtime environment.
 
-1. Run `aidxfv3 preprocess --plan <plan.json> --out <derived>`.
-2. Create and validate `skeleton.json` against `references/schemas/skeleton.schema.json`.
-3. Normalize and check the skeleton with `aidxfv3 normalize` and `aidxfv3 check`.
-4. Create `rooms.json`, render the DXF, then run readback and reconciliation.
-5. Deliver the generated build script and model through the platform script API.
+Keep units, dimensions, layers, entity identity and required deliverables
+explicit. Validate exported geometry and drawing extents. Go generates the web
+render payload; unsupported entity types are reported there. Optional stable
+selection keys use AIDXF or SOURCEAEC XDATA. There are no bundled DSLs, hooks,
+Python tools or `aidxfv3` commands.
 
-## Public References
-
-- `references/schemas/`: plan, skeleton, room, and building contracts.
-- `references/design/`: output and drawing conventions.
-- `references/orchestrator/`: generic execution and review flow.
-- `references/draw_api.md`: supported drawing calls.
-- `references/machine_contract.md`: CLI behavior and exit codes.
-- `references/examples/`: synthetic examples.
-
-The public distribution intentionally contains no real-project reference
-library. `goldlib` supports optional user-owned reference collections, but
-the core preprocessing, validation, drawing, and delivery path does not
-require one.
-
-## Commands
-
-```text
-aidxfv3 preprocess --plan <plan.json> --out <derived>
-aidxfv3 validate --dsl <skeleton-or-rooms.json>
-aidxfv3 normalize --dsl <skeleton.json>
-aidxfv3 check --dsl <skeleton.json> --plan <plan.json>
-aidxfv3 readback --dxf <floor.dxf>
-aidxfv3 reconcile --decl <rooms.json> --graph <readback.json>
-aidxfv3 state sync --project <dir>
-aidxfv3 state reconcile --project <dir>
-```
-
-Do not modify the input `plan.json`. Treat generated JSON and command exit
-codes as workflow state, and stop for user review before committing a layout.
-
-
-## Versioned and incremental builds
-
-The platform saves script checkpoints as Git commits, with explicit branch,
-checkout and merge endpoints at `/models/{id}/git`. Include `baseRevision` when
-editing a script so stale edits cannot replace a newer source.
-
-For expensive pure preprocessing, the sandbox injects `sourceaec_tasks.Task`
-and `run_tasks`. Declare every parameter and task dependency; return
-JSON-compatible drawing recipes and assemble the final DXF on each build.
-Direct drawing scripts keep their full-build behavior. External inputs must
-come from the versioned `SOURCEAEC_INPUT_DIR`, never a host workspace path.
+Business validation, script state, execution isolation, versioning and artifact
+publication belong to Go. Use the same API as human edits.

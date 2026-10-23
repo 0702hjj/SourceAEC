@@ -48,12 +48,12 @@ func TestSkeletonRealSkillsIntegration(t *testing.T) {
 	}
 	// 真实 aiplan SKILL.md 的关键片段（官方 defaultSkillContent 组装：
 	// "Launching skill: <name>" + BaseDirectory + SKILL.md 正文）
-	for _, want := range []string{"Launching skill: aiplan", "plan 阶段 skill", "资深建筑方案设计师"} {
+	for _, want := range []string{"Launching skill: aiplan", "Planning inputs"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("skill 结果缺 %q 片段；content=%s...", want, truncate(content, 120))
 		}
 	}
-	if !strings.Contains(content, "/skills/dist/aiplan") {
+	if !strings.Contains(content, "/skills/aiplan") {
 		t.Errorf("skill 结果缺 BaseDirectory 路径（/skills/dist/aiplan）")
 	}
 	// 整轮正常收尾

@@ -143,7 +143,7 @@ change log 与 Issue 的 `provenance.source` 取值都是 `UI`、`AI`、`USER` �
 
 ## render.json Schema
 
-由 services/cad 在 run 或 save 成功后原子发布，供前端 Canvas 二维预览。坐标保留原始 DXF 坐标系：
+由 server/internal/editing 在 run 或 save 成功后原子发布，供前端 Canvas 二维预览。坐标保留原始 DXF 坐标系：
 
 ```json
 {

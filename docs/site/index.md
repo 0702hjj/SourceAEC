@@ -4,7 +4,7 @@ layout: home
 hero:
   name: SourceAEC
   text: 面向 Agent 的 IFC 操作接口
-  tagline: 用 REST API、Agent Skill 和可审查的 Python 构建脚本创建、编辑、检查与版本化 IFC；按需接入规划和 DXF 工作流。
+  tagline: 用 REST API、Agent Skill 和可审查的运行时模型源码创建、编辑、检查与版本化 IFC；按需接入规划和 DXF 工作流。
   actions:
     - theme: brand
       text: 开始使用
@@ -25,7 +25,7 @@ features:
     details: Plan Preparation Skill 可整理设计输入，DXF Authoring Skill 可生成逐层图纸，并将结果作为 IFC 建模的上游资料。
   - icon: ✏️
     title: 脚本即事实源
-    details: 所有修改都落在 Python 构建脚本上。选中构件即可定位到生成它的那行代码，改参数、改脚本，试运行满意后保存成不可变的大版本。
+    details: 所有修改都落在 运行时模型源码上。选中构件即可定位到生成它的那行代码，改参数、改脚本，试运行满意后保存成不可变的大版本。
   - icon: 🔍
     title: 语义版本对比
     details: 两个版本之间按构件做属性级对比。新增、删除、修改分别着色，能展开看每个字段的旧值和新值，没有几何噪声。

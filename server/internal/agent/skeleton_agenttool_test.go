@@ -34,7 +34,7 @@ func TestSkeletonAgentToolRealSkills(t *testing.T) {
 	}}
 
 	ag, err := New(LLMConfig{},
-		WithSkillsDir("/opt/sourceaec/skills/dist"),
+		WithSkillsDir(distSkillsDir()),
 		WithModel(NewScriptedModel(parent)),
 		WithChildModelFactory(func() model.ToolCallingChatModel { return NewScriptedModel(child) }),
 		WithTools([]tool.BaseTool{sidTool}),

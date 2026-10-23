@@ -48,20 +48,14 @@ Go server（默认 `http://localhost:8090`）是平台唯一对外入口，对�
 
 浏览器端把 token 存在 localStorage 的 `aiifc_token` 键，遇到 401 会弹输入框，保存后自动重试原请求。chat 的事件流走 EventSource，没法带自定义头，**这是唯一放行 `?token=` 查询参数的路径**。
 
-CORS 是白名单制，用 `corsOrigins`（或 `VIEWER_CORS_ORIGINS`）配置，逗号分隔。两个 Python 编辑服务自身没有鉴权，部署时必须限制为回环监听或受控内网；不要把它们直接暴露到不受信任网络。
-
-SSE 与上述只读资源的 `?token=` 仅为浏览器 API 兼容性例外。查询参数可能出现在代理、访问日志、浏览器历史或监控系统中；生产环境应定期轮换 token，并配置 TLS、日志脱敏和严格的缓存策略。内置 token 是部署级共享凭证，不是短时令牌、用户级授权或多租户隔离。
+CORS 使用配置的来源白名单。编辑领域在 Go 网关进程内运行，统一受其鉴权保护。
 
 ## 机器可消费 OpenAPI
 
-### edit-service
+### 编辑领域
 
-完整 schema 见 [ai-tools.openapi.json](/ai-tools.openapi.json)，由 FastAPI 直接导出，与运行中服务的 `GET /openapi.json` 一致；渲染成文档的版本见[编辑 API 参考](/reference/edit-api-reference)。编辑 API 变更后重新生成：
-
-```bash
-cd services/ifc
-uv run python scripts/export_openapi.py   # 输出到 docs/site/public/ai-tools.openapi.json
-```
+编辑请求由 Go 原生实现，见[编辑 API](/reference/edit-api)。没有 FastAPI 或
+独立服务的 openapi.json。公共 schema 以 Go 网关接口为准。
 
 ### Go server
 

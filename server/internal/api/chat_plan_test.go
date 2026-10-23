@@ -7,7 +7,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -140,8 +139,8 @@ func TestPlanHistoryDiffEndpoint(t *testing.T) {
 			t.Fatalf("put status = %d body=%s", rec.Code, rec.Body.String())
 		}
 	}
-	put(`{"version":1,"project":"`+p.ID+`","site":{"area":100}}`)
-	put(`{"version":2,"project":"`+p.ID+`","site":{"area":120}}`)
+	put(`{"version":1,"project":"` + p.ID + `","site":{"area":100}}`)
+	put(`{"version":2,"project":"` + p.ID + `","site":{"area":120}}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+p.ID+"/plan_history/v1/current/diff", nil)
 	rec := httptest.NewRecorder()
@@ -192,13 +191,6 @@ func TestPlanHistoryDiffNotFound(t *testing.T) {
 // TestPlanDeliverEndpoint plan 交付端点（B2）：执行 aiplan land → 落方案级目录。
 func TestPlanDeliverEndpoint(t *testing.T) {
 	h, p := planHandlerWithProject(t)
-	// fake aiplan 可执行：写临时脚本模拟 aiplan land 产出
-	binDir := t.TempDir()
-	fakeBin := binDir + "/aiplan"
-	if err := writeFakeAiplan(t, fakeBin); err != nil {
-		t.Fatal(err)
-	}
-	h.deps.AiplanBin = fakeBin
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+p.ID+"/deliver",
 		strings.NewReader(`{"plan":{"version":1,"project":"`+p.ID+`"},"bimSupplement":{"version":1,"project":"`+p.ID+`"}}`))
@@ -213,8 +205,8 @@ func TestPlanDeliverEndpoint(t *testing.T) {
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &e)
 	var r struct {
-		PlanVersion       string `json:"planVersion"`
-		BimVersion        string `json:"bimVersion"`
+		PlanVersion string `json:"planVersion"`
+		BimVersion  string `json:"bimVersion"`
 	}
 	_ = json.Unmarshal(e.Data, &r)
 	if r.PlanVersion != "v1" || r.BimVersion != "v1" {
@@ -234,30 +226,7 @@ func TestPlanDeliverNoAiplan(t *testing.T) {
 		strings.NewReader(`{"plan":{"version":1,"project":"`+p.ID+`"}}`))
 	rec := httptest.NewRecorder()
 	h.mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusServiceUnavailable && rec.Code != http.StatusBadGateway {
-		t.Fatalf("no aiplan status = %d, want 503/502", rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("no aiplan status = %d, want 400 for missing bimSupplement", rec.Code)
 	}
-}
-
-// writeFakeAiplan 写一个 fake aiplan 可执行：读入参 <plan> <bim> --outdir <dir>，
-// 产出 plan.json + bim_supplement.json（原样 + version 字段）。
-func writeFakeAiplan(t *testing.T, path string) error {
-	t.Helper()
-	script := `#!/bin/sh
-# fake aiplan land <plan> <bim> --outdir <dir>
-shift  # 吃掉 "land" 子命令
-plan="$1"; bim="$2"; shift 2
-outdir=""
-while [ $# -gt 0 ]; do
-  if [ "$1" = "--outdir" ]; then outdir="$2"; shift 2; else shift; fi
-done
-mkdir -p "$outdir"
-# 原样复制输入（fake 不做 canon/重写）
-cp "$plan" "$outdir/plan.json"
-cp "$bim" "$outdir/bim_supplement.json"
-`
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		return err
-	}
-	return nil
 }

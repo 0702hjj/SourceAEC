@@ -12,33 +12,34 @@ optional extensions. This file applies to the whole repository.
 | Web client | `web` | `npm test`; `npm run lint`; `npm run build` | `npm run dev` |
 | Go gateway and business runtime | `server` | `go test ./...`; `go vet ./...` | `go run ./cmd/server` |
 | IFC converter | `converter` | `npm test` | invoked by the gateway |
-| IFC edit service | `services/ifc` | `uv run --group dev pytest` | `uv run uvicorn app.main:app --port 8100` |
-| CAD edit service | `services/cad` | `uv run --group dev pytest` | `uv run uvicorn app.main:app --port 8200` |
-| Shared sandbox | `services/sandbox` | `uv run --group dev pytest` | imported by both edit services |
-| Shared edit API | `services/editapi` | run `../editapi/tests` from both service environments | imported by both edit services |
-| MCP bridge | `mcp` | `uv run --group dev pytest` | `uv run python -m app.server` |
+| MCP bridge | `server/cmd/sourceaec-mcp` | included in Go tests | `go run ./cmd/sourceaec-mcp` |
 | Documentation | `docs` | `npm run docs:build` | `npm run docs:dev` |
 
-Build the Go business runtime with `scripts/build_runtime.sh` and set
-`SOURCEAEC_RUNTIME_BIN` to its absolute path for both Python services. PostgreSQL
-is required: set `VIEWER_PG_DSN` in all three service environments. Tests use a
-dedicated database; native review-store tests also use `VIEWER_TEST_PG_DSN`.
-Go owns artifact persistence, Git bundles, build identities and task scheduling.
-Python adapters retain AST analysis and execution of IFC/CAD script callables.
+All business code, including editing, staging, validation, sandbox orchestration,
+versioning, persistence, planning delivery and MCP integration, is Go.
+Do not add maintained Python source, Python tests, hooks, SDKs or application
+manifests. Python is only an external geometry runtime: user/agent-authored
+model source is materialized in a disposable sandbox and produces model files.
+Do not embed Python business logic in Go strings to evade this boundary.
+Skills contain declarations and references only; external geometry libraries
+(such as IfcOpenShell, ezdxf or SimpleCADAPI) are not vendored into this repository.
 
-Use the same absolute `VIEWER_DATA_DIR` for the gateway and both edit
-services. The production gateway serves `web/dist`; the Vite server is for
-development only.
+PostgreSQL is required. Set `VIEWER_PG_DSN`; tests require a dedicated database,
+and native review-store tests also use `VIEWER_TEST_PG_DSN`.
+The gateway runs editing in-process, serves `web/dist` in production, and starts
+no Python HTTP services. `SOURCEAEC_PYTHON` may select an administrator-provided
+geometry interpreter; otherwise Go prepares pinned environments using uv.
 
 ## Change Discipline
 
 - Add focused tests for every behavior change. For bug fixes, reproduce the
   failure first, then make the test pass.
 - Keep tests beside their implementation (`*_test.go`, `*.test.ts(x)`, or
-  `test_*.py`). Wait for asynchronous writes with a condition and timeout,
+  shell integration checks). Wait for asynchronous writes with a condition and timeout,
   never a fixed sleep.
 - Run the suites for every component you change. Before a pull request, also
-  run `scripts/check_file_size.sh` and `scripts/check_public_snapshot.sh`.
+  run `scripts/check_file_size.sh`, `scripts/check_public_snapshot.sh` and
+  `scripts/check_go_business.sh`.
 - Source and documentation files must stay below 500 lines unless listed in
   `scripts/file_size_whitelist.txt`. Split by responsibility rather than
   compressing formatting.
@@ -55,16 +56,15 @@ development only.
   only in provenance.
 - Put business validation in focused `verify*` or `validate*` functions.
   Handlers decode, call validation/domain logic, and translate errors.
-- Keep IFC and CAD behavior aligned through the shared sandbox and edit API
-  packages; service-specific differences belong in their profiles.
+- Keep IFC and CAD behavior aligned through `server/internal/editing`;
+  format-specific differences belong in focused adapters.
 
 ## Security
 
 - Production script execution is fail-closed and requires bubblewrap. The
   rlimit backend is test-only and must not be used as production isolation.
-- Bind the unauthenticated Python edit services to loopback. Expose clients
-  through the Go gateway and configure its token and CORS allowlist for
-  production.
+- Expose clients through the Go gateway and configure its token and CORS
+  allowlist for production. External MCP clients use the authenticated gateway.
 - Never commit credentials, customer names, real-project drawings or derived
   data, private repository references, developer-machine paths, internal
   plans, or incident notes. Use synthetic fixtures only.

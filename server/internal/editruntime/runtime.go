@@ -7,6 +7,7 @@ package editruntime
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -21,10 +22,11 @@ import (
 )
 
 type Request struct {
-	Op   string          `json:"op"`
-	Root string          `json:"root"`
-	Tx   string          `json:"tx,omitempty"`
-	Args json.RawMessage `json:"args"`
+	Context context.Context `json:"-"`
+	Op      string          `json:"op"`
+	Root    string          `json:"root"`
+	Tx      string          `json:"tx,omitempty"`
+	Args    json.RawMessage `json:"args"`
 }
 type Response struct {
 	Data  any    `json:"data,omitempty"`
@@ -47,6 +49,7 @@ type transaction struct {
 }
 type candidate struct{ directory, repo, branch, root, model string }
 type Runtime struct {
+	embedded     bool
 	opened       map[string]bool
 	transactions map[string]*transaction
 	candidates   map[string]*candidate
@@ -55,6 +58,10 @@ type Runtime struct {
 func New() *Runtime {
 	return &Runtime{opened: map[string]bool{}, transactions: map[string]*transaction{}, candidates: map[string]*candidate{}}
 }
+
+// NewEmbedded shares the gateway database lifecycle.
+func NewEmbedded() *Runtime { r := New(); r.embedded = true; return r }
+
 func token() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -87,6 +94,9 @@ func (r *Runtime) Close() {
 		_ = os.RemoveAll(c.directory)
 	}
 	for root := range r.opened {
+		if r.embedded {
+			continue
+		}
 		_ = artifact.Close(root)
 	}
 }
@@ -131,13 +141,25 @@ func (r *Runtime) Handle(req Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		tx, err := db.Begin()
+		tx, err := db.BeginTx(runtimeContext(req), nil)
 		if err != nil {
 			return nil, err
 		}
 		id := token()
 		r.transactions[id] = &transaction{tx: tx, root: req.Root, originals: map[string]original{}}
 		return id, nil
+	}
+	if req.Op == "lock" {
+		t := r.transactions[req.Tx]
+		if t == nil || t.root != req.Root {
+			return nil, errors.New("invalid transaction")
+		}
+		var model string
+		if err := decode(req.Args, &model); err != nil {
+			return nil, err
+		}
+		_, err := t.tx.ExecContext(runtimeContext(req), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", model)
+		return nil, err
 	}
 	if req.Op == "commit" || req.Op == "rollback" {
 		t := r.transactions[req.Tx]
@@ -225,4 +247,11 @@ func safePath(root, key string) (string, error) {
 		}
 	}
 	return path, nil
+}
+
+func runtimeContext(req Request) context.Context {
+	if req.Context != nil {
+		return req.Context
+	}
+	return context.Background()
 }

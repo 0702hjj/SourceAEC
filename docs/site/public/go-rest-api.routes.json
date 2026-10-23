@@ -303,6 +303,12 @@
       "path": "/v1/models/{id}/render.json",
       "handler": "h.serveModelFile(\"render.json\")",
       "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/edit/diff-upload",
+      "handler": "h.editUpload",
+      "file": "server/internal/api/edit.go"
     }
   ]
 }

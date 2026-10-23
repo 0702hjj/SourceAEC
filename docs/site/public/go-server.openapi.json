@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SourceAEC viewer server (Go)",
-    "version": "0.2.0",
-    "description": "SourceAEC 平台对外唯一入口（默认 :8090）。JSON 信封统一 `{code, message, data}`，`code=0` 成功。模型 id 格式 `^m_[0-9a-f]{16}$`；issue id 格式 `^i_[0-9a-f]{12}$`。\n\nGo server 使用 stdlib mux；路由和 schema 参考随文档发布。\n\n鉴权默认关闭（`apiToken`/`VIEWER_API_TOKEN` 为空）。开启后除 OPTIONS 与 `GET /v1/models/...` 只读静态文件外，全部端点需 `Authorization: Bearer <token>`（401 envelope 码 40100）。"
+    "version": "development",
+    "description": "SourceAEC Go gateway: native editing, state, sandbox orchestration, versions, planning and MCP. JSON envelope {code,message,data}; code=0 on success. Bearer token required when configured; selected browser read resources also accept token query parameters."
   },
   "servers": [
     {
@@ -3613,8 +3613,8 @@
     },
     "/api/v1/projects/{projectID}/deliver": {
       "post": {
-        "summary": "plan 交付（B2）——aiplan land 确定性 CLI 执行 → 落方案级目录",
-        "description": "body {plan, bimSupplement} → 临时输入 → aiplan land（skill venv 可执行）→ 产出落方案级目录（PlanStore.Put 版本化）。aiplan 未配置 → 503。",
+        "summary": "Version declarative plan and BIM supplement in Go",
+        "description": "Validate JSON and project identity, then persist both inputs atomically. No planning CLI or geometry solver is invoked.",
         "operationId": "postApiV1ProjectsProjectIDDeliver",
         "tags": [
           "plan"
@@ -4146,7 +4146,7 @@
     "/v1/models/{id}/render.json": {
       "get": {
         "summary": "CAD 渲染数据（render payload v2）",
-        "description": "非信封响应。services/cad 在 script/run、script/save 成功后原子发布的实体级渲染 JSON（schemaVersion 2，实体带 XDATA key），供前端 Canvas 2D 预览；仅 kind=dxf 模型存在。",
+        "description": "Go-generated DXF render payload, schemaVersion 2. Unsupported entity types are reported explicitly.",
         "operationId": "getV1ModelsIdRenderJson",
         "tags": [
           "static"
@@ -4184,6 +4184,62 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/edit/diff-upload": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Compare a modified model and record USER provenance",
+        "operationId": "compareModifiedUpload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "author": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Diff, recorded events and summary in the standard success envelope"
+          },
+          "400": {
+            "description": "Invalid document"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Unknown model"
           }
         }
       }

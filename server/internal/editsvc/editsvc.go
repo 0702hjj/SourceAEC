@@ -9,7 +9,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"ifcviewer/server/internal/editing"
 	"io"
 	"net/http"
 	"time"
@@ -73,10 +75,14 @@ type Versions struct {
 }
 
 type Client struct {
-	base string
-	fast *http.Client // 简单调用 10s
-	slow *http.Client // commit/diff 120s
+	local *editing.Service
+	base  string
+	fast  *http.Client // 简单调用 10s
+	slow  *http.Client // commit/diff 120s
 }
+
+// NewLocal runs business logic in-process; no Python service or loopback HTTP.
+func NewLocal(root, kind string) *Client { return &Client{local: editing.New(root, kind)} }
 
 func New(baseURL string) *Client {
 	return NewWithTimeouts(baseURL, 10*time.Second, 120*time.Second)
@@ -106,6 +112,17 @@ func parseDetail(data []byte) string {
 }
 
 func (c *Client) do(ctx context.Context, hc *http.Client, method, path string, body []byte) ([]byte, error) {
+	if c.local != nil {
+		result, err := c.local.Do(ctx, method, path, body)
+		if err != nil {
+			var domain *editing.Error
+			if errors.As(err, &domain) {
+				return nil, &Error{Status: domain.Status, Detail: domain.Detail}
+			}
+			return nil, err
+		}
+		return json.Marshal(result)
+	}
 	metrics.EditInFlight.Inc() // W-0061 S0：上游在途观测（含出错路径，defer 收口）
 	defer metrics.EditInFlight.Dec()
 	var rdr io.Reader

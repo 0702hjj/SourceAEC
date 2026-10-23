@@ -29,14 +29,8 @@ func newProjectE2EHandler(t *testing.T, script agent.Script) (*ChatHandler, *sto
 	ps := store.NewProjectStore(dataDir)
 	planSt := store.NewPlanStore(dataDir)
 	q := convert.NewQueue(st, okRunner{}, 1)
-	// fake aiplan（writeFakeAiplan 在 chat_plan_test.go 同包）
-	binDir := t.TempDir()
-	fakeBin := binDir + "/aiplan"
-	if err := writeFakeAiplan(t, fakeBin); err != nil {
-		t.Fatal(err)
-	}
 	h := &ChatHandler{
-		deps:     ChatDeps{St: st, Ps: ps, PlanSt: planSt, AiplanBin: fakeBin, Q: q, DataDir: dataDir},
+		deps:     ChatDeps{St: st, Ps: ps, PlanSt: planSt, Q: q, DataDir: dataDir},
 		mux:      http.NewServeMux(),
 		sessions: map[string]*chatSession{},
 		byAgent:  map[string]string{},
@@ -63,7 +57,7 @@ func newProjectE2EHandler(t *testing.T, script agent.Script) (*ChatHandler, *sto
 func TestProjectSessionFullChain(t *testing.T) {
 	h, ps, planSt := newProjectE2EHandler(t, agent.Script{Steps: []agent.ScriptStep{
 		{ToolCalls: []agent.ToolCallSpec{{ID: "p1", Name: "get_project_plans", Arguments: `{}`}}},
-		{ToolCalls: []agent.ToolCallSpec{{ID: "d1", Name: "deliver_plan", Arguments: `{"plan":{"version":2,"project":"x"},"bimSupplement":{"version":1,"project":"x"}}`}}},
+		{ToolCalls: []agent.ToolCallSpec{{ID: "d1", Name: "deliver_plan", Arguments: `{"plan":{"version":2},"bimSupplement":{"version":1}}`}}},
 		{Chunks: []string{"方案已交付"}},
 	}})
 
@@ -145,7 +139,7 @@ func TestProjectSessionFullChain(t *testing.T) {
 		t.Fatalf("deliver 后 plan 应落盘: %v", err)
 	}
 	if !strings.Contains(string(cur), `"version":2`) {
-		t.Fatalf("deliver_plan 应产出 v2 plan: %s", cur)
+		t.Fatalf("deliver_plan should preserve declarative content while versioning it: %s", cur)
 	}
 	hist, _ := planSt.ListHistory(p.ProjectID, "plan.json")
 	if len(hist) != 1 || hist[0] != "v1" {

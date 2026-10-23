@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -100,17 +99,13 @@ func newFlowHarness(t *testing.T) *flowHarness {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)
-	binDir := t.TempDir()
-	if err := writeFakeAiplan(t, filepath.Join(binDir, "aiplan")); err != nil {
-		t.Fatal(err)
-	}
 	ifcEd, cadEd := newFlowEditFake(t), newFlowEditFake(t)
 	evStore := agent.NewEventStore(dataDir)
 	h := &ChatHandler{
 		deps: ChatDeps{
 			St: st, Ps: ps, PlanSt: planSt,
 			Ed: editsvc.New(ifcEd.srv.URL), Cad: editsvc.New(cadEd.srv.URL),
-			Q: q, DataDir: dataDir, Ev: evStore, AiplanBin: filepath.Join(binDir, "aiplan"),
+			Q: q, DataDir: dataDir, Ev: evStore,
 		},
 		mux:      http.NewServeMux(),
 		sessions: map[string]*chatSession{},

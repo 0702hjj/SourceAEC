@@ -1,385 +1,120 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "SourceAEC IFC edit service",
-    "version": "0.1.0"
+    "title": "SourceAEC native Go editing",
+    "version": "development",
+    "description": "Native Go gateway editing; no separate Python service. See the public Go OpenAPI for shared schemas."
   },
+  "servers": [
+    {
+      "url": "http://localhost:8090"
+    }
+  ],
   "paths": {
-    "/models/{id}/entities/{guid}": {
-      "put": {
-        "summary": "Put Entity",
-        "description": "Retired: edit the build script instead of mutating the IFC directly.",
-        "operationId": "put_entity_models__id__entities__guid__put",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          },
-          {
-            "name": "guid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Guid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete Entity",
-        "description": "Retired: edit the build script instead of deleting entities directly.",
-        "operationId": "delete_entity_models__id__entities__guid__delete",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          },
-          {
-            "name": "guid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Guid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/entities/{guid}/editable-schema": {
-      "get": {
-        "summary": "Get Editable Schema",
-        "description": "Retired: no typed edit form without direct editing.",
-        "operationId": "get_editable_schema_models__id__entities__guid__editable_schema_get",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          },
-          {
-            "name": "guid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Guid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/commit": {
+    "/api/v1/models/{id}/edit/diff": {
       "post": {
-        "summary": "Commit Pending",
-        "description": "Retired: script save (script/save) is the only version checkpoint.",
-        "operationId": "commit_pending_models__id__commit_post",
+        "summary": "版本语义 diff（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/diff`：对比两个大版本快照（target 可为 \"current\" 表示 uploads 现态），返回 GlobalId 键的 added/removed/changed 属性级 diff。",
+        "operationId": "postApiV1ModelsIdEditDiff",
+        "tags": [
+          "edit"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/pending": {
-      "get": {
-        "summary": "Get Pending",
-        "description": "List the current pending changes for a model (read-only).",
-        "operationId": "get_pending_models__id__pending_get",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  },
-                  "title": "Response Get Pending Models  Id  Pending Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "summary": "Discard Pending",
-        "description": "Discard pending changes: reload the in-memory model from disk.",
-        "operationId": "discard_pending_models__id__pending_delete",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Discard Pending Models  Id  Pending Delete"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DiffResult"
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "400": {
+            "description": "参数/校验错误",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/history": {
-      "get": {
-        "summary": "Get History",
-        "description": "List the persisted edit history for a model (read-only).",
-        "operationId": "get_history_models__id__history_get",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  },
-                  "title": "Response Get History Models  Id  History Get"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/versions": {
-      "get": {
-        "summary": "Get Versions",
-        "description": "List materialized snapshots (empty + current=null before any save).",
-        "operationId": "get_versions_models__id__versions_get",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Versions Models  Id  Versions Get"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "diff timed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
           }
-        }
-      }
-    },
-    "/models/{id}/diff": {
-      "post": {
-        "summary": "Post Diff",
-        "description": "Diff two model versions (or base version vs the current upload state).",
-        "operationId": "post_diff_models__id__diff_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
+        },
         "requestBody": {
+          "description": "JSON body",
           "required": true,
           "content": {
             "application/json": {
@@ -388,26 +123,79 @@
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/api/v1/models/{id}/edit/history": {
+      "get": {
+        "summary": "编辑历史（代理 edit-service，只读）",
+        "description": "代理 `GET /models/{id}/history`：持久化编辑历史（直改退役后只读保留历史数据）。",
+        "operationId": "getApiV1ModelsIdEditHistory",
+        "tags": [
+          "edit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Post Diff Models  Id  Diff Post"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EditHistoryEntry"
+                      }
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -415,42 +203,296 @@
         }
       }
     },
-    "/models/{id}/script": {
-      "get": {
-        "summary": "Get Script",
-        "description": "Return the current script (staged state, or last saved base).",
-        "operationId": "get_script_models__id__script_get",
+    "/api/v1/models/{id}/edit/pending": {
+      "delete": {
+        "summary": "丢弃 pending（代理 edit-service）",
+        "description": "代理 `DELETE /models/{id}/pending`：丢弃全部 pending（卸载并从磁盘重载内存模型）。",
+        "operationId": "deleteApiV1ModelsIdEditPending",
+        "tags": [
+          "edit"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Script Models  Id  Script Get"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DiscardedResult"
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "当前 pending（代理 edit-service，只读）",
+        "description": "代理 `GET /models/{id}/pending`：列出当前 pending（直改退役后仅供 script-run 回放簿记）。",
+        "operationId": "getApiV1ModelsIdEditPending",
+        "tags": [
+          "edit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PendingEntry"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/edit/versions": {
+      "get": {
+        "summary": "版本快照列表（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/versions`：列出大版本快照（未提交前 versions=[]、current=null）。",
+        "operationId": "getApiV1ModelsIdEditVersions",
+        "tags": [
+          "edit"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EditVersionsResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script": {
+      "get": {
+        "summary": "当前脚本（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/script`：当前暂存脚本（或最后保存的大版本 base）。纯 IFC 上传的 legacy 模型无脚本 → 404。",
+        "operationId": "getApiV1ModelsIdScript",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -458,444 +500,193 @@
         }
       },
       "put": {
-        "summary": "Stage Script",
-        "description": "Stage a script edit: full replace, or params-only PARAMS-block rewrite.",
-        "operationId": "stage_script_models__id__script_put",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
+        "summary": "暂存脚本（代理 edit-service）",
+        "description": "代理 `PUT /models/{id}/script`：全量替换脚本或仅改 PARAMS 块（script/params 恰好二选一）。写入 WPS 式 10 步暂存链。",
+        "operationId": "putApiV1ModelsIdScript",
+        "tags": [
+          "script"
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScriptBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Stage Script Models  Id  Script Put"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/params": {
-      "get": {
-        "summary": "Get Script Params",
-        "description": "Return the current script's PARAMS dict (ast extraction, no execution).",
-        "operationId": "get_script_params_models__id__script_params_get",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Script Params Models  Id  Script Params Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/undo": {
-      "post": {
-        "summary": "Undo Script",
-        "operationId": "undo_script_models__id__script_undo_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Undo Script Models  Id  Script Undo Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/redo": {
-      "post": {
-        "summary": "Redo Script",
-        "operationId": "redo_script_models__id__script_redo_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Redo Script Models  Id  Script Redo Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/discard": {
-      "post": {
-        "summary": "Discard Script",
-        "description": "Throw staged edits away; back to the last saved big version. No version.",
-        "operationId": "discard_script_models__id__script_discard_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Discard Script Models  Id  Script Discard Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/run": {
-      "post": {
-        "summary": "Run Script Endpoint",
-        "description": "Sandbox-run the current staged script into uploads (preview; no version).\n\n响应附 ``semanticDiff``：旧 uploads 产物 vs 本次 run 产物的构件级\n{added, removed, changed} 计数（diff 失败/无旧产物降级 None，\n绝不让已成功的 run 失败）。",
-        "operationId": "run_script_endpoint_models__id__script_run_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Run Script Endpoint Models  Id  Script Run Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/save": {
-      "post": {
-        "summary": "Save Script",
-        "description": "Promote the staged script to a big version (run → snapshot script+product).\n\nA failed sandbox run → 422 and no version; staging is preserved so the\nscript can be fixed and saved again. 服务可经钩子随版本快照额外交付\nsidecar（如 building.json）并在响应附对齐计数。",
-        "operationId": "save_script_models__id__script_save_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/SaveBody"
-                  },
-                  {
-                    "type": "null"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptState"
+                    }
                   }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Save Script Models  Id  Script Save Post"
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "400": {
+            "description": "参数/校验错误",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
           }
-        }
-      }
-    },
-    "/models/{id}/script/rollback": {
-      "post": {
-        "summary": "Rollback Script",
-        "description": "Restore a big version's script into staging and re-run it into uploads.",
-        "operationId": "rollback_script_models__id__script_rollback_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
+        },
         "requestBody": {
+          "description": "JSON body",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RollbackBody"
+                "$ref": "#/components/schemas/StageScriptBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/diff": {
+      "post": {
+        "summary": "大版本脚本 diff（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/diff`：两大版本的 unified 文本 diff + PARAMS 变更 + 统计（AI 主要面向的 diff）。",
+        "operationId": "postApiV1ModelsIdScriptDiff",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptDiffResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数/校验错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Rollback Script Models  Id  Script Rollback Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/scripts": {
-      "get": {
-        "summary": "List Scripts",
-        "description": "List script big versions (empty for upload-only models).",
-        "operationId": "list_scripts_models__id__scripts_get",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response List Scripts Models  Id  Scripts Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/script/diff": {
-      "post": {
-        "summary": "Diff Script Versions",
-        "description": "Big-version script diff: unified text diff + PARAMS changes + stats.",
-        "operationId": "diff_script_versions_models__id__script_diff_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
         "requestBody": {
+          "description": "JSON body",
           "required": true,
           "content": {
             "application/json": {
@@ -904,103 +695,102 @@
               }
             }
           }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Diff Script Versions Models  Id  Script Diff Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
         }
       }
     },
-    "/models/{id}/script/staging/diff": {
-      "get": {
-        "summary": "Diff Staging Steps",
-        "description": "Small-version diff between two staging steps (default: the last two).\n\nStep indices address the staged states ``history[0..cursor]`` (0-based).\nLightweight inline text diff + PARAMS changes; visible to both AI and user.",
-        "operationId": "diff_staging_steps_models__id__script_staging_diff_get",
+    "/api/v1/models/{id}/script/discard": {
+      "post": {
+        "summary": "丢弃暂存（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/discard`：丢弃暂存编辑，回到最后保存的大版本（不产生版本）。",
+        "operationId": "postApiV1ModelsIdScriptDiscard",
+        "tags": [
+          "script"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "From"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "To"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Diff Staging Steps Models  Id  Script Staging Diff Get"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "modelId",
+                        "discarded",
+                        "script"
+                      ],
+                      "properties": {
+                        "modelId": {
+                          "type": "string"
+                        },
+                        "discarded": {
+                          "type": "boolean"
+                        },
+                        "script": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1008,51 +798,82 @@
         }
       }
     },
-    "/models/{id}/script/locate": {
+    "/api/v1/models/{id}/script/locate": {
       "get": {
-        "summary": "Locate Callsite",
-        "description": "Locate the script callsite for a 构件（查询值经服务解析器折为 design\nkey——guid → designKey hop 或 key 直查）。\n\n解析不出 key（构件无 designKey）→ ``{\"found\": False}``；staging 与\nmap 分叉（未 run 的暂存/undo/旧版裸 map）→ 200 降级\n``{\"found\": false, \"stale\": true}``：行号不可信，绝不让前端跳到\n错误行。",
-        "operationId": "locate_callsite_models__id__script_locate_get",
+        "summary": "定位 guid 脚本调用点（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/script/locate?guid=`：guid → designKey → 脚本调用点（行/列/片段）。miss 返回 200 {found:false}（不 5xx）。staging 与 map 分叉时降级 {found:false, stale:true}。",
+        "operationId": "getApiV1ModelsIdScriptLocate",
+        "tags": [
+          "script"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           },
           {
             "name": "guid",
             "in": "query",
             "required": true,
+            "description": "IFC GlobalId",
             "schema": {
-              "type": "string",
-              "title": "Guid"
+              "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Locate Callsite Models  Id  Script Locate Get"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LocateResult"
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1060,52 +881,362 @@
         }
       }
     },
-    "/models/{id}/script/edit-call": {
-      "post": {
-        "summary": "Edit Call",
-        "description": "Rewrite one scalar argument at a located callsite, then sandbox-run.\n\n顺序：定位 → 重写 → 契约校验+沙箱 run → staging.push；任何失败 422 零副作用。\norigin=traced 的调用点不可自动改写 → 422。\nstaging 与 map 分叉（未 run 的暂存/undo/旧版裸 map）→ 409 fail-closed：\nmap 行号只对生成它的那份脚本有效，放行会把改写落到错误的调用上。",
-        "operationId": "edit_call_models__id__script_edit_call_post",
+    "/api/v1/models/{id}/script/params": {
+      "get": {
+        "summary": "脚本 PARAMS（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/script/params`：ast 提取当前脚本的 PARAMS dict（不执行）。",
+        "operationId": "getApiV1ModelsIdScriptParams",
+        "tags": [
+          "script"
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "模型 id",
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EditCallBody"
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/redo": {
+      "post": {
+        "summary": "重做暂存（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/redo`：前进一步暂存链（无可重做 → 409）。",
+        "operationId": "postApiV1ModelsIdScriptRedo",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "modelId",
+                        "script",
+                        "canUndo"
+                      ],
+                      "properties": {
+                        "modelId": {
+                          "type": "string"
+                        },
+                        "script": {
+                          "type": "string"
+                        },
+                        "canUndo": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/rollback": {
+      "post": {
+        "summary": "回滚到大版本（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/rollback`：恢复指定大版本的脚本到暂存并重新运行进 uploads。成功后排 XKT 重转。",
+        "operationId": "postApiV1ModelsIdScriptRollback",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptRollbackResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数/校验错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
               }
             }
           }
         },
+        "requestBody": {
+          "description": "JSON body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/run": {
+      "post": {
+        "summary": "沙箱运行脚本（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/run`：沙箱运行当前暂存脚本并原子替换 uploads/{id}.ifc（不产生版本）。成功后排 XKT 重转（模型 status → converting）。沙箱最长 60s。",
+        "operationId": "postApiV1ModelsIdScriptRun",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "ok",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Edit Call Models  Id  Script Edit Call Post"
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptRunResult"
+                    }
+                  }
                 }
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -1113,11 +1244,396 @@
         }
       }
     },
-    "/models/{id}/diff/upload": {
+    "/api/v1/models/{id}/script/save": {
       "post": {
-        "summary": "Post Diff Upload",
-        "description": "Diff an uploaded (user-modified) IFC against the current model state.",
-        "operationId": "post_diff_upload_models__id__diff_upload_post",
+        "summary": "保存为大版本（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/save`：沙箱运行后快照 scripts/v{n}.py + versions/v{n}.ifc（原子、lockstep）。运行失败 → 422 且不产生版本。成功后排 XKT 重转。",
+        "operationId": "postApiV1ModelsIdScriptSave",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptSaveResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "description": "JSON body（可选）",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/staging/diff": {
+      "get": {
+        "summary": "暂存步骤小版本 diff（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/script/staging/diff`：暂存链步间 diff（默认最近两步）。query（from/to）原样透传。",
+        "operationId": "getApiV1ModelsIdScriptStagingDiff",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "起始步骤下标（0-based，默认最新两步中的前一步）",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "结束步骤下标（默认最新一步）",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptDiffResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数/校验错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/script/undo": {
+      "post": {
+        "summary": "撤销暂存（代理 edit-service）",
+        "description": "代理 `POST /models/{id}/script/undo`：回退一步暂存链（无可撤销 → 409）。",
+        "operationId": "postApiV1ModelsIdScriptUndo",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "modelId",
+                        "script",
+                        "canRedo"
+                      ],
+                      "properties": {
+                        "modelId": {
+                          "type": "string"
+                        },
+                        "script": {
+                          "type": "string"
+                        },
+                        "canRedo": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/scripts": {
+      "get": {
+        "summary": "大版本列表（代理 edit-service）",
+        "description": "代理 `GET /models/{id}/scripts`：脚本大版本列表（legacy IFC-only 模型为空）。",
+        "operationId": "getApiV1ModelsIdScripts",
+        "tags": [
+          "script"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "模型 id",
+            "schema": {
+              "type": "string",
+              "pattern": "^m_[0-9a-f]{16}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ScriptList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "模型/Issue/会话/资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/{id}/edit/diff-upload": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Compare a modified model and record USER provenance",
+        "operationId": "compareModifiedUpload",
         "parameters": [
           {
             "name": "id",
@@ -1125,8 +1641,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
+              "pattern": "^m_[0-9a-f]{16}$"
             }
           }
         ],
@@ -1135,106 +1650,35 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_diff_upload_models__id__diff_upload_post"
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "author": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Post Diff Upload Models  Id  Diff Upload Post"
-                }
-              }
-            }
+            "description": "Diff, recorded events and summary in the standard success envelope"
           },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/models/{id}/user-edits": {
-      "post": {
-        "summary": "Post User Edits",
-        "description": "Append USER-annotated modification events to the model's edit history.",
-        "operationId": "post_user_edits_models__id__user_edits_post",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^m_[0-9a-f]{16}$",
-              "title": "Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserEditsBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Post User Edits Models  Id  User Edits Post"
-                }
-              }
-            }
+          "400": {
+            "description": "Invalid document"
           },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/health": {
-      "get": {
-        "summary": "Health",
-        "operationId": "health_health_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Health Health Get"
-                }
-              }
-            }
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Unknown model"
           }
         }
       }
@@ -1242,284 +1686,1009 @@
   },
   "components": {
     "schemas": {
-      "Body_post_diff_upload_models__id__diff_upload_post": {
-        "properties": {
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File"
-          }
-        },
+      "Model": {
         "type": "object",
         "required": [
-          "file"
+          "id",
+          "name",
+          "size",
+          "status",
+          "createdAt",
+          "error"
         ],
-        "title": "Body_post_diff_upload_models__id__diff_upload_post"
-      },
-      "DiffBody": {
         "properties": {
-          "base": {
+          "id": {
             "type": "string",
-            "title": "Base"
-          },
-          "target": {
-            "type": "string",
-            "title": "Target"
-          }
-        },
-        "type": "object",
-        "required": [
-          "base",
-          "target"
-        ],
-        "title": "DiffBody",
-        "description": "Body of POST /models/{id}/diff. target also accepts \"current\"."
-      },
-      "EditCallBody": {
-        "properties": {
-          "designKey": {
-            "type": "string",
-            "title": "Designkey"
-          },
-          "argument": {
-            "type": "string",
-            "title": "Argument"
-          },
-          "value": {
-            "title": "Value"
-          }
-        },
-        "type": "object",
-        "required": [
-          "designKey",
-          "argument",
-          "value"
-        ],
-        "title": "EditCallBody",
-        "description": "Body of POST /models/{id}/script/edit-call: scalar argument rewrite."
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
-      "RollbackBody": {
-        "properties": {
-          "version": {
-            "type": "string",
-            "pattern": "^v\\d+$",
-            "title": "Version"
-          }
-        },
-        "type": "object",
-        "required": [
-          "version"
-        ],
-        "title": "RollbackBody",
-        "description": "Body of POST /models/{id}/script/rollback."
-      },
-      "SaveBody": {
-        "properties": {
-          "note": {
-            "type": "string",
-            "title": "Note",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "title": "SaveBody",
-        "description": "Optional body of POST /models/{id}/script/save."
-      },
-      "ScriptBody": {
-        "properties": {
-          "script": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Script"
-          },
-          "params": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Params"
-          },
-          "note": {
-            "type": "string",
-            "title": "Note",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "title": "ScriptBody",
-        "description": "Body of PUT /models/{id}/script: exactly one of script / params."
-      },
-      "ScriptDiffBody": {
-        "properties": {
-          "base": {
-            "type": "string",
-            "pattern": "^v\\d+$",
-            "title": "Base"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^v\\d+$",
-            "title": "Target"
-          }
-        },
-        "type": "object",
-        "required": [
-          "base",
-          "target"
-        ],
-        "title": "ScriptDiffBody",
-        "description": "Body of POST /models/{id}/script/diff: two big versions."
-      },
-      "UserEditEvent": {
-        "properties": {
-          "guid": {
-            "type": "string",
-            "title": "Guid"
+            "pattern": "^m_[0-9a-f]{16}$",
+            "description": "模型 id"
           },
           "name": {
             "type": "string",
-            "title": "Name",
-            "default": ""
+            "description": "文件名"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "IFC 文件字节数"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "converting",
+              "ready",
+              "failed"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO8601 UTC"
+          },
+          "error": {
+            "type": "string",
+            "description": "失败原因（ready 时为空串）"
+          }
+        }
+      },
+      "ModelList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Model"
+        }
+      },
+      "Camera": {
+        "type": "object",
+        "required": [
+          "eye",
+          "look",
+          "up"
+        ],
+        "properties": {
+          "eye": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "look": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "up": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "Provenance": {
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "UI",
+              "AI",
+              "USER"
+            ],
+            "description": "变更来源"
+          },
+          "origin": {
+            "type": "string"
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "required": [
+          "id",
+          "entityId",
+          "entityName",
+          "entityType",
+          "title",
+          "comment",
+          "status",
+          "author",
+          "provenance",
+          "camera",
+          "screenshot",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^i_[0-9a-f]{12}$",
+            "description": "issue id"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "entityName": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "checking",
+              "resolved"
+            ]
+          },
+          "author": {
+            "type": "string",
+            "description": "默认 local-user"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "camera": {
+            "$ref": "#/components/schemas/Camera"
+          },
+          "screenshot": {
+            "type": "string",
+            "description": "相对路径 issues/{id}.png，无截图时为空串"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IssueList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Issue"
+        }
+      },
+      "IssuePatch": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "checking",
+              "resolved"
+            ]
+          }
+        },
+        "description": "仅更新传入字段；title 清空后非空才合法"
+      },
+      "IssueInput": {
+        "type": "object",
+        "required": [
+          "entityId",
+          "entityName",
+          "entityType",
+          "title",
+          "comment"
+        ],
+        "properties": {
+          "entityId": {
+            "type": "string"
+          },
+          "entityName": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "camera": {
+            "$ref": "#/components/schemas/Camera"
+          }
+        }
+      },
+      "ChangeEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "entityId",
+          "entityName",
+          "field",
+          "oldValue",
+          "newValue",
+          "author",
+          "provenance",
+          "operation",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^c_[0-9a-f]{12}$",
+            "description": "change id"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "entityName": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string",
+            "description": "白名单字段：Name/Description/Classification/FireRating/Comments"
+          },
+          "oldValue": {
+            "type": "string",
+            "description": "被覆盖前的值"
+          },
+          "newValue": {
+            "type": "string",
+            "description": "空字符串 = 清除该字段 override"
+          },
+          "author": {
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "update"
+            ]
+          },
+          "diff": {
+            "type": "object",
+            "description": "脚本 diff（optional）"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChangeList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ChangeEntry"
+        }
+      },
+      "OverrideFields": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "entityId → 字段 → 值 的 override 集合"
+      },
+      "Overrides": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/OverrideFields"
+        },
+        "description": "全部 override：{ [entityId]: { [field]: value } }，无 override 时为 {}"
+      },
+      "PropertiesPatch": {
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "properties": {
+          "entityName": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "字段名 ∈ {Name, Description, Classification, FireRating, Comments}；空串值 = 清除 override"
+          },
+          "author": {
+            "type": "string",
+            "description": "默认 local-user"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        }
+      },
+      "ChatSession": {
+        "type": "object",
+        "required": [
+          "chatSessionId",
+          "opencodeSessionId",
+          "modelId",
+          "title",
+          "createdAt"
+        ],
+        "properties": {
+          "chatSessionId": {
+            "type": "string",
+            "pattern": "^c_[0-9a-f]{16}$"
+          },
+          "opencodeSessionId": {
+            "type": "string",
+            "description": "历史字段名（契约兼容保留）；Eino 接管后语义为 agent 会话 ID"
+          },
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$",
+            "description": "空串 = 未绑定模型"
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChatSessionList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ChatSession"
+        }
+      },
+      "ProjectModelRef": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "status"
+        ],
+        "description": "项目下模型引用聚合（与 agent get_project_models 工具同形状；status 为真实状态反查，非 project.json 快照）",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
           },
           "kind": {
             "type": "string",
             "enum": [
-              "added",
-              "removed",
-              "modified"
-            ],
-            "title": "Kind"
+              "ifc",
+              "dxf"
+            ]
           },
-          "changes": {
-            "items": {
-              "$ref": "#/components/schemas/UserFieldChange"
-            },
-            "type": "array",
-            "title": "Changes"
-          }
-        },
-        "type": "object",
-        "required": [
-          "guid",
-          "kind"
-        ],
-        "title": "UserEditEvent",
-        "description": "One located user modification (IFC element or DXF entity/layer)."
-      },
-      "UserEditsBody": {
-        "properties": {
-          "origin": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
             "type": "string",
             "enum": [
-              "ifc-upload",
-              "dxf-upload"
+              "converting",
+              "ready",
+              "failed"
+            ]
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "projectId",
+          "title",
+          "models"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "pattern": "^p_[0-9a-f]{16}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ifc",
+              "cad",
+              "cad->ifc"
             ],
-            "title": "Origin"
+            "description": "项目类型（创建时定死，不可演进）"
           },
-          "author": {
+          "createdAt": {
             "type": "string",
-            "title": "Author",
-            "default": "user-upload"
+            "format": "date-time"
           },
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/UserEditEvent"
-            },
+          "models": {
             "type": "array",
-            "title": "Events"
-          }
-        },
-        "type": "object",
-        "required": [
-          "origin",
-          "events"
-        ],
-        "title": "UserEditsBody",
-        "description": "Body of POST /models/{id}/user-edits."
-      },
-      "UserFieldChange": {
-        "properties": {
-          "field": {
-            "type": "string",
-            "title": "Field"
-          },
-          "oldValue": {
-            "title": "Oldvalue"
-          },
-          "newValue": {
-            "title": "Newvalue"
-          }
-        },
-        "type": "object",
-        "required": [
-          "field"
-        ],
-        "title": "UserFieldChange",
-        "description": "One field-level change inside a user modification event."
-      },
-      "ValidationError": {
-        "properties": {
-          "loc": {
             "items": {
-              "anyOf": [
-                {
+              "$ref": "#/components/schemas/ProjectModelRef"
+            }
+          }
+        }
+      },
+      "CreateSessionBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "默认 \"chat\""
+          },
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$",
+            "description": "绑定模型；同 modelId 幂等复用已有会话"
+          }
+        }
+      },
+      "PostMessageBody": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ScriptStatus": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "script",
+          "staged",
+          "canUndo",
+          "canRedo",
+          "maxSteps"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "script": {
+            "type": "string"
+          },
+          "staged": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "canUndo": {
+            "type": "boolean"
+          },
+          "canRedo": {
+            "type": "boolean"
+          },
+          "maxSteps": {
+            "type": "integer"
+          }
+        }
+      },
+      "StageScriptBody": {
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string",
+            "description": "脚本全文（与 params 恰好二选一）"
+          },
+          "params": {
+            "type": "object",
+            "description": "PARAMS 块改写（与 script 恰好二选一）"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ScriptState": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "staged",
+          "canUndo",
+          "canRedo"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "staged": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "canUndo": {
+            "type": "boolean"
+          },
+          "canRedo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScriptParams": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "params"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "params": {
+            "type": "object"
+          }
+        }
+      },
+      "ScriptVersionInfo": {
+        "type": "object",
+        "required": [
+          "version",
+          "createdAt"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ScriptList": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "scripts",
+          "versions"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "scripts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptVersionInfo"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptVersionInfo"
+            }
+          }
+        }
+      },
+      "ScriptRunResult": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "ok"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "semanticDiff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SemanticDiffCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "构件级 {added, removed, changed} 计数（旧 uploads 产物 vs 本次 run）；diff 失败/首次 run 无旧产物时为 null"
+          }
+        }
+      },
+      "SemanticDiffCounts": {
+        "type": "object",
+        "required": [
+          "added",
+          "removed",
+          "changed"
+        ],
+        "properties": {
+          "added": {
+            "type": "integer"
+          },
+          "removed": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          }
+        }
+      },
+      "SaveBody": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ScriptSaveResult": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "version",
+          "staged",
+          "alignment"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          },
+          "staged": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "alignment": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "added": {
+                "type": "integer"
+              },
+              "removed": {
+                "type": "integer"
+              },
+              "changed": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "RollbackBody": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          }
+        }
+      },
+      "ScriptRollbackResult": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "version",
+          "script"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "pattern": "^m_[0-9a-f]{16}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          },
+          "script": {
+            "type": "string"
+          }
+        }
+      },
+      "ScriptDiffBody": {
+        "type": "object",
+        "required": [
+          "base",
+          "target"
+        ],
+        "properties": {
+          "base": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          }
+        }
+      },
+      "ScriptDiffResult": {
+        "type": "object",
+        "required": [
+          "base",
+          "target",
+          "engine"
+        ],
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "script"
+          },
+          "diff": {
+            "type": "string",
+            "description": "unified 文本 diff"
+          },
+          "params": {
+            "type": "object",
+            "description": "PARAMS 变更"
+          },
+          "stats": {
+            "type": "object",
+            "description": "diff 统计"
+          },
+          "buildingChanges": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "building.json 交付索引字段级差异（两侧均有 sidecar 时非空；否则 null）",
+            "items": {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "enum": [
+                    "add",
+                    "remove",
+                    "modify"
+                  ]
+                },
+                "path": {
                   "type": "string"
                 },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Location"
-          },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
+                "before": {},
+                "after": {}
+              }
+            }
           }
-        },
+        }
+      },
+      "LocateResult": {
         "type": "object",
         "required": [
-          "loc",
-          "msg",
-          "type"
+          "found"
         ],
-        "title": "ValidationError"
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "designKey": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "staging 与 map 分叉，行号不可信"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "col": {
+            "type": "integer"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          }
+        }
+      },
+      "DiffBody": {
+        "type": "object",
+        "required": [
+          "base",
+          "target"
+        ],
+        "properties": {
+          "base": {
+            "type": "string",
+            "pattern": "^v\\d+$"
+          },
+          "target": {
+            "type": "string",
+            "description": "版本号或 \"current\"（uploads 现态）"
+          }
+        }
+      },
+      "DiffResult": {
+        "type": "object",
+        "required": [
+          "base",
+          "target"
+        ],
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "新增 GlobalId"
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "删除 GlobalId"
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "guid": {
+                  "type": "string"
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string"
+                      },
+                      "old": {},
+                      "new": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "EditVersionsResult": {
+        "type": "object",
+        "required": [
+          "versions",
+          "current"
+        ],
+        "properties": {
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptVersionInfo"
+            }
+          },
+          "current": {
+            "type": "string",
+            "nullable": true,
+            "description": "最新版本号（无任何提交时为 null）"
+          }
+        }
+      },
+      "PendingEntry": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "pending 项（L1 直改退役后仅供 script-run 回放簿记，形状以运行服务为准）"
+      },
+      "EditHistoryEntry": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "持久化编辑历史条目（含 operation 字段；直改退役后只读保留）"
+      },
+      "AbortResult": {
+        "type": "object",
+        "required": [
+          "aborted"
+        ],
+        "properties": {
+          "aborted": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "AcceptedResult": {
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "DiscardedResult": {
+        "type": "object",
+        "required": [
+          "discarded"
+        ],
+        "properties": {
+          "discarded": {
+            "type": "integer"
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "业务错误码（≠0）"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "可选：默认鉴权关闭；启用（VIEWER_API_TOKEN 非空）后需 Bearer 令牌。"
       }
     }
   }

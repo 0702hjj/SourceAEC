@@ -7,16 +7,14 @@
   "maxUploadMB": 200,
   "webDist": "../web/dist",
   "pgDSN": "",
-  "editServiceURL": "http://127.0.0.1:8100",
-  "cadServiceURL": "http://127.0.0.1:8200",
   "llmAPIKey": "",
   "llmBaseURL": "",
   "llmModel": "",
-  "skillsDir": "../skills/dist",
-  "skillVenv": "../skills/.venv",
+  "skillsDir": "../skills",
   "skillCLI": "",
   "pprofAddr": "127.0.0.1:6060",
   "llmTimeoutS": 120,
   "sseHeartbeatS": 15,
-  "shutdownJoinS": 10
+  "shutdownJoinS": 10,
+  "mcpBinary": ""
 }
