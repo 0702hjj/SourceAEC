@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
+	"ifcviewer/server/internal/artifact"
 	"path/filepath"
 	"strings"
 	"time"
@@ -152,7 +152,7 @@ func (s *PgStore) Delete(modelID, issueID string) error {
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound
 	}
-	_ = os.Remove(filepath.Join(s.DataDir, "models", modelID, "issues", issueID+".png"))
+	_ = artifact.Remove(filepath.Join(s.DataDir, "models", modelID, "issues", issueID+".png"))
 	return nil
 }
 

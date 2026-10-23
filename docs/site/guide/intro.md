@@ -14,7 +14,7 @@ SourceAEC 是一个开源、自托管、面向 Agent 的 IFC 操作接口。它�
 
 **内置 Agent 工作流。** 平台提供 Eino chat agent，按项目类型派发 IFC 或 CAD 子 Agent；外部 Agent 也可以绕过界面直接调用 REST API 和 Skill。
 
-可复用性是设计原则：IFC 接口可以脱离前端和 PostgreSQL 独立部署，各个 Skill 与业务服务也可以按需组合。
+可复用性是设计原则：IFC 接口可配合 Go 业务运行时与 PostgreSQL，脱离前端独立部署，各个 Skill 与业务服务也可以按需组合。
 
 ## 面向谁
 
@@ -40,7 +40,7 @@ SourceAEC 是一个开源、自托管、面向 Agent 的 IFC 操作接口。它�
 
 ## 部署形态
 
-宿主机直接运行，不用 Docker。生产环境只有 8090 一个端口：Go server 托管前端构建产物，浏览器只访问它。不配 PostgreSQL 也能跑，数据默认落文件；**鉴权默认关闭，生产环境必须设置 token**。步骤见[生产部署与运维](/guide/deploy)。
+宿主机直接运行，不用 Docker。生产环境只有 8090 一个端口：Go server 托管前端构建产物，浏览器只访问它。业务持久化需要 PostgreSQL，文件作为可恢复工作区；**鉴权默认关闭，生产环境必须设置 token**。步骤见[生产部署与运维](/guide/deploy)。
 
 ## 许可
 

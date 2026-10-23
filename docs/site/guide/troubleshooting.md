@@ -29,7 +29,7 @@
 | --- | --- |
 | AI 对话没有智能回复 | LLM 三参没配，正处于离线模式。配置 `VIEWER_LLM_API_KEY`、`VIEWER_LLM_BASE_URL`、`VIEWER_LLM_MODEL` |
 | agent 的文件工具报错 | grep 工具依赖 ripgrep，装上即可（Debian/Ubuntu：`sudo apt install ripgrep`） |
-| PostgreSQL 连不上 | 清空 `pgDSN`（或 `VIEWER_PG_DSN`）回退文件存储，或核对 DSN |
+| PostgreSQL 连不上 | 核对三个服务的 `VIEWER_PG_DSN`、数据库可达性与权限；不提供文件回退 |
 
 ## 状态码去哪查
 

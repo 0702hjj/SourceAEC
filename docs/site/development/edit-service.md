@@ -46,13 +46,13 @@ uv run --group dev pytest
 
 ## 独立部署与移植
 
-这个服务可以脱离 Go server、web、converter、PostgreSQL 单独部署，也可以整体搬到新宿主。它是和 aiifc skill 配对的服务端：skill 产出脚本，它负责执行、存版本和算 diff。
+这个服务可以脱离 Go HTTP 网关、web 和 converter 部署，但需要 Go 业务运行时和 PostgreSQL。它是和 aiifc skill 配对的服务端：skill 产出脚本，它负责执行、存版本和算 diff。
 
 移植的最小步骤：
 
-1. 拷贝 `services/ifc/` 和 `skills/aiifc/`，沙箱执行需要后者 flows 里的 `script_lib.py`。
+1. 安装 `services/ifc/`、共享的 `services/sandbox/`、`services/editapi/` 和 `skills/aiifc/`，构建并安装 `sourceaec-runtime`。
 2. 在 `services/ifc/` 下执行 `uv sync`。
-3. 把 `VIEWER_DATA_DIR` 配成绝对路径，指向你的模型数据根目录。
+3. 设置绝对 `VIEWER_DATA_DIR`、`SOURCEAEC_RUNTIME_BIN`、`VIEWER_PG_DSN` 和存储命名空间。
 4. 启动服务，打开 `/docs` 的 Swagger UI 自检。
 
 其他组件都是可缺省的：
@@ -62,7 +62,7 @@ uv run --group dev pytest
 | Go server | 全部编辑、diff、版本端点直连可用 | 统一 envelope、对外入口、鉴权、XKT 重转、浏览器桥接 |
 | web | 纯 API 调用不受影响 | 可视化界面 |
 | converter | 编辑与 diff 完全可用 | IFC 转 XKT 的渲染链路 |
-| PostgreSQL | 默认文件存储即可 | Issue 等数据的 PG 持久化 |
+| Go 业务运行时 / PostgreSQL | 不可缺省 | 业务状态、Git、构建记录与增量调度 |
 
 数据约定只有一条：任何组件按同一个 `VIEWER_DATA_DIR` 写 `uploads/{id}.ifc`，编辑服务就能使用它。
 

@@ -1,83 +1,31 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 0702hjj
-
-"""SQLite business-artifact store shared with the gateway.
-
-Workspace files are projections for tools requiring filenames. Derived viewer
-files and historical product caches are intentionally not durable artifacts.
-"""
+"""Filesystem compatibility adapter. PostgreSQL and transactions belong to Go."""
 from __future__ import annotations
-
+import base64
 from contextlib import contextmanager
-from contextvars import ContextVar
 import os
 from pathlib import Path
-import sqlite3
-import threading
 from typing import Iterable
+from .go_runtime import call, _TRANSACTIONS
 
 _ROOTS: set[Path] = set()
-_LOCK = threading.RLock()
-_TRANSACTIONS = ContextVar("sourceaec_artifact_transactions", default={})
-
-
-@contextmanager
-def connect(root: str | Path):
-    existing = _TRANSACTIONS.get().get(str(Path(root).resolve()))
-    if existing:
-        yield existing[0]
-        return
-    db = sqlite3.connect(str(Path(root) / "sourceaec.sqlite3"), timeout=30)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA foreign_keys=ON")
-    db.execute("CREATE TABLE IF NOT EXISTS artifacts "
-               "(path TEXT PRIMARY KEY, content BLOB NOT NULL, mode INTEGER NOT NULL DEFAULT 420)")
-    try:
-        with db:
-            yield db
-    finally:
-        db.close()
 
 
 def durable(key: str) -> bool:
-    parts = Path(key).parts
-    return (not key.endswith(".tmp") and ".git" not in parts
-            and not any(p.endswith("_cache") for p in parts)
-            and "versions" not in parts
-            and Path(key).name not in {"model.xkt", "metadata.json", "render.json"})
+    return call("durable", args=key)
 
 
 def initialize(root: str) -> None:
     base = Path(root).resolve()
-    with _LOCK:
-        if base in _ROOTS:
-            return
-        base.mkdir(parents=True, exist_ok=True)
-        with connect(base) as db:
-            db.execute("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
-            imported = db.execute("SELECT 1 FROM migrations WHERE name='files-v1'").fetchone()
-            for name in (() if imported else ("models", "uploads", "projects", "plans", "chat", "skill-work", "chat-sessions.json")):
-                location = base / name
-                for path in ([location] if location.is_file() else location.rglob("*")):
-                    key = path.relative_to(base).as_posix()
-                    if path.is_file() and not path.is_symlink() and durable(key):
-                        db.execute("INSERT OR IGNORE INTO artifacts(path,content) VALUES(?,?)",
-                                   (key, path.read_bytes()))
-            db.execute("INSERT OR IGNORE INTO migrations(name) VALUES('files-v1')")
-            for key, content, mode in db.execute("SELECT path,content,mode FROM artifacts"):
-                path = (base / key).resolve()
-                if not path.is_relative_to(base):
-                    raise ValueError("invalid artifact path")
-                if not path.exists() or path.read_bytes() != content:
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_bytes(content)
-                    path.chmod(mode)
+    if base not in _ROOTS:
+        call("initialize", str(base))
         _ROOTS.add(base)
 
 
 def owner(path: str | Path) -> tuple[Path, str] | None:
-    target = Path(path).resolve()
-    for root in tuple(_ROOTS):
+    target = Path(path).absolute()
+    for root in sorted(tuple(_ROOTS), key=lambda p: len(str(p)), reverse=True):
         if target.is_relative_to(root):
             key = target.relative_to(root).as_posix()
             return (root, key) if durable(key) else None
@@ -85,22 +33,14 @@ def owner(path: str | Path) -> tuple[Path, str] | None:
 
 
 def publish(files: Iterable[tuple[str | Path, bytes]]) -> None:
-    """Commit a set of artifacts together before exposing their projections."""
-    groups: dict[Path, list[tuple[str, bytes]]] = {}
+    groups = {}
     for path, content in files:
         match = owner(path)
         if match:
             root, key = match
-            groups.setdefault(root, []).append((key, content))
+            groups.setdefault(root, []).append({"path": key, "content": base64.b64encode(content).decode()})
     for root, entries in groups.items():
-        with connect(root) as db:
-            active = _TRANSACTIONS.get().get(str(root))
-            if active:
-                for key, _ in entries:
-                    if key not in active[1]:
-                        active[1][key] = db.execute("SELECT content FROM artifacts WHERE path=?", (key,)).fetchone()
-            db.executemany("INSERT INTO artifacts(path,content) VALUES(?,?) "
-                           "ON CONFLICT(path) DO UPDATE SET content=excluded.content", entries)
+        call("publish", str(root), entries)
 
 
 def capture(path: str | Path) -> None:
@@ -108,75 +48,53 @@ def capture(path: str | Path) -> None:
 
 
 def capture_tree(path: str | Path) -> None:
-    base = Path(path)
-    publish((p, p.read_bytes()) for p in base.rglob("*")
-            if p.is_file() and not p.is_symlink() and owner(p))
+    match = owner(path)
+    if match:
+        root, key = match
+        call("capture_tree", str(root), key)
 
 
 def remove(path: str | Path) -> None:
     track_projection(str(path))
     match = owner(path)
     if match:
-        root, key = match
-        with connect(root) as db:
-            db.execute("DELETE FROM artifacts WHERE path=?", (key,))
+        call("remove", str(match[0]), match[1])
 
 
 def read(path: str | Path) -> bytes:
     match = owner(path)
     if match:
-        root, key = match
-        with connect(root) as db:
-            row = db.execute("SELECT content FROM artifacts WHERE path=?", (key,)).fetchone()
-        if row:
-            return row[0]
+        return base64.b64decode(call("read", str(match[0]), match[1]))
     return Path(path).read_bytes()
 
 
 def replace(source: str, destination: str) -> None:
-    capture_data = Path(source).read_bytes()
-    publish([(destination, capture_data)])
+    publish([(destination, Path(source).read_bytes())])
     os.replace(source, destination)
 
 
 @contextmanager
 def transaction(root: str):
-    """Atomic checkpoint writes, including Git bundles and staging metadata.
-
-    File projections touched through publish/replace are restored on rollback.
-    Build execution occurs before this short database transaction.
-    """
-    base = Path(root).resolve()
-    if str(base) in _TRANSACTIONS.get():
+    root = str(Path(root).resolve())
+    if root in _TRANSACTIONS.get():
         yield
         return
-    originals = {}
-    with connect(base) as db:
-        token = _TRANSACTIONS.set({**_TRANSACTIONS.get(), str(base): (db, originals)})
-        try:
-            yield
-            db.commit()
-        except BaseException:
-            db.rollback()
-            for key, row in originals.items():
-                path = base / key
-                if row is None:
-                    path.unlink(missing_ok=True)
-                else:
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_bytes(row[0])
-            raise
-        finally:
-            _TRANSACTIONS.reset(token)
+    transaction_id = call("begin", root)
+    token = _TRANSACTIONS.set({**_TRANSACTIONS.get(), root: transaction_id})
+    try:
+        yield
+    except BaseException:
+        call("rollback", root)
+        raise
+    else:
+        call("commit", root)
+    finally:
+        _TRANSACTIONS.reset(token)
 
 
 def track_projection(path: str) -> None:
-    """Include a disposable file in a checkpoint's projection rollback."""
-    target = Path(path).resolve()
-    for root, (_, originals) in _TRANSACTIONS.get().items():
-        base = Path(root)
-        if target.is_relative_to(base):
-            key = target.relative_to(base).as_posix()
-            if key not in originals:
-                originals[key] = (target.read_bytes(),) if target.exists() else None
+    target = Path(path).absolute()
+    for root in _TRANSACTIONS.get():
+        if target.is_relative_to(Path(root)):
+            call("track", root, target.relative_to(root).as_posix())
             return

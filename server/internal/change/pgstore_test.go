@@ -110,8 +110,8 @@ func TestPgMigrateAddsColumnsIdempotent(t *testing.T) {
 	var opCount, diffCount int
 	if err := pool.QueryRow(ctx,
 		`SELECT
-			(SELECT count(*) FROM information_schema.columns WHERE table_name='changes' AND column_name='operation'),
-			(SELECT count(*) FROM information_schema.columns WHERE table_name='changes' AND column_name='diff')`).Scan(&opCount, &diffCount); err != nil {
+			(SELECT count(*) FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='changes' AND column_name='operation'),
+			(SELECT count(*) FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='changes' AND column_name='diff')`).Scan(&opCount, &diffCount); err != nil {
 		t.Fatal(err)
 	}
 	if opCount != 1 || diffCount != 1 {

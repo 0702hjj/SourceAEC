@@ -16,8 +16,8 @@ graph LR
   end
 
   subgraph 存储层
-    PG[(PostgreSQL<br/>issues / changes / overrides)]
-    FS[(文件系统<br/>uploads/*.ifc, models/{id}/)]
+    PG[(PostgreSQL<br/>业务文件 / Git bundle / 审查数据)]
+    FS[(工具工作区<br/>可恢复文件投影 / 派生缓存)]
   end
 
   UI -->|REST envelope + chat SSE| GO
@@ -26,8 +26,11 @@ graph LR
   GO -->|/api/v1/models/{id}/script/* 代理 + 编排| PY
   GO -->|dxf kind 分流| CAD
   GO -->|子进程 node convert.js| CV
-  GO -->|pgx/v5，可选| PG
+  GO -->|pgx/v5| PG
   GO --> FS
+  RT[Go business runtime<br/>持久化 / Git / 增量调度] --> PG
+  PY -->|私有 stdio| RT
+  CAD -->|私有 stdio| RT
   PY -->|脚本沙箱执行 / 版本快照 / history| FS
   CAD -->|DXF 脚本沙箱 / 版本 / render.json| FS
   CV -->|model.xkt + metadata.json| FS
@@ -45,7 +48,7 @@ graph LR
 | edit-service | Python 3.10 + FastAPI + ifcopenshell + ifcdiff | IFC 脚本沙箱、版本、定位、语义 diff | IfcOpenShell 是 IFC 编辑的事实标准 |
 | cad-edit-service | Python 3.10 + FastAPI + ezdxf | DXF 脚本沙箱、版本、diff、render.json | ezdxf 是 DXF 编辑的事实标准 |
 | services/sandbox | 共享包 aibim_sandbox | bwrap 沙箱后端、PEP 723 依赖环境、script-as-source 领域模块 | 两个服务同构，沙箱逻辑只维护一份，见[沙箱执行环境](/development/sandbox) |
-| PostgreSQL | 可选 | Issue、修改记录、override 三张表 | 不配置时全部落文件 |
+| PostgreSQL | 必需 | 业务文件、Git bundle、审查数据 | 统一持久化，工作区可恢复 |
 
 各组件内部结构见[Web 前端](/development/web)、[Go Server](/development/server)、[IFC 编辑服务](/development/edit-service)、[CAD 编辑服务](/development/cad-service)。
 

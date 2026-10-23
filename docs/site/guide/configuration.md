@@ -19,7 +19,7 @@
 | `nodeBin` / `converterScript` | `node` / `../converter/convert.js` | — | 转换器调用 |
 | `maxUploadMB` | `200` | — | 上传上限 |
 | `webDist` | `../web/dist` | `VIEWER_WEB_DIST` | 前端构建产物目录。存在就由 server 托管，缺失时静态路径 503、API 照常 |
-| `pgDSN` | `""` | `VIEWER_PG_DSN` | 配置即启用 PostgreSQL，空则用文件存储 |
+| `pgDSN` | `""` | `VIEWER_PG_DSN` | 必需；三个服务使用相同数据库 |
 | `editServiceURL` | `http://127.0.0.1:8100` | `VIEWER_EDIT_SERVICE_URL` | IFC 编辑服务地址 |
 | `cadServiceURL` | `http://127.0.0.1:8200` | `VIEWER_CAD_SERVICE_URL` | DXF 编辑服务地址 |
 | `llmAPIKey` | `""` | `VIEWER_LLM_API_KEY` | chat agent 的 LLM key。留空则进入离线模式，用确定性 mock，不产生真实回复 |
@@ -111,7 +111,11 @@
 
 ## PostgreSQL
 
-不配置时，Issue、override、修改记录全部落文件，零外部依赖。配置 DSN 后自动建三张表。模型文件和版本快照始终在文件系统里，所以备份要覆盖两边。
+PostgreSQL 是必需依赖，`VIEWER_PG_DSN` 应同时传给网关和两个编辑服务。
+业务文件、Git bundle 与审查数据都在数据库中，工作区是可恢复投影。
+`VIEWER_STORAGE_NAMESPACE` 建议显式设置，所有进程保持相同值；移动工作区时不变。
+两个编辑服务还需 `SOURCEAEC_RUNTIME_BIN` 指向 `scripts/build_runtime.sh` 构建的
+Go 可执行文件。迁移与备份见[模型存储](/development/model-storage)。
 
 测试要用 `VIEWER_TEST_PG_DSN` 指向专用测试库，测试会删表。
 

@@ -10,7 +10,7 @@ optional extensions. This file applies to the whole repository.
 | Component | Directory | Verification | Development command |
 | --- | --- | --- | --- |
 | Web client | `web` | `npm test`; `npm run lint`; `npm run build` | `npm run dev` |
-| Go gateway | `server` | `go test ./...`; `go vet ./...` | `go run ./cmd/server` |
+| Go gateway and business runtime | `server` | `go test ./...`; `go vet ./...` | `go run ./cmd/server` |
 | IFC converter | `converter` | `npm test` | invoked by the gateway |
 | IFC edit service | `services/ifc` | `uv run --group dev pytest` | `uv run uvicorn app.main:app --port 8100` |
 | CAD edit service | `services/cad` | `uv run --group dev pytest` | `uv run uvicorn app.main:app --port 8200` |
@@ -18,6 +18,13 @@ optional extensions. This file applies to the whole repository.
 | Shared edit API | `services/editapi` | run `../editapi/tests` from both service environments | imported by both edit services |
 | MCP bridge | `mcp` | `uv run --group dev pytest` | `uv run python -m app.server` |
 | Documentation | `docs` | `npm run docs:build` | `npm run docs:dev` |
+
+Build the Go business runtime with `scripts/build_runtime.sh` and set
+`SOURCEAEC_RUNTIME_BIN` to its absolute path for both Python services. PostgreSQL
+is required: set `VIEWER_PG_DSN` in all three service environments. Tests use a
+dedicated database; native review-store tests also use `VIEWER_TEST_PG_DSN`.
+Go owns artifact persistence, Git bundles, build identities and task scheduling.
+Python adapters retain AST analysis and execution of IFC/CAD script callables.
 
 Use the same absolute `VIEWER_DATA_DIR` for the gateway and both edit
 services. The production gateway serves `web/dist`; the Vite server is for

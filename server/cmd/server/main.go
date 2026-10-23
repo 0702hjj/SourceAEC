@@ -34,6 +34,7 @@ import (
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
+	"ifcviewer/server/internal/reviewmigration"
 	"ifcviewer/server/internal/store"
 )
 
@@ -259,6 +260,12 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
+	if cfg.PgDSN == "" {
+		log.Fatal("PostgreSQL is required: configure VIEWER_PG_DSN or pgDSN")
+	}
+	if err := os.Setenv("VIEWER_PG_DSN", cfg.PgDSN); err != nil {
+		log.Fatal(err)
+	}
 	if err := artifact.Open(cfg.DataDir); err != nil {
 		log.Fatalf("open artifact database: %v", err)
 	}
@@ -280,30 +287,28 @@ func main() {
 	var iss issue.Store
 	var chg change.Store
 	var ovr override.Store
-	if cfg.PgDSN != "" {
-		pool, err := pgxpool.New(context.Background(), cfg.PgDSN)
-		if err != nil {
-			log.Fatalf("connect postgres: %v", err)
-		}
-		defer pool.Close()
-		iss, err = issue.NewPgStore(pool, cfg.DataDir)
-		if err != nil {
-			log.Fatalf("init issue pg store: %v", err)
-		}
-		chg, err = change.NewPgStore(pool)
-		if err != nil {
-			log.Fatalf("init change pg store: %v", err)
-		}
-		ovr, err = override.NewPgStore(pool)
-		if err != nil {
-			log.Fatalf("init override pg store: %v", err)
-		}
-		log.Printf("storage: postgres")
-	} else {
-		iss = issue.NewFileStore(cfg.DataDir)
-		chg = change.NewFileStore(cfg.DataDir)
-		ovr = override.NewFileStore(cfg.DataDir)
+	pool, err := pgxpool.New(context.Background(), cfg.PgDSN)
+	if err != nil {
+		log.Fatalf("connect postgres: %v", err)
 	}
+	defer pool.Close()
+	iss, err = issue.NewPgStore(pool, cfg.DataDir)
+	if err != nil {
+		log.Fatalf("init issue pg store: %v", err)
+	}
+	chg, err = change.NewPgStore(pool)
+	if err != nil {
+		log.Fatalf("init change pg store: %v", err)
+	}
+	ovr, err = override.NewPgStore(pool)
+	if err != nil {
+		log.Fatalf("init override pg store: %v", err)
+	}
+	if err := reviewmigration.Import(pool, cfg.DataDir); err != nil {
+		log.Fatalf("import review records: %v", err)
+	}
+	log.Printf("storage: postgres")
+
 	ed := editsvc.New(cfg.EditServiceURL)
 	cad := editsvc.New(cfg.CadServiceURL)
 	handler := api.NewHandlerWithProjectStore(st, q, iss, chg, ovr, ed, cad, cfg.MaxUploadMB<<20, cfg.CORSOrigins, store.NewProjectStore(cfg.DataDir))

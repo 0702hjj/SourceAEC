@@ -11,6 +11,9 @@ from pathlib import Path
 
 import ezdxf
 import pytest
+
+pytest_plugins = ["aibim_sandbox.pytest_plugin"]
+
 from fastapi.testclient import TestClient
 
 FLOWS_DIR = Path(__file__).resolve().parents[1] / "flows"

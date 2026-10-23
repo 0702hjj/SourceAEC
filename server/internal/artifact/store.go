@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
 
-// Package artifact persists business files in SQLite. Paths are disposable
+// Package artifact persists business files in PostgreSQL. Paths are disposable
 // projections for Git, sandbox runners and converters, never database keys
 // containing machine-specific absolute paths.
 package artifact
@@ -14,15 +14,16 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var roots sync.Map // absolute data directory -> *sql.DB
+var openMu sync.Mutex
 
 // Open imports legacy files once and restores missing workspace projections.
-// The gateway and Python services share the same schema and WAL database.
+// The gateway and Go edit runtime share one PostgreSQL namespace.
 func Open(root string) error {
+	openMu.Lock()
+	defer openMu.Unlock()
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return err
@@ -30,30 +31,42 @@ func Open(root string) error {
 	if _, ok := roots.Load(root); ok {
 		return nil
 	}
-	if err = os.MkdirAll(root, 0700); err != nil {
-		return err
-	}
-	db, err := sql.Open("sqlite3", filepath.Join(root, "sourceaec.sqlite3")+"?_busy_timeout=30000&_journal_mode=WAL&_foreign_keys=on")
+	db, err := Connect(root)
 	if err != nil {
 		return err
 	}
-	db.SetMaxOpenConns(1)
-	if _, err = db.Exec(`CREATE TABLE IF NOT EXISTS artifacts (path TEXT PRIMARY KEY, content BLOB NOT NULL, mode INTEGER NOT NULL DEFAULT 420);`); err != nil {
+	registered := false
+	defer func() {
+		if !registered {
+			db.Close()
+		}
+	}()
+	if err = os.MkdirAll(root, 0700); err != nil {
 		db.Close()
 		return err
 	}
-	actual, loaded := roots.LoadOrStore(root, db)
-	if loaded {
+	// Serialize first import across gateway and edit-runtime processes.
+	tx, err := db.Begin()
+	if err != nil {
 		db.Close()
-		db = actual.(*sql.DB)
+		return err
 	}
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)"); err != nil {
+	defer tx.Rollback()
+	if _, err = tx.Exec("SELECT pg_advisory_xact_lock(710362)"); err != nil {
+		db.Close()
 		return err
 	}
 	var imported int
-	err = db.QueryRow("SELECT count(*) FROM migrations WHERE name='files-v1'").Scan(&imported)
+	err = tx.QueryRow("SELECT count(*) FROM migrations WHERE name='files-v1'").Scan(&imported)
 	if err != nil {
 		return err
+	}
+	if imported == 0 {
+		if _, e := os.Stat(filepath.Join(root, "sourceaec.sqlite3")); e == nil {
+			return errors.New("legacy SQLite database found: stop services and run migrate-sqlite into a fresh PostgreSQL namespace first")
+		} else if !os.IsNotExist(e) {
+			return e
+		}
 	}
 	names := []string{}
 	if imported == 0 {
@@ -84,14 +97,18 @@ func Open(root string) error {
 			if e != nil {
 				return e
 			}
-			_, e = db.Exec("INSERT OR IGNORE INTO artifacts(path,content) VALUES(?,?)", filepath.ToSlash(rel), data)
+			_, e = tx.Exec("INSERT INTO artifacts(path,content) VALUES($1,$2) ON CONFLICT DO NOTHING", filepath.ToSlash(rel), data)
 			return e
 		})
 		if err != nil {
 			return err
 		}
 	}
-	if _, err = db.Exec("INSERT OR IGNORE INTO migrations(name) VALUES('files-v1')"); err != nil {
+	if _, err = tx.Exec("INSERT INTO migrations(name) VALUES('files-v1') ON CONFLICT DO NOTHING"); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		db.Close()
 		return err
 	}
 	rows, err := db.Query("SELECT path,content,mode FROM artifacts")
@@ -120,7 +137,12 @@ func Open(root string) error {
 			return err
 		}
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	roots.Store(root, db)
+	registered = true
+	return nil
 }
 
 func inside(root, path string) bool {
@@ -129,12 +151,18 @@ func inside(root, path string) bool {
 }
 func durable(key string) bool {
 	key = filepath.ToSlash(key)
-	if strings.HasSuffix(key, ".tmp") || strings.Contains(key, "_cache/") || strings.Contains(key, "/.git/") {
+	if strings.HasSuffix(key, ".tmp") {
 		return false
 	}
+	for _, part := range strings.Split(key, "/") {
+		if part == ".git" || part == "versions" || strings.HasSuffix(part, "_cache") {
+			return false
+		}
+	}
 	base := filepath.Base(key)
-	return base != "model.xkt" && base != "metadata.json" && base != "render.json" && !strings.Contains(key, "/versions/")
+	return base != "model.xkt" && base != "metadata.json" && base != "render.json"
 }
+
 func lookup(path string) (*sql.DB, string) {
 	abs, e := filepath.Abs(path)
 	if e != nil {
@@ -160,7 +188,7 @@ func lookup(path string) (*sql.DB, string) {
 func ReadFile(path string) ([]byte, error) {
 	if db, key := lookup(path); db != nil {
 		var data []byte
-		e := db.QueryRow("SELECT content FROM artifacts WHERE path=?", key).Scan(&data)
+		e := db.QueryRow("SELECT content FROM artifacts WHERE path=$1", key).Scan(&data)
 		if e == nil {
 			return data, nil
 		}
@@ -172,7 +200,7 @@ func ReadFile(path string) ([]byte, error) {
 }
 func WriteFile(path string, data []byte, mode fs.FileMode) error {
 	if db, key := lookup(path); db != nil {
-		if _, e := db.Exec("INSERT INTO artifacts(path,content,mode) VALUES(?,?,?) ON CONFLICT(path) DO UPDATE SET content=excluded.content,mode=excluded.mode", key, data, uint32(mode)); e != nil {
+		if _, e := db.Exec("INSERT INTO artifacts(path,content,mode) VALUES($1,$2,$3) ON CONFLICT(path) DO UPDATE SET content=excluded.content,mode=excluded.mode", key, data, uint32(mode)); e != nil {
 			return e
 		}
 	}
@@ -187,7 +215,7 @@ func Rename(old, new string) error {
 		if e != nil {
 			return e
 		}
-		if _, e = db.Exec("INSERT INTO artifacts(path,content) VALUES(?,?) ON CONFLICT(path) DO UPDATE SET content=excluded.content", key, data); e != nil {
+		if _, e = db.Exec("INSERT INTO artifacts(path,content) VALUES($1,$2) ON CONFLICT(path) DO UPDATE SET content=excluded.content", key, data); e != nil {
 			return e
 		}
 	}
@@ -195,7 +223,7 @@ func Rename(old, new string) error {
 }
 func Remove(path string) error {
 	if db, key := lookup(path); db != nil {
-		if _, e := db.Exec("DELETE FROM artifacts WHERE path=?", key); e != nil {
+		if _, e := db.Exec("DELETE FROM artifacts WHERE path=$1", key); e != nil {
 			return e
 		}
 	}
@@ -203,19 +231,13 @@ func Remove(path string) error {
 }
 func RemoveAll(path string) error {
 	if db, key := lookup(path); db != nil {
-		if _, e := db.Exec("DELETE FROM artifacts WHERE path=? OR substr(path,1,?)=?", key, len(key)+1, key+"/"); e != nil {
+		if _, e := db.Exec("DELETE FROM artifacts WHERE path=$1 OR substr(path,1,$2)=$3", key, len(key)+1, key+"/"); e != nil {
 			return e
 		}
 		parts := strings.Split(key, "/")
 		if len(parts) == 2 && parts[0] == "models" {
-			var exists int
-			if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='repositories'").Scan(&exists); err != nil {
+			if _, err := db.Exec("DELETE FROM repositories WHERE model_id=$1", parts[1]); err != nil {
 				return err
-			}
-			if exists > 0 {
-				if _, err := db.Exec("DELETE FROM repositories WHERE model_id=?", parts[1]); err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -232,7 +254,7 @@ func Capture(path string) error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("INSERT INTO artifacts(path,content) VALUES(?,?) ON CONFLICT(path) DO UPDATE SET content=excluded.content WHERE artifacts.content!=excluded.content", key, data)
+	_, err = db.Exec("INSERT INTO artifacts(path,content) VALUES($1,$2) ON CONFLICT(path) DO UPDATE SET content=excluded.content WHERE artifacts.content!=excluded.content", key, data)
 	return err
 }
 
