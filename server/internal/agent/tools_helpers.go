@@ -106,9 +106,10 @@ type modelRefReq struct {
 }
 
 type stageScriptReq struct {
-	Script  string `json:"script" jsonschema:"required,description=完整构建脚本全文（在 get_script 读出的既有脚本上增量修改；禁止整体重写风格）"`
-	Note    string `json:"note,omitempty" jsonschema:"description=本次变更说明"`
-	ModelID string `json:"modelId,omitempty" jsonschema:"description=目标模型 id（m_ 开头）；缺省取当前会话绑定模型"`
+	BaseRevision *string `json:"baseRevision,omitempty" jsonschema:"description=从 get_script 读取的 revision；不匹配时拒绝覆盖并发修改"`
+	Script       string  `json:"script" jsonschema:"required,description=完整构建脚本全文（在 get_script 读出的既有脚本上增量修改；禁止整体重写风格）"`
+	Note         string  `json:"note,omitempty" jsonschema:"description=本次变更说明"`
+	ModelID      string  `json:"modelId,omitempty" jsonschema:"description=目标模型 id（m_ 开头）；缺省取当前会话绑定模型"`
 }
 
 type saveScriptReq struct {
