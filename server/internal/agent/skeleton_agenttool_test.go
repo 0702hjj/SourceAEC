@@ -11,12 +11,12 @@ import (
 )
 
 // TestSkeletonAgentToolRealSkills：真实 skills/ 目录下三角色装配（路线 B）——
-// orchestrator 挂全量 skill（含 aiplan 对话协调层）+ AgentAsTool(ifc/cad)，
+// orchestrator 与子角色共享配置的 skill 目录+ AgentAsTool(ifc/cad)，
 // 子 agent 各自挂 skill middleware；scriptedModel 派发 ifc-agent 子 agent 读
 // 会话 id 后收尾，验证整条链路在真实 skill 数据上不报错且子事件带标签。
 func TestSkeletonAgentToolRealSkills(t *testing.T) {
-	if _, err := os.Stat(distSkillsDir()); err != nil {
-		t.Skipf("skills/dist 未打包（本地先跑 tools/skill_pack.py；CI 无 dist 跳过集成）: %v", err)
+	if _, err := os.Stat(maintainedSkillsDir()); err != nil {
+		t.Fatalf("maintained skill directory missing: %v", err)
 	}
 	sidTool, err := newStringTool("read_sid", func(ctx context.Context) (string, error) {
 		return "sid=" + SessionIDFromContext(ctx), nil
@@ -34,7 +34,7 @@ func TestSkeletonAgentToolRealSkills(t *testing.T) {
 	}}
 
 	ag, err := New(LLMConfig{},
-		WithSkillsDir("/opt/sourceaec/skills/dist"),
+		WithSkillsDir(maintainedSkillsDir()),
 		WithModel(NewScriptedModel(parent)),
 		WithChildModelFactory(func() model.ToolCallingChatModel { return NewScriptedModel(child) }),
 		WithTools([]tool.BaseTool{sidTool}),

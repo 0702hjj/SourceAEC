@@ -15,7 +15,7 @@ type Option func(*agentOptions)
 
 type agentOptions struct {
 	name            string
-	kind            string // 项目类型 cad/ifc/cad->ifc：决定 AgentAsTool 选择性装配 + persona + aiplan skill
+	kind            string // 项目类型 cad/ifc/cad->ifc：决定 AgentAsTool 选择性装配 + persona （skill 目录由所有角色共享）
 	model           model.ToolCallingChatModel
 	childModel      func() model.ToolCallingChatModel // 子 agent 模型工厂（路线 B；nil 时默认新建）
 	tools           []tool.BaseTool
@@ -81,10 +81,11 @@ func WithDataDir(dir string) Option {
 // WithKind 按项目类型（cad/ifc/cad->ifc）选择性装配 orchestrator：
 //   - AgentAsTool：cad->ifc 全装 cad+ifc；cad 只装 cad；ifc 只装 ifc
 //   - persona：cad→OrchestratorPersonaCAD、ifc→OrchestratorPersonaIFC、其余默认
-//   - aiplan skill：cad/cad->ifc 挂 orchestrator；ifc 管线不挂（无 plan 阶段）
-// cad 管线语义 = aiplan → cad-agent 设计完即止（不派 ifc，等价「只走到 CAD
+//   - 所有项目类型共享已配置的 SourceAEC/上游 SDK skill 目录。
+//
+// cad 管线按需要消费声明性输入，由 cad-agent 完成（不派 ifc，等价「只走到 CAD
 // 设计完」的 orches 版本）；cad->ifc = 全链（plan → cad → ifc）。
-// 空值 = 全装（向后兼容：ifc+cad + aiplan）。
+// 空值 = 全装（向后兼容：ifc+cad）。
 func WithKind(kind string) Option {
 	return func(o *agentOptions) { o.kind = kind }
 }

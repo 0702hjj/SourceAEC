@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 
@@ -155,6 +156,15 @@ func (h *handler) serveModelFile(name string) http.HandlerFunc {
 		m := h.modelOrErr(w, r.PathValue("id"))
 		if m == nil {
 			return
+		}
+		if name == "render.json" && m.Kind == store.KindDXF {
+			path := filepath.Join(h.st.ModelDir(m.ID), name)
+			if _, err := os.Stat(path); os.IsNotExist(err) && h.cad != nil {
+				if _, err = h.cad.Do(r.Context(), http.MethodGet, "/models/"+m.ID+"/render", nil); err != nil {
+					writeEditErr(w, err)
+					return
+				}
+			}
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, filepath.Join(h.st.ModelDir(m.ID), name))

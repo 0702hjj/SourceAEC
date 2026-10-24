@@ -50,13 +50,17 @@ func modelTools(deps ToolDeps) []tool.InvokableTool {
 				return toolRaw(cl.Do(ctx, http.MethodGet, "/models/"+m.ID+"/script", nil))
 			}),
 
-		mustTool("stage_script", "暂存构建脚本（全量替换；不执行）。之后必须 run_script 沙箱验证，再 save_script 落大版本",
+		mustTool("stage_script", "暂存构建脚本（全量替换；不执行）；baseRevision 使用 get_script 返回的 revision，冲突时重新读取。之后 run_script 验证，再 save_script 保存",
 			func(ctx context.Context, in stageScriptReq) (string, error) {
 				m, cl, errText := deps.resolve(ctx, in.ModelID)
 				if errText != "" {
 					return errText, nil
 				}
-				body, _ := json.Marshal(map[string]string{"script": in.Script, "note": in.Note})
+				bodyMap := map[string]any{"script": in.Script, "note": in.Note}
+				if in.BaseRevision != nil {
+					bodyMap["baseRevision"] = *in.BaseRevision
+				}
+				body, _ := json.Marshal(bodyMap)
 				out, err := cl.Do(ctx, http.MethodPut, "/models/"+m.ID+"/script", body)
 				if err != nil {
 					return toolErr(err), nil

@@ -4,7 +4,7 @@
 
 ## 勾选清单
 
-- [ ] 相关组件测试全绿（`go test ./...` / `uv run --group dev pytest` / `npm test`，见 AGENTS.md 组件与命令表）
+- [ ] 相关组件测试全绿（`go test ./...` / `npm test`，见 AGENTS.md 组件与命令表）
 - [ ] 新增/修改代码配有测试，且新增测试量 ≥ 新增实现量（AGENTS.md 测试纪律）
 - [ ] 修 bug 已先写复现该 bug 的失败测试
 - [ ] 改了 API：已同步更新公开 schema、参考页和契约测试
@@ -19,3 +19,5 @@
 - [ ] 本贡献不含未经明确授权的保密信息、商业秘密、个人/客户数据、私有图纸或私有仓库材料
 - [ ] 如使用 AI 工具，其输入不含上述受限材料，且我已审查输出的来源和许可证兼容性
 - [ ] 每个 commit 均包含本人通过 `git commit -s` 添加的 DCO `Signed-off-by` 签署
+
+- [ ] `scripts/check_go_business.sh` passes; no maintained Python source or manifests.

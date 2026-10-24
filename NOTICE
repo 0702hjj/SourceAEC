@@ -3,15 +3,14 @@ Copyright (C) 2026 0702hjj and contributors
 
 Licensed under the Apache License, Version 2.0. See LICENSE.
 
-The following directories are MIT-licensed by default under their local
-LICENSE files:
+The SourceAEC integration skill is in skills/sourceaec/. It preserves notices
+for material adapted from the retired MIT-licensed planning and DXF skills:
 
-- skills/aiplan/
-- skills/aidxf/
+- skills/sourceaec/licenses/aiplan-MIT.txt
+- skills/sourceaec/licenses/aidxf-MIT.txt
 
-An SPDX identifier or copyright notice in an individual file overrides the
-directory default for that file. In particular, files marked Apache-2.0 in
-`skills/aidxf/` remain Apache-2.0.
+An SPDX identifier or copyright notice in an individual file overrides its
+directory default. Preserve the included notices when redistributing the skill.
 
 Key third-party runtime dependencies include:
 

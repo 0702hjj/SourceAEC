@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -48,17 +47,15 @@ type config struct {
 	MaxUploadMB     int64  `json:"maxUploadMB"`
 	WebDist         string `json:"webDist"`
 	PgDSN           string `json:"pgDSN"`
-	EditServiceURL  string `json:"editServiceURL"`
-	CadServiceURL   string `json:"cadServiceURL"`
 	LLMAPIKey       string `json:"llmAPIKey"`
 	LLMBaseURL      string `json:"llmBaseURL"`
 	LLMModel        string `json:"llmModel"`
 	SkillsDir       string `json:"skillsDir"` // 扁平 skills 目录（BaseDir/*/SKILL.md），挂官方 skill middleware
-	MCPDir          string `json:"mcpDir"`    // mcp/ 目录（stdio MCP server 的 cwd，server.py 所在）；空=不接 MCP
-	SkillVenv       string `json:"skillVenv"` // 独立 skill venv 路径（bin 注入 PATH，execute 能调到 aiplan/aidxfv3）
-	SkillCLI        string `json:"skillCLI"`  // execute 命令白名单（逗号分隔；空 = 默认关闭宿主命令）
-	APIToken        string `json:"apiToken"`
-	CORSOriginsRaw  string `json:"corsOrigins"`
+	MCPBinary       string `json:"mcpBinary"` // optional Go stdio MCP executable
+
+	SkillCLI       string `json:"skillCLI"` // execute 命令白名单（逗号分隔；空 = 默认关闭宿主命令）
+	APIToken       string `json:"apiToken"`
+	CORSOriginsRaw string `json:"corsOrigins"`
 	// PprofAddr 是观测监听器（net/http/pprof + expvar /debug/vars）地址；
 	// 默认 127.0.0.1:6060（自托管形态只绑回环安全）；空串显式禁用（W-0061 S0）。
 	PprofAddr string `json:"pprofAddr"`
@@ -94,18 +91,6 @@ func loadConfig(path string) (*config, error) {
 	if dsn := os.Getenv("VIEWER_PG_DSN"); dsn != "" {
 		cfg.PgDSN = dsn
 	}
-	if u := os.Getenv("VIEWER_EDIT_SERVICE_URL"); u != "" {
-		cfg.EditServiceURL = u
-	}
-	if cfg.EditServiceURL == "" {
-		cfg.EditServiceURL = "http://127.0.0.1:8100"
-	}
-	if u := os.Getenv("VIEWER_CAD_SERVICE_URL"); u != "" {
-		cfg.CadServiceURL = u
-	}
-	if cfg.CadServiceURL == "" {
-		cfg.CadServiceURL = "http://127.0.0.1:8200"
-	}
 	if k := os.Getenv("VIEWER_LLM_API_KEY"); k != "" {
 		cfg.LLMAPIKey = k
 	}
@@ -118,11 +103,8 @@ func loadConfig(path string) (*config, error) {
 	if s := os.Getenv("VIEWER_SKILLS_DIR"); s != "" {
 		cfg.SkillsDir = s
 	}
-	if s := os.Getenv("VIEWER_MCP_DIR"); s != "" {
-		cfg.MCPDir = s
-	}
-	if v := os.Getenv("VIEWER_SKILLS_VENV"); v != "" {
-		cfg.SkillVenv = v
+	if s := os.Getenv("VIEWER_MCP_BIN"); s != "" {
+		cfg.MCPBinary = s
 	}
 	if c := os.Getenv("VIEWER_SKILLS_CLI"); c != "" {
 		cfg.SkillCLI = c
@@ -309,37 +291,14 @@ func main() {
 	}
 	log.Printf("storage: postgres")
 
-	ed := editsvc.New(cfg.EditServiceURL)
-	cad := editsvc.New(cfg.CadServiceURL)
+	ed := editsvc.NewLocal(cfg.DataDir, "ifc")
+	cad := editsvc.NewLocal(cfg.DataDir, "dxf")
 	handler := api.NewHandlerWithProjectStore(st, q, iss, chg, ovr, ed, cad, cfg.MaxUploadMB<<20, cfg.CORSOrigins, store.NewProjectStore(cfg.DataDir))
 	// chat 模块（demo）：独立 handler，/api/v1/chat/ 子树优先匹配，其余走既有 handler。
 	// 对话由内置 Eino agent 驱动（API key 空时回退确定性 scriptedModel，离线 demo 可用）；
 	// 领域工具集按模型 kind 路由（ifc→ed :8100 / dxf→cad :8200，agent.DomainTools）。
 	// 装配顺序：先建 ChatHandler（工具 deps 需要 handler 的会话表回调），再建 agent
 	//（注入领域工具），最后回填 Ag——handler 与 agent 互相引用只能这样破环。
-	// 独立 skill venv（第二层）：bin 前缀进 PATH（execute 的 /bin/sh -c 能调到
-	// aiplan/aidxfv3）+ execute 命令白名单配置化对齐 dist + aiplan 可执行（B2 plan 交付）。
-	aiplanBin := ""
-	if cfg.SkillVenv != "" {
-		if fi, err := os.Stat(cfg.SkillVenv); err == nil && fi.IsDir() {
-			binDir := filepath.Join(cfg.SkillVenv, "bin")
-			if err := os.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH")); err == nil {
-				log.Printf("chat: skill venv 已注入 PATH（%s）", binDir)
-			}
-			if p, err := exec.LookPath("aiplan"); err == nil {
-				aiplanBin = p
-			}
-		} else {
-			log.Printf("chat: skillVenv %q 不存在，execute 可能找不到 skill CLI（跑 tools/install_skill_venv.sh）", cfg.SkillVenv)
-		}
-	}
-	// execute 子进程环境注入 VIEWER_DATA_DIR（绝对路径）——skill CLI（aiplan/aidxfv3/aiifc）
-	// 的 --project-id 依赖它算 skill-work/{projectID} 落盘；缺失则 CLI 报「VIEWER_DATA_DIR 未设置」。
-	if abs, err := filepath.Abs(cfg.DataDir); err == nil {
-		if err := os.Setenv("VIEWER_DATA_DIR", abs); err == nil {
-			log.Printf("chat: execute 环境注入 VIEWER_DATA_DIR=%s", abs)
-		}
-	}
 	evStore := agent.NewEventStore(cfg.DataDir)
 	chatHandler := api.NewChatHandler(api.ChatDeps{
 		Ev: evStore,
@@ -347,7 +306,7 @@ func main() {
 		RootCtx:      ctx,
 		SSEHeartbeat: time.Duration(cfg.SSEHeartbeatS) * time.Second,
 		Ed:           ed, Cad: cad, St: st, Ps: store.NewProjectStore(cfg.DataDir),
-		PlanSt: store.NewPlanStore(cfg.DataDir), AiplanBin: aiplanBin, Q: q, DataDir: cfg.DataDir,
+		PlanSt: store.NewPlanStore(cfg.DataDir), Q: q, DataDir: cfg.DataDir,
 	})
 	llmCfg := agent.LLMConfig{
 		APIKey: cfg.LLMAPIKey, BaseURL: cfg.LLMBaseURL, Model: cfg.LLMModel,
@@ -376,24 +335,24 @@ func main() {
 		}
 	}
 	// MCP 工具接入（只读定位——实时跟进项目进程）：拉起 mcp stdio server，
-	// 三个 agent 共享一个 session（GetTools 一次，工具实例复用）。MCPDir 缺省
-	// 推 <repo>/mcp（server 可执行文件上一级的 mcp/）；拉起失败优雅降级（不接）。
-	mcpDir := cfg.MCPDir
-	if mcpDir != "" {
-		if abs, err := filepath.Abs(mcpDir); err == nil {
-			mcpDir = abs
+	// 三个 agent 共享一个 session（GetTools 一次，工具实例复用）。MCPBinary 缺省
+	// 空时关闭；配置可执行文件后通过网关 API 访问业务。
+	mcpBinary := cfg.MCPBinary
+	if mcpBinary != "" {
+		if abs, err := filepath.Abs(mcpBinary); err == nil {
+			mcpBinary = abs
 		}
 	}
 	mcpTools, mcpCleanup, mcpErr := agent.LoadMCPTools(context.Background(), agent.MCPToolsConfig{
-		MCPDir:  mcpDir,
-		DataDir: cfg.DataDir,
+		Binary: mcpBinary,
+		APIURL: fmt.Sprintf("http://127.0.0.1:%d", cfg.Port), Token: cfg.APIToken,
 	})
 	if mcpErr != nil {
 		log.Printf("chat: MCP server 拉起失败（%v），跳过 MCP 工具接入", mcpErr)
 		mcpTools = nil
 	} else if len(mcpTools) > 0 {
 		defer mcpCleanup()
-		log.Printf("chat: MCP 工具已接入（%d 个，mcpDir=%s）", len(mcpTools), mcpDir)
+		log.Printf("chat: MCP 工具已接入（%d 个，mcpBinary=%s）", len(mcpTools), mcpBinary)
 	}
 	domainTools := func() []tool.BaseTool {
 		// chatHandler.DomainTools() 已是 []tool.BaseTool（api 层组装好），直接追加 mcp 工具。

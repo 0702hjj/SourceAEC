@@ -27,6 +27,7 @@ func (h *handler) registerEditRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/models/{id}/edit/history", h.editHistory)
 	mux.HandleFunc("GET /api/v1/models/{id}/edit/versions", h.editVersions)
 	mux.HandleFunc("POST /api/v1/models/{id}/edit/diff", h.editDiff)
+	mux.HandleFunc("POST /api/v1/models/{id}/edit/diff-upload", h.editUpload)
 }
 
 // writeEditErr 透传 Python 状态码语义：404→404、409→409、422→400、504→504（diff
@@ -41,6 +42,8 @@ func writeEditErr(w http.ResponseWriter, err error) {
 			writeErr(w, http.StatusConflict, codeConflict, ee.Detail)
 		case http.StatusUnprocessableEntity:
 			writeErr(w, http.StatusBadRequest, codeInvalidType, ee.Detail)
+		case http.StatusTooManyRequests, http.StatusServiceUnavailable:
+			writeErr(w, ee.Status, ee.Status*100, ee.Detail)
 		case http.StatusGatewayTimeout:
 			writeErr(w, http.StatusGatewayTimeout, codeGatewayTimeout, ee.Detail)
 		default:

@@ -50,7 +50,7 @@ type Agent struct {
 
 // New 装配 ADK 三角色（路线 B，D10）：
 //   - orchestrator（主 agent）：领域工具 + AgentAsTool(ifc/cad) + EmitInternalEvents；
-//     skill middleware 全量挂载（aiplan 对话协调层 + aibim-orchestrator 编排手册，D11）
+//     共享可选的 SourceAEC/外部 SDK skill 目录
 //   - ifc-agent / cad-agent：独立 ChatModelAgent（各自 persona/独立模型实例/领域工具 +
 //     skill middleware），被 AgentAsTool 包装进 orchestrator 工具面
 //
@@ -85,7 +85,7 @@ func New(cfg LLMConfig, opts ...Option) (*Agent, error) {
 	ctx := context.Background()
 
 	// 子 agent（ifc/cad）：独立模型实例 + 领域工具（A2 工具面按角色分离精化）
-	// 角色 skill 映射（第一层：意图路由）：ifc-agent→aiifc、cad-agent→aidxf
+	// All roles can load the same configured integration and upstream SDK references.
 	// ask_user 工具（HITL 开放断点）：orchestrator + 子 agent 都能问用户
 	// **init_model 角色分离（2026-08-23）**：ifc 骨架在 create_project 已绑定（1 项目 = 1 ifc
 	// 模型，项目创建即分配 modelId + 绑 projectId）——ifc-agent 禁止 init_model（只能在绑定模型
@@ -93,34 +93,32 @@ func New(cfg LLMConfig, opts ...Option) (*Agent, error) {
 	domainAndAsk := append(append([]tool.BaseTool{}, o.tools...), AskUserTool())
 	ifcTools := FilterRoleTools(domainAndAsk, "init_model")
 	ifcAgent, err := newRoleAgent(ctx, roleAgentConfig{
-		name: PersonaIFC, description: "IFC 建模子 agent（aiifc skill，script-as-source：stage→run→save 三段式）",
+		name: PersonaIFC, description: "IFC 建模子 agent（SourceAEC 编辑工具与外部几何运行时）",
 		instruction: ifcAgentPersona, model: childModel(), tools: ifcTools,
-		skillsDir: o.skillsDir, skills: []string{"aiifc"}, maxStep: o.maxStep, dataDir: o.dataDir,
+		skillsDir: o.skillsDir, maxStep: o.maxStep, dataDir: o.dataDir,
 	})
 	if err != nil {
 		return nil, err
 	}
 	cadAgent, err := newRoleAgent(ctx, roleAgentConfig{
-		name: PersonaCAD, description: "CAD 绘图子 agent（aidxf skill，DXF 生成/校验；建筑平面任务对齐 plan 需求）",
+		name: PersonaCAD, description: "CAD 绘图子 agent（SourceAEC DXF 编辑工具与外部几何运行时）",
 		instruction: cadAgentPersona, model: childModel(), tools: domainAndAsk,
-		skillsDir: o.skillsDir, skills: []string{"aidxf"}, maxStep: o.maxStep, dataDir: o.dataDir,
+		skillsDir: o.skillsDir, maxStep: o.maxStep, dataDir: o.dataDir,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// orchestrator：领域工具 + AgentAsTool(按 kind 选择性装配) + EmitInternalEvents（子事件实时上浮）
-	// 角色 skill 映射：cad/cad->ifc 管线 orchestrator→aiplan（对话协调层内联，D11）；
-	// ifc 管线不挂 aiplan（无 plan 阶段）。编排手册按 kind 选 persona。
+	// Roles share the configured integration/SDK catalog; tool permissions remain role-specific.
 	var handlers []adk.TypedChatModelAgentMiddleware[*schema.Message]
-	if o.skillsDir != "" && o.kind != "ifc" {
-		skillMW, err := newSkillMiddleware(ctx, o.skillsDir, "aiplan")
+	if o.skillsDir != "" {
+		skillMW, err := newSkillMiddleware(ctx, o.skillsDir)
 		if err != nil {
 			return nil, err
 		}
 		handlers = append(handlers, skillMW)
 	}
-	// filesystem middleware（D12/M2-0）：读 skill references + execute 白名单（orchestrator 也需读 aiplan references）
+	// filesystem middleware（D12/M2-0）：读 skill references + execute 白名单（所有角色都可按需读参考）
 	fsMW, err := newFilesystemMiddleware(ctx, skillWorkRootFor(o.dataDir), o.skillsDir)
 	if err != nil {
 		return nil, err

@@ -13,28 +13,26 @@ SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与�
 
 ## Highlights
 
-- Agent-facing REST APIs and skills for IFC authoring and editing.
-- IfcOpenShell execution with inspectable Python scripts as model source.
-- Optional planning and CAD/DXF authoring with ezdxf and a browser viewer.
-- Python build scripts are the model source of truth.
-- Sandboxed trial runs and immutable version snapshots.
-- Attribute-level semantic diffs keyed by IFC GlobalId.
-- React frontend, Go gateway, and peer Python edit services.
-- In-process AI agent with deterministic offline fallback.
-
-Storage and incremental-build details: [model storage](https://0702hjj.github.io/SourceAEC/development/model-storage). PostgreSQL and Git are required. Storage, Git and incremental task scheduling are implemented in Go.
+- A Go business runtime for editing, staging, sandbox orchestration, persistence,
+  versions, Git, planning delivery and MCP.
+- Shared script-as-source REST APIs for humans and agents.
+- External IfcOpenShell/ezdxf geometry runtimes and optional external CAD SDKs.
+- Python model source exists only as runtime data; no maintained Python
+  application, SDK, CLI, hook or test source is shipped in this repository.
+- React frontend, IFC viewer/converter, and DXF browser rendering.
+- PostgreSQL persistence and immutable script/product versions.
 
 ## Architecture
 
 ```text
-Browser (React, xeokit/web-ifc, Fabric)
-        |
-        v
-Go gateway :8090 ----> IFC service :8100 ----> IfcOpenShell
-        |              CAD service :8200 ----> ezdxf
-        |                       |
-        +----> converter        +----> shared sandbox/edit API packages
-        +----> in-process AI agent
+Browser / Agent / Go MCP bridge
+                 |
+                 v
+Go gateway :8090 (editing + sandbox orchestration + agent)
+        |             |                  |
+   PostgreSQL      converter       bubblewrap sandbox
+                                   generated model source
+                                   external geometry runtime
 ```
 
 ## Screenshots
@@ -49,89 +47,61 @@ Go gateway :8090 ----> IFC service :8100 ----> IfcOpenShell
 
 ## Quick Start
 
-Requirements include Go 1.27.3, Node.js 22, Python 3.10, `uv`, Git, PostgreSQL, and bubblewrap
-on Linux. Production script execution fails closed when bubblewrap is absent.
+Requirements: Go 1.27.3+, PostgreSQL, Git, Linux bubblewrap and util-linux
+`prlimit`. Node.js 22 is needed for the converter/frontend. Install uv for
+Go-managed Python 3.12 geometry environments, or set `SOURCEAEC_PYTHON` to an
+absolute interpreter path with the required geometry packages installed.
 
 ```bash
-cd converter && npm install
-cd ../web && npm install
-cd ../services/ifc && uv sync
-cd ../cad && uv sync
-```
-
-Build the Go runtime first. In each service terminal, configure the same PostgreSQL database and storage namespace (replace the DSN with your local database):
-
-```bash
-./scripts/build_runtime.sh
-export SOURCEAEC_RUNTIME_BIN="$(pwd)/bin/sourceaec-runtime"
 export VIEWER_PG_DSN='postgres://localhost/sourceaec'
-export VIEWER_STORAGE_NAMESPACE=sourceaec
+cd converter && npm ci
+cd ../web && npm ci && npm run build
+cd ../server && go run ./cmd/server
 ```
 
-Run the two Python services, the Go gateway, and the Vite development server:
+The gateway owns all business operations in-process. Configure paths and the
+shared data directory in `server/server_config.json` (copy the example first).
+For a Vite development frontend, run `npm run dev` from `web` separately.
+Set `VIEWER_API_TOKEN` and `VIEWER_CORS_ORIGINS` before exposing the gateway.
+Missing bubblewrap fails closed; there is no production fallback backend.
 
-```bash
-# terminal 1
-cd services/ifc
-VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
-
-# terminal 2
-cd services/cad
-VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8200
-
-# terminal 3
-cd server && go run ./cmd/server
-
-# terminal 4
-cd web && npm run dev
-```
-
-Both Python services and the Go gateway must use the same absolute data
-directory. An empty `VIEWER_LLM_API_KEY` selects the deterministic offline
-agent model.
+Build Linux server archives with `scripts/build_server_release.sh VERSION`.
+They include the gateway, Go runtime and Go stdio MCP bridge; geometry packages,
+frontend assets and converter dependencies remain separate deployment inputs.
+Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 
 ## Repository Layout
 
 ```text
-web/               React frontend
-server/            Go REST gateway and in-process agent
-converter/         IFC-to-XKT converter
-services/ifc/      IFC edit service
-services/cad/      CAD edit service
-services/sandbox/  shared sandbox runtime
-services/editapi/  shared script editing API
-mcp/               optional MCP bridge
-skills/             agent authoring and planning skills
-tools/              packaging and agent debugging tools
-examples/           synthetic examples
+server/       Go gateway, editing domain, sandbox runner, agent and MCP bridge
+web/          React frontend
+converter/    IFC-to-XKT conversion
+skills/       one SourceAEC integration skill with optional IFC/DXF references
+scripts/      shell build and boundary checks
+docs/         public VitePress documentation
 ```
 
 ## Development
 
-Run the suite for every component you change. The primary commands are:
+```bash
+cd server && go test ./... && go vet ./...
+cd web && npm test && npm run lint && npm run build
+cd converter && npm test
+cd docs && npm run docs:build
+```
+
+Use a dedicated PostgreSQL database for `VIEWER_PG_DSN` and
+`VIEWER_TEST_PG_DSN` when running Go integration tests. Run repository checks
+from its root:
 
 ```bash
-cd web && npm test && npm run lint && npm run build
-cd server && go test ./... && go vet ./...
-cd converter && npm test
-cd services/ifc && uv run --group dev pytest
-cd services/cad && uv run --group dev pytest
-cd services/sandbox && uv run --group dev pytest
-cd mcp && uv run --group dev pytest
 scripts/check_file_size.sh
 scripts/check_public_snapshot.sh
+scripts/check_go_business.sh
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
-Documentation is maintained with the source:
-
-```bash
-cd docs
-npm install
-npm run docs:dev
-npm run docs:build
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[documentation](https://0702hjj.github.io/SourceAEC/) for details.
 
 ## Development Provenance
 
@@ -178,9 +148,9 @@ for bundled dependencies govern the applicable warranty and liability terms.
 
 ## License
 
-SourceAEC-authored material is licensed under Apache-2.0. The `skills/aiplan` and
-`skills/aidxf` directories are MIT-licensed by default; file-level SPDX
-identifiers override that directory default. Third-party runtime components
+SourceAEC-authored material is licensed under Apache-2.0. The consolidated
+`skills/sourceaec` bundle preserves MIT notices for adapted material from the
+retired planning/DXF skills in its `licenses/` directory. Third-party runtime components
 are described in [NOTICE](NOTICE). The IFC web experience has separate xeokit
 and web-ifc viewer paths. The current standard web build includes both, so
 selecting web-ifc at runtime does not remove xeokit or its AGPL-3.0 obligations

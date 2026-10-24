@@ -1,69 +1,18 @@
-# IFC 编辑服务（services/ifc）
+# Go 编辑领域
 
-`services/ifc/` 是 Python FastAPI 服务，基于 ifcopenshell 和 ifcdiff，默认端口 8100。它提供 IFC 脚本沙箱执行、版本快照、ScriptMap 定位和语义 diff。原 L1 直改链路已退役。DXF 侧的同构服务见 [CAD 编辑服务](/development/cad-service)。
+编辑实现位于 `server/internal/editing`，由网关在进程内调用；没有独立 Python
+HTTP 服务，也不再需要 8100/8200 端口。旧页面地址保留用于文档链接兼容。
 
-## 运行与配置
+共享行为包括 PARAMS 字面量读写、十步暂存与撤销/重做、revision 冲突检查、
+试运行、保存、回滚、版本对比、Git 分支及事务发布。IFC/DXF 差异由 Go 格式适配器处理。
 
-```bash
-cd services/ifc
-uv sync
-VIEWER_DATA_DIR="$(realpath -m ../../data)" uv run uvicorn app.main:app --port 8100
-```
+一次修改读取当前脚本及 revision，然后 stage → run → save。
+`baseRevision` 不匹配返回冲突；失败执行不会发布产品或创建版本。
+同模型操作通过 PostgreSQL 事务锁串行化，重启后从持久化记录恢复状态。
 
-依赖全部来自 PyPI 官方发布，`uv sync` 直接安装。环境变量（`VIEWER_DATA_DIR`、`EDIT_SERVICE_PORT`、`AIIFC_FLOWS_DIR`、`EDIT_SERVICE_MAX_MODELS` 等）与沙箱变量集中在[配置说明](/guide/configuration)，沙箱机制见[沙箱执行环境](/development/sandbox)。
+Python 源码仅是用户/Agent 提交的模型运行时数据。执行器在临时目录生成脚本，
+传入产品输出路径；环境、资源限制、版本规则与发布均由 Go 决定。
+没有内置画法 SDK、规划 CLI 或 Python AST 服务。
 
-## 端点
-
-| 分组 | 端点 | 契约 |
-| --- | --- | --- |
-| 脚本编辑 | `GET/PUT /models/{id}/script`、`script/params`、`script/undo\|redo\|discard` | [IFC 编辑 API](/reference/edit-api) |
-| 沙箱与版本 | `POST /models/{id}/script/run`、`save`、`rollback` | 同上 |
-| 版本与对比 | `GET /models/{id}/scripts`、`POST .../script/diff`、`GET .../script/staging/diff` | 同上 |
-| 定位与改写 | `GET /models/{id}/script/locate?guid=`、`POST .../script/edit-call` | 同上 |
-| 语义 diff | `GET /models/{id}/versions`、`POST /models/{id}/diff`、`.../diff/upload` | 同上 |
-| 运行簿记 | `GET/DELETE /models/{id}/pending`、`GET /models/{id}/history` | 同上的「版本与语义对比」 |
-| 外部修改登记 | `POST /models/{id}/user-edits` | 同上 |
-| 直改遗产 | `PUT/DELETE /models/{id}/entities/{guid}`、`POST /models/{id}/commit` | **已退役**，直连返回 410 |
-
-`pending` 在直改退役后只作运行簿记；`history` 只读保留，新记录来自外部修改登记。
-
-持久存储、Git 分支接口、历史重建与增量任务见[模型存储与增量构建](/development/model-storage)。
-
-## 实现要点
-
-- 沙箱执行、暂存、版本、diff 这些领域逻辑的单一事实源在共享包 `aibim_sandbox`，REST 编辑面在 `aibim_editapi`，本服务只留薄适配层，详见[沙箱执行环境](/development/sandbox)。
-- `app/ifc_materialize.py` 负责按需重建历史版本 IFC，结果进 LRU 缓存。重建产物只保证语义相等，比较一律走 diff。
-- `app/route_common.py` 统一请求解析；业务校验住在各 `verify*` 函数里，这是仓库 `AGENTS.md` 的硬规则。
-- `app/registry.py` 做模型缓存、原子保存和每路径文件锁。
-- `app/diffing.py` 适配 IfcDiff：只比较属性和属性集，changed 的字段级明细自算，快照间结果缓存。
-
-## 测试
-
-```bash
-cd services/ifc
-uv run --group dev pytest
-```
-
-## 独立部署与移植
-
-这个服务可以脱离 Go HTTP 网关、web 和 converter 部署，但需要 Go 业务运行时和 PostgreSQL。它是和 aiifc skill 配对的服务端：skill 产出脚本，它负责执行、存版本和算 diff。
-
-移植的最小步骤：
-
-1. 安装 `services/ifc/`、共享的 `services/sandbox/`、`services/editapi/` 和 `skills/aiifc/`，构建并安装 `sourceaec-runtime`。
-2. 在 `services/ifc/` 下执行 `uv sync`。
-3. 设置绝对 `VIEWER_DATA_DIR`、`SOURCEAEC_RUNTIME_BIN`、`VIEWER_PG_DSN` 和存储命名空间。
-4. 启动服务，打开 `/docs` 的 Swagger UI 自检。
-
-其他组件都是可缺省的：
-
-| 缺少的组件 | 还能做什么 | 少了什么 |
-| --- | --- | --- |
-| Go server | 全部编辑、diff、版本端点直连可用 | 统一 envelope、对外入口、鉴权、XKT 重转、浏览器桥接 |
-| web | 纯 API 调用不受影响 | 可视化界面 |
-| converter | 编辑与 diff 完全可用 | IFC 转 XKT 的渲染链路 |
-| Go 业务运行时 / PostgreSQL | 不可缺省 | 业务状态、Git、构建记录与增量调度 |
-
-数据约定只有一条：任何组件按同一个 `VIEWER_DATA_DIR` 写 `uploads/{id}.ifc`，编辑服务就能使用它。
-
-两点边界要注意。8100 直连没有鉴权，务必只监听 127.0.0.1，要对外请走 Go server。provenance 的 `UI`、`AI`、`USER` 是调用方自报的声明字段，服务端只校验枚举，语义见[模型与审查 API](/reference/api-model)。
+[API 契约](/reference/edit-api)、[沙箱](/development/sandbox)、
+[CAD 适配](/development/cad-service)。

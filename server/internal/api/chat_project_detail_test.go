@@ -35,7 +35,7 @@ func doGetProjectDetail(t *testing.T, h *ChatHandler, pid string) (*httptest.Res
 	var r projectDetailResp
 	if rec.Code == http.StatusOK {
 		var e struct {
-			Code int          `json:"code"`
+			Code int             `json:"code"`
 			Data json.RawMessage `json:"data"`
 		}
 		if err := json.Unmarshal(rec.Body.Bytes(), &e); err != nil || e.Code != 0 {
@@ -136,8 +136,8 @@ func TestGetProjectDetailNotFound(t *testing.T) {
 			t.Fatalf("pid=%s status = %d, want 404", pid, rec.Code)
 		}
 		var e struct {
-			Code int    `json:"code"`
-			Data any    `json:"data"`
+			Code int `json:"code"`
+			Data any `json:"data"`
 		}
 		if err := json.Unmarshal(rec.Body.Bytes(), &e); err != nil || e.Code != codeNotFound {
 			t.Fatalf("envelope: %v code=%d body=%s（want code=%d）", err, e.Code, rec.Body.String(), codeNotFound)

@@ -74,9 +74,6 @@ func (h *ChatHandler) planToWorkdirForAgent(ctx context.Context, projectID strin
 // planDeliverForAgent 触发 plan 交付（复用 deliverPlan 的 aiplan land 执行逻辑；
 // 抽 deliverPlanCore 供 REST handler 与工具共用——单一事实源）。
 func (h *ChatHandler) planDeliverForAgent(ctx context.Context, projectID, plan, bimSupplement string) (map[string]any, error) {
-	if h.deps.AiplanBin == "" {
-		return nil, fmt.Errorf("aiplan 未配置（skill venv 缺失），plan 交付不可用")
-	}
 	return h.deliverPlanCore(ctx, projectID, []byte(plan), []byte(bimSupplement))
 }
 

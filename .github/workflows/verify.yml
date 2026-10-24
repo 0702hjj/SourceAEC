@@ -41,10 +41,21 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare external geometry runtime and Linux isolation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if sysctl kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          uv venv --python 3.12 "$RUNNER_TEMP/geometry"
+          uv pip install --python "$RUNNER_TEMP/geometry/bin/python" ifcopenshell==0.8.3.post2 numpy==2.2.6 ezdxf==1.4.3
+          echo "SOURCEAEC_PYTHON=$RUNNER_TEMP/geometry/bin/python" >> "$GITHUB_ENV"
+          echo "SOURCEAEC_TEST_GEOMETRY=1" >> "$GITHUB_ENV"
       - run: go test ./... && go vet ./...
         working-directory: server
-      - run: python3 -m unittest discover -s scripts -p 'test_build_server_release.py'
-      - run: scripts/check_file_size.sh && scripts/check_public_snapshot.sh
+      - run: scripts/check_file_size.sh && scripts/check_public_snapshot.sh && scripts/check_go_business.sh
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -61,49 +72,3 @@ jobs:
         working-directory: web
       - run: npm ci && npm run docs:build
         working-directory: docs
-  python:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: sourceaec
-          POSTGRES_PASSWORD: sourceaec-test
-          POSTGRES_DB: sourceaec_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U sourceaec -d sourceaec_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [ifc, cad, sandbox]
-    env:
-      # Hosted runners may prohibit unprivileged user namespaces. Isolation
-      # behavior is tested separately; rlimit is explicitly test-only.
-      VIEWER_PG_DSN: postgres://sourceaec:sourceaec-test@localhost:5432/sourceaec_test?sslmode=disable
-      SOURCEAEC_RUNTIME_BIN: ${{ github.workspace }}/bin/sourceaec-runtime
-      SANDBOX_BACKEND: rlimit
-      SCRIPT_ENV_BUILD_TIMEOUT_S: '120'
-      UV_HTTP_TIMEOUT: '30'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
-      - run: mkdir -p ../bin && CGO_ENABLED=0 go build -o ../bin/sourceaec-runtime ./cmd/edit-runtime
-        working-directory: server
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/aibim-sandbox-envs
-          key: sandbox-env-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles('services/**/uv.lock') }}
-      - run: uv run --python 3.10 --group dev pytest -q
-        working-directory: services/${{ matrix.service }}
-      - if: matrix.service != 'sandbox'
-        run: uv run --python 3.10 --group dev pytest ../editapi/tests -q
-        working-directory: services/${{ matrix.service }}
