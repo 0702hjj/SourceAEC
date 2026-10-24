@@ -1,7 +1,8 @@
 # AI 与 MCP
 
 内置 Eino Agent 使用 Go 领域工具修改模型，按项目类型协调 IFC/CAD 任务。
-规划和建模说明是可选的声明性 skill，执行与业务规则由 Go 实现。
+所有角色共享可选的 SourceAEC 接入 skill 和配置的上游 SDK 参考。规划是可选输入，
+执行与业务规则由 Go 实现。
 没有模型 API key 时使用确定性离线模型，不能视为完整自然语言建模能力。
 
 Go stdio MCP：`go run ./cmd/sourceaec-mcp`（从 server 目录执行）。

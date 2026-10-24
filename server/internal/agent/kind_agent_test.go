@@ -4,7 +4,7 @@
 // kind_agent_test.go：WithKind 选择性装配契约（D13）。
 //   - persona：cad→personaCAD、ifc→personaIFC、其余→显式/默认
 //   - kindChildren：cad->ifc/空 全装 cad+ifc；cad 只 cad；ifc 只 ifc
-//   - aiplan skill：cad/cad->ifc 挂 orchestrator；ifc 不挂（装配侧看 handlers 间接，persona 变化为准）
+//   - skill catalog is independent of project kind and role
 package agent
 
 import (

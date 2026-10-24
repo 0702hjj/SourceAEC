@@ -55,7 +55,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				return toolJSON(v), nil
 			}),
 
-		mustTool("get_project_plans", "读项目方案产物当前态（plan.json / bim_supplement.json / building.json）——plan 是任务书（对接 cad），bim_supplement 是 BIM 补充（对接 bim），building 是 aidxf 交付的整栋楼（zones 记 modelId，对接 ifc；早期无 building 时不含该字段）",
+		mustTool("get_project_plans", "读项目方案产物当前态（plan.json / bim_supplement.json / building.json）——plan 是任务书（对接 cad），bim_supplement 是 BIM 补充（对接 bim），building 是声明性交付的整栋楼（zones 记 modelId，对接 ifc；早期无 building 时不含该字段）",
 			func(ctx context.Context, in projectRefReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {
@@ -82,7 +82,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				return toolJSON(out), nil
 			}),
 
-		mustTool("deliver_plan", "执行 plan 交付（aiplan land → 方案级目录版本化）：body 传 plan + bimSupplement（可从 get_project_plans 读后修改再交）",
+		mustTool("deliver_plan", "由 Go 校验并共同版本化声明性 plan + bimSupplement；可读取既有输入后修改再交，不运行规划求解器",
 			func(ctx context.Context, in deliverPlanReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {
@@ -98,7 +98,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				return toolJSON(v), nil
 			}),
 
-		mustTool("deliver_building", "交付 building.json（aidxf S4-c：你组装 plan 形态整栋楼 + zones 记 modelId——读 get_project_plans 的 plan.json + 各 zone init_model 的 modelId 组装）→ 方案库版本化 plans/{projectID}/building.json。building 不由 CLI deliver 产（它不知道你的 modelId）",
+		mustTool("deliver_building", "版本化声明性 building.json；zones 记录项目现有 modelId，用于 CAD 到 IFC 输入衔接",
 			func(ctx context.Context, in deliverBuildingReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {
@@ -130,7 +130,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				return toolJSON(map[string]any{"projectId": projectID, "models": models}), nil
 			}),
 
-		mustTool("get_skill_workdir", "返回项目 skill 工作区绝对路径（{DATA}/skill-work/{projectID}，首次调用自动建目录；projectId 隔离多项目不混淆）——aidxf 中间产物（derived/missions/deliver）落盘根：所有 aidxfv3 命令的 --project 必须用它",
+		mustTool("get_skill_workdir", "返回项目隔离的工作区路径（{DATA}/skill-work/{projectID}）；用于声明性中间数据，不要直接写模型持久化目录",
 			func(ctx context.Context, in projectRefReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {
@@ -146,7 +146,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				return toolJSON(map[string]any{"projectId": projectID, "workdir": dir}), nil
 			}),
 
-		mustTool("stage_plan_to_workdir", "把项目 plan 产物（plan.json + bim_supplement.json）从方案库落到 skill 工作区文件，返回 {planPath, bimPath}——aidxfv3 preprocess --plan <文件> 等命令需要文件路径时调用（plan 内容 → 工作区文件的桥接）。先 get_project_plans 确认 plan 存在再调",
+		mustTool("stage_plan_to_workdir", "将项目 plan.json 与 bim_supplement.json 投影到项目工作区，返回 {planPath,bimPath}，供生成模型源码时读取声明性输入",
 			func(ctx context.Context, in projectRefReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {
@@ -166,7 +166,7 @@ func projectTools(deps ToolDeps) []tool.InvokableTool {
 				}), nil
 			}),
 
-		mustTool("stage_upstream_to_workdir", "把 ifc 消费的上游产物（building.json + bim_supplement.json + 各 zone DXF）落到 skill 工作区，返回 {buildingPath, bimPath, dxfDir, dxfPaths}——cad->ifc 消费上游：你跑 aiifc consume-upstream --building <buildingPath> --bim <bimPath> --dxf-dir <dxfDir> 前的输入桥接（多 DXF 按 zones[].modelId 从平台模型复制到工作区 dxf/）。先 get_project_plans 确认 building 存在再调",
+		mustTool("stage_upstream_to_workdir", "将 building.json、bim_supplement.json 和 zones[].modelId 指向的 DXF 投影到项目工作区，返回 {buildingPath,bimPath,dxfDir,dxfPaths}；供生成 IFC 模型源码时读取上游输入",
 			func(ctx context.Context, in projectRefReq) (string, error) {
 				projectID := resolveProjectID(ctx, deps, in.ProjectID)
 				if projectID == "" {

@@ -28,12 +28,12 @@ func mkFakeSkillDir(t *testing.T, name, body string) string {
 // TestSkillMiddlewareInjectsSkillTool：挂 WithSkillsDir 后，模型工具面出现官方
 // skill 工具（名为 skill）；scriptedModel 调用它 → tool/result 返回 SKILL.md 正文
 // + BaseDirectory。这是「接入 ADK skill」的最小闭环（ch09 装配路径）。
-// 注：orchestrator 角色化只允许 aiplan（第一层角色映射），假 skill 名必须匹配。
+// The same configured catalog is used by every project role.
 func TestSkillMiddlewareInjectsSkillTool(t *testing.T) {
-	skillDir := mkFakeSkillDir(t, "aiplan", "# 测试 skill\n\n参考文件在 references/ 下。")
+	skillDir := mkFakeSkillDir(t, "sourceaec", "# 测试 skill\n\n参考文件在 references/ 下。")
 
 	script := Script{Steps: []ScriptStep{
-		{ToolCalls: []ToolCallSpec{{ID: "s1", Name: "skill", Arguments: `{"skill":"aiplan"}`}}},
+		{ToolCalls: []ToolCallSpec{{ID: "s1", Name: "skill", Arguments: `{"skill":"sourceaec"}`}}},
 		{Chunks: []string{"已加载"}},
 	}}
 	ag, err := New(LLMConfig{},

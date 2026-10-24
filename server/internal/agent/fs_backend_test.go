@@ -199,17 +199,17 @@ func TestExecuteCommandAllowlistEnforced(t *testing.T) {
 }
 
 // TestSkillReferencesReadFlow：skill 完整能力闭环（D12/M2-0）——
-// orchestrator 角色化挂 aiplan：skill 工具拿 aiplan BaseDirectory →
+// The shared integration entry supplies a BaseDirectory →
 // read_file 读 references 真实文件（schemas/predicate_vocabulary.md 等）。
 func TestSkillReferencesReadFlow(t *testing.T) {
-	if _, err := os.Stat(distSkillsDir()); err != nil {
-		t.Skipf("skills/dist 未打包（本地先跑 tools/skill_pack.py；CI 无 dist 跳过集成）: %v", err)
+	if _, err := os.Stat(maintainedSkillsDir()); err != nil {
+		t.Fatalf("maintained skill directory missing: %v", err)
 	}
-	ref := filepath.Join(distSkillsDir(), "aiplan", "SKILL.md")
+	ref := filepath.Join(maintainedSkillsDir(), "sourceaec", "references", "ifc.md")
 	ag, err := New(LLMConfig{},
-		WithSkillsDir(distSkillsDir()),
+		WithSkillsDir(maintainedSkillsDir()),
 		WithModel(NewScriptedModel(Script{Steps: []ScriptStep{
-			{ToolCalls: []ToolCallSpec{{ID: "s1", Name: "skill", Arguments: `{"skill":"aiplan"}`}}},
+			{ToolCalls: []ToolCallSpec{{ID: "s1", Name: "skill", Arguments: `{"skill":"sourceaec"}`}}},
 			{ToolCalls: []ToolCallSpec{{ID: "r1", Name: "read_file", Arguments: `{"file_path":"` + ref + `"}`}}},
 			{Chunks: []string{"已读取 references"}},
 		}})),
@@ -232,8 +232,8 @@ func TestSkillReferencesReadFlow(t *testing.T) {
 	if got == "" {
 		t.Fatalf("read_file 未返回内容；types=%v", eventTypes(evs))
 	}
-	if !strings.Contains(got, "Planning inputs") {
-		t.Fatalf("read_file 内容不像 aiplan references：%s...", truncate(got, 120))
+	if !strings.Contains(got, "IFC integration reference") {
+		t.Fatalf("read_file 内容不像 SourceAEC format reference：%s...", truncate(got, 120))
 	}
 }
 

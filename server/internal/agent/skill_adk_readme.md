@@ -1,9 +1,11 @@
-# Declarative skill integration
+# Skill integration
 
-The official Eino skill middleware reads `skills/*/SKILL.md`. Role filtering and
-filesystem access remain implemented in Go. Skills provide necessary interface
-and domain guidance without bundling a runtime SDK or Python CLI.
+The official Eino middleware reads `skills/*/SKILL.md`. SourceAEC maintains one
+integration entry with optional IFC/DXF references. Operators may install
+upstream SDK declaration bundles in the configured catalog without vendoring
+them into SourceAEC. All project kinds and model roles share that catalog.
 
-Read tools are confined to configured roots. Host command execution is disabled
-by default; generated geometry source runs only through the Go sandbox executor.
-Use the editing API for business changes and preserve optimistic revisions.
+Skills are optional references; business rules remain in Go tools/runtime.
+Role-specific tool permissions and filesystem roots remain enforced regardless
+of which reference is loaded. Host commands are disabled by default; generated
+geometry source runs only through the Go sandbox executor.

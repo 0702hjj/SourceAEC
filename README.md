@@ -76,7 +76,7 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 server/       Go gateway, editing domain, sandbox runner, agent and MCP bridge
 web/          React frontend
 converter/    IFC-to-XKT conversion
-skills/       small declarative authoring/planning references
+skills/       one SourceAEC integration skill with optional IFC/DXF references
 scripts/      shell build and boundary checks
 docs/         public VitePress documentation
 ```
@@ -148,9 +148,9 @@ for bundled dependencies govern the applicable warranty and liability terms.
 
 ## License
 
-SourceAEC-authored material is licensed under Apache-2.0. The `skills/aiplan` and
-`skills/aidxf` directories are MIT-licensed by default; file-level SPDX
-identifiers override that directory default. Third-party runtime components
+SourceAEC-authored material is licensed under Apache-2.0. The consolidated
+`skills/sourceaec` bundle preserves MIT notices for adapted material from the
+retired planning/DXF skills in its `licenses/` directory. Third-party runtime components
 are described in [NOTICE](NOTICE). The IFC web experience has separate xeokit
 and web-ifc viewer paths. The current standard web build includes both, so
 selecting web-ifc at runtime does not remove xeokit or its AGPL-3.0 obligations

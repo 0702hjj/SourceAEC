@@ -63,7 +63,7 @@
 
 **filesystem 官方面（D12/M2-0，经 `newFilesystemMiddleware` 注入，非 DomainTools）**：
 - 读：`read_file` / `glob` / `grep` / `ls`——读 skill references 与工作区（`fsReadOnlyBackend` 透传）。
-- 执行：`execute`——跑 skill 捆绑 CLI（`aiplan` / `aidxfv3` 白名单，`validateSkillCommand` 单点）。
+- 执行：`execute` 默认关闭；仅放行管理员显式配置的命令。本仓 skill 不捆绑 CLI。
 - **禁止**：`write_file` / `edit_file`（官方 middleware Backend 非空即全挂，`fsReadOnlyBackend.Write/Edit` 拒绝——领域收敛：模型不持任意文件写；skill 产物由 CLI 经 execute 自身落盘）。
 - 领域收敛红线不破：文件读 OK，文件写拒绝，命令执行白名单枚举。
 
@@ -154,12 +154,11 @@ run/save/diff 走 slow client（沙箱最长 60s）。stage 是全量替换暂�
 
 ### 5.4 Persona
 
-- 主：`OrchestratorPersona`（意图路由 + 派发纪律 + 破坏性大改先文字确认；**路由纪律：CAD 必须先 aiplan 再派 cad-agent，IFC 直接派 ifc-agent（独立线），问答直接答**，D11）。
-- 子：`ifcAgentPersona` / `cadAgentPersona`（技能来源一句话 + 三段式 + 报告格式）。
-- **角色 skill 映射（第一层，`filteredSkillBackend` 过滤）**：orchestrator→aiplan（协调层内联）、
-  ifc-agent→aiifc、cad-agent→aidxf——模型工具面只出现本角色允许的 skill，跨角色调用被拒（文本错误）。
-- 装配 `WithSkillsDir` 时，官方 skill middleware 把 progressive disclosure 系统提示词
-  追加在 persona 之后、并把 `skill` 工具注入模型工具面。
+- 主 Agent 按项目需求协调 IFC/CAD 任务，规划只是可选声明性输入。
+- IFC/CAD 子 Agent 保持各自工具权限，不由 skill 名称决定任务授权。
+- 所有角色共享配置的 skill 目录，本仓仅有 sourceaec 接入声明与按需格式参考。
+- 管理员可单独安装上游 SDK 的声明性 skill；加载参考不会改变工具或文件访问权限。
+- WithSkillsDir 为空时关闭 skill middleware；Go 业务工具不依赖 skill 才能工作。
 
 ### 5.5 隔离边界
 

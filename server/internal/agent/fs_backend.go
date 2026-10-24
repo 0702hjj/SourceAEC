@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
 
-// fs_backend.go：M2-0 打地基——官方 filesystem middleware 的收敛适配（D12）。
-//
-// 官方 filesystem middleware（adk/middlewares/filesystem）注入文件工具组
-// （ls/read_file/write_file/edit_file/glob/grep）+ execute，但 Backend 非空即
-// 全挂（无开关单独禁用 write/edit）。领域收敛红线（api_regulation：禁止任意
-// 文件写）要求我们做一层薄包装：
-//
-//   - Backend = fsReadOnlyBackend（包住 local backend）：读方法透传，Write/Edit 拒绝
-//   - StreamingShell = local backend（/bin/sh -c）+ ValidateCommand 白名单：
-//     打地基最小集 = aiplan / aidxfv3 系列 CLI（skill 捆绑命令），其余拒绝
-//
-// skill CLI 产出（plan.json/DXF 等）由命令自身写盘（走 /bin/sh -c），
-// 不经过 Backend.Write——所以只读包装不影响 skill 脚本执行闭环。
+// The filesystem middleware permits configured reference roots and the bounded
+// project workspace. Host commands require an explicit operator allowlist;
+// the maintained integration skill contains no executable helpers.
 package agent
 
 import (
@@ -27,9 +17,7 @@ import (
 	"github.com/cloudwego/eino/adk/filesystem"
 )
 
-// skillCommandAllowlist 是 execute 命令白名单（默认 = dist 正式集合的 CLI 入口：
-// aiplan / aidxfv3 / aiifc）。可经 SetSkillCommandAllowlist 配置化（第二层：对齐已接入
-// skill 集合）；正式 skill 命令面（完整子命令枚举）后续按 machine_contract 细化。
+// Host command execution is disabled until explicitly configured.
 var skillCommandAllowlist = []string{}
 
 // SetSkillCommandAllowlist 覆盖 execute 命令白名单（装配时调用，来自 server 配置）。

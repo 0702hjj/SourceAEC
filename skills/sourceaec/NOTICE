@@ -1,0 +1,9 @@
+SourceAEC integration skill
+Copyright (C) 2026 0702hjj and contributors
+
+Licensed under Apache-2.0. See LICENSE.
+
+This declaration bundle consolidates material from the retired SourceAEC
+skills/aiplan and skills/aidxf references. Their MIT license and copyright
+notices are preserved in licenses/aiplan-MIT.txt and licenses/aidxf-MIT.txt.
+No external SDK source or upstream skill is included in this bundle.

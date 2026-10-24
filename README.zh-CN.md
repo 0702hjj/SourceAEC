@@ -82,8 +82,8 @@ SourceAEC 是开发者工具和参考实现，不是安全关键、法定审查�
 
 ## 许可证
 
-SourceAEC 自有材料采用 Apache-2.0。`skills/aiplan` 与 `skills/aidxf` 目录默认采用
-MIT；单个文件的 SPDX 标识优先于目录默认许可。第三方运行时见 [NOTICE](NOTICE)。
+SourceAEC 自有材料采用 Apache-2.0。合并后的 `skills/sourceaec` 在 `licenses/` 中
+保留源自旧规划与 DXF skill 材料的 MIT 声明。第三方运行时见 [NOTICE](NOTICE)。
 IFC Web 体验包含相互独立的 xeokit 与 web-ifc 查看路径，但当前标准 Web 构建同时
 包含两者；运行时切换到 web-ifc 并不会从该构建中移除 xeokit，也不会自动消除其
 AGPL-3.0 义务。仓库内的 web-ifc WASM 文件仍受 MPL-2.0 约束。

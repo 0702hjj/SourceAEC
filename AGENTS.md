@@ -90,9 +90,10 @@ documentation tree.
 
 ## Licensing
 
-The repository is primarily Apache-2.0. The self-contained `skills/aiplan`
-and `skills/aidxf` directories are MIT-licensed by default; an individual
-file's SPDX identifier overrides the directory default. Preserve attribution
-and license files when changing or packaging them. The web client includes
+The repository is primarily Apache-2.0. `skills/sourceaec` is the single
+integration declaration bundle, with optional format references. Its `licenses/`
+directory preserves MIT notices for material adapted from retired planning/DXF
+skills. Preserve attribution, SPDX identifiers and license notices when changing
+or packaging these materials. The web client includes
 AGPL-3.0 xeokit and MPL-2.0 web-ifc assets; review `NOTICE` before distributing
 frontend builds.
