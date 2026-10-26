@@ -1,17 +1,8 @@
 name: Verify
 on:
   pull_request:
-    paths:
-      - 'server/**'
-      - 'services/**'
-      - 'web/**'
-      - 'skills/**'
-      - 'examples/**'
-      - 'docs/**'
-      - 'scripts/**'
-      - '.github/workflows/verify.yml'
-  push:
     branches: [main]
+  workflow_dispatch:
 concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -55,6 +46,7 @@ jobs:
           echo "SOURCEAEC_TEST_GEOMETRY=1" >> "$GITHUB_ENV"
       - run: go test ./... && go vet ./...
         working-directory: server
+      - run: scripts/test_go_integration.sh
       - run: scripts/check_file_size.sh && scripts/check_public_snapshot.sh && scripts/check_go_business.sh
   web:
     runs-on: ubuntu-latest

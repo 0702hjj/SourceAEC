@@ -168,15 +168,12 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	}
 	o := &operation{service: s, runtime: editruntime.NewEmbedded(), model: parts[1], ctx: ctx, query: parsed.Query()}
 	defer o.runtime.Close()
-	value, e := o.call("begin", nil)
+	release, e := o.begin()
 	if e != nil {
 		return nil, e
 	}
-	o.tx = value.(string)
+	defer release()
 	defer func() { _, _ = o.call("rollback", nil) }()
-	if _, e = o.call("lock", o.model); e != nil {
-		return nil, e
-	}
 	if _, e = o.read("uploads/" + o.model + "." + s.Kind); e != nil {
 		if os.IsNotExist(e) {
 			return nil, failure(404, "model product not found")

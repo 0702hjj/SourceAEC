@@ -41,20 +41,22 @@ func (c *Counter) Value() int64 { return atomic.LoadInt64(&c.v) }
 
 // 进程并发姿态计数器：订阅中的 SSE 连接数、转换队列深度、上游在途请求。
 var (
-	SSESubscribers Counter // 浏览器 EventSource 在线连接数（chat SSE 订阅表大小合计）
-	ConvertPending Counter // convert 队列已排队未完成任务数
-	ConvertRunning Counter // convert 队列执行中任务数
-	EditInFlight   Counter // Go→Python（:8100/:8200）在途 HTTP 请求数
+	SSESubscribers   Counter // 浏览器 EventSource 在线连接数（chat SSE 订阅表大小合计）
+	ConvertPending   Counter // convert 队列已排队未完成任务数
+	ConvertRunning   Counter // convert 队列执行中任务数
+	EditInFlight     Counter // Compatibility HTTP editing calls currently in flight.
+	EditModelWaiting Counter // Native edit requests waiting for a connection or model lock.
 )
 
 func init() {
 	expvar.Publish("aibim", expvar.Func(func() any {
 		return map[string]int64{
-			"goroutines":     int64(runtime.NumGoroutine()),
-			"sseSubscribers": SSESubscribers.Value(),
-			"convertPending": ConvertPending.Value(),
-			"convertRunning": ConvertRunning.Value(),
-			"editInFlight":   EditInFlight.Value(),
+			"goroutines":       int64(runtime.NumGoroutine()),
+			"sseSubscribers":   SSESubscribers.Value(),
+			"convertPending":   ConvertPending.Value(),
+			"convertRunning":   ConvertRunning.Value(),
+			"editInFlight":     EditInFlight.Value(),
+			"editModelWaiting": EditModelWaiting.Value(),
 		}
 	}))
 }
