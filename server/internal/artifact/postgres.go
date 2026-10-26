@@ -34,6 +34,9 @@ func Connect(root string) (*sql.DB, error) {
 	cfg.RuntimeParams["search_path"] = schema
 	db := stdlib.OpenDB(*cfg)
 	db.SetMaxOpenConns(8)
+	// Retain the bounded pool between bursts instead of repeatedly reconnecting
+	// once more than database/sql's default two idle connections are returned.
+	db.SetMaxIdleConns(8)
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
 		db.Close()
