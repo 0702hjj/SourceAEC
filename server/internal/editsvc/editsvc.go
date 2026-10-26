@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
 
-// Package editsvc 是 Python 编辑服务（services/ifc）的 HTTP 客户端。
-// Python 的错误响应 {"detail": ...} 映射为带状态码的 *Error，由 handler 层转 envelope。
+// Package editsvc adapts editing operations to the in-process Go service.
+// An HTTP transport remains available for protocol compatibility and tests.
+// Domain errors retain their status for the gateway's response envelope.
 package editsvc
 
 import (
@@ -19,7 +20,7 @@ import (
 	"ifcviewer/server/internal/metrics"
 )
 
-// Error 表示 Python 服务返回的非 2xx 响应。
+// Error preserves an editing operation's failure status and detail.
 type Error struct {
 	Status int
 	Detail string

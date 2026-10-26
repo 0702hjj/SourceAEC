@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
-// Package editruntime owns storage and version-control operations. Python adapters
-// exchange JSON over private stdio; no extra network listener is exposed.
+// Package editruntime owns storage and version-control operations. The gateway
+// calls it in-process; the standalone command also exposes private JSON stdio.
 package editruntime
 
 import (
@@ -158,7 +158,11 @@ func (r *Runtime) Handle(req Request) (any, error) {
 		if err := decode(req.Args, &model); err != nil {
 			return nil, err
 		}
-		_, err := t.tx.ExecContext(runtimeContext(req), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", model)
+		namespace, err := artifact.Namespace(req.Root)
+		if err != nil {
+			return nil, err
+		}
+		_, err = t.tx.ExecContext(runtimeContext(req), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", namespace+":"+model)
 		return nil, err
 	}
 	if req.Op == "commit" || req.Op == "rollback" {
