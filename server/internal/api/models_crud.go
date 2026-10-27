@@ -56,7 +56,7 @@ func (h *handler) upload(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
 		return
 	}
-	// dxf 无 XKT 转换（services/cad 直接产 render.json），创建即 ready、不入队。
+	// dxf 无 XKT 转换（Go editing 生成 render.json），创建即 ready、不入队。
 	if kind == store.KindIFC {
 		if !h.q.Enqueue(m.ID) {
 			m, err = h.st.Get(m.ID)

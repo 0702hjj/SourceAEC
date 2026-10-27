@@ -4,6 +4,7 @@ package editruntime
 import (
 	"context"
 	"database/sql"
+	"ifcviewer/server/internal/artifact"
 	"io"
 	"testing"
 )
@@ -38,5 +39,25 @@ func TestCommitReconcilesLostAcknowledgement(t *testing.T) {
 				t.Fatal("aborted state was visible")
 			}
 		})
+	}
+}
+
+func TestCommitExpiresOnlyOldReceipts(t *testing.T) {
+	r, root := databaseRuntime(t)
+	db, err := artifact.Database(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec("INSERT INTO transaction_receipts(token,created_at) VALUES('old',clock_timestamp()-interval '11 minutes'),('recent',clock_timestamp())"); err != nil {
+		t.Fatal(err)
+	}
+	tx := invoke(t, r, "begin", root, "", nil).(string)
+	invoke(t, r, "commit", root, tx, nil)
+	var old, recent int
+	if err = db.QueryRow("SELECT count(*) FILTER (WHERE token='old'),count(*) FILTER (WHERE token IN ('recent',$1)) FROM transaction_receipts", tx).Scan(&old, &recent); err != nil {
+		t.Fatal(err)
+	}
+	if old != 0 || recent != 2 {
+		t.Fatalf("receipt retention old=%d recent=%d", old, recent)
 	}
 }
