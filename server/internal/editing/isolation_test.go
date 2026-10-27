@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/editruntime"
 	"ifcviewer/server/internal/metrics"
 )
 
@@ -47,6 +48,17 @@ func startBlockedRun(t *testing.T, s *Service) {
 	}
 }
 
+// Admission tests block publication itself. Geometry holds no database lease.
+func startBlockedWrite(t *testing.T, s *Service) {
+	t.Helper()
+	o := &operation{service: s, runtime: editruntime.NewEmbedded(), model: testModel, ctx: context.Background()}
+	release, err := o.begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = o.call("rollback", nil); release(); o.runtime.Close() })
+}
+
 func TestIndependentNamespacesDoNotShareModelLock(t *testing.T) {
 	t.Setenv("VIEWER_STORAGE_NAMESPACE", "")
 	first, _ := testService(t, "ifc")
@@ -54,7 +66,7 @@ func TestIndependentNamespacesDoNotShareModelLock(t *testing.T) {
 	for _, s := range []*Service{first, second} {
 		invoke(t, s, "PUT", "script", map[string]any{"script": "PARAMS = {'name':'base'}\n"})
 	}
-	startBlockedRun(t, first)
+	startBlockedWrite(t, first)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if _, err := second.Do(ctx, "PUT", "/models/"+testModel+"/script", jsonBytes(map[string]any{"params": map[string]any{"name": "independent"}})); err != nil {
@@ -69,7 +81,7 @@ func TestBlockedModelAllowsAnotherModel(t *testing.T) {
 	if err := artifact.WriteFile(filepath.Join(s.Root, "uploads", otherModel+".ifc"), fixtureIFC("other"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	startBlockedRun(t, s)
+	startBlockedWrite(t, s)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	other := New(s.Root, "ifc")
@@ -90,7 +102,7 @@ func TestHotModelWaitDoesNotOccupyDatabasePool(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.SetMaxOpenConns(2)
-	startBlockedRun(t, s)
+	startBlockedWrite(t, s)
 	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	done := make(chan error, 1)
 	otherInstance := New(s.Root, "ifc")

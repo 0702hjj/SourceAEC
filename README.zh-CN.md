@@ -25,11 +25,12 @@ flowchart TB
     EDIT -->|编辑写入| GATE[共同模型准入<br/>命名空间 + 模型 / 每进程 1 个活动者与 64 个等待者]
     GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁 / Git bundle]
     WRITE --> PG
-    WRITE --> INPUT[项目归属与输入快照<br/>单条数据库语句 / 复用调用者连接]
+    EDIT --> PREP[短只读快照 / 执行身份]
+    PREP --> INPUT[项目归属与不可变输入]
     INPUT --> PG
-    WRITE --> SANDBOX[共享 3 个名额 / 准备与执行 / bubblewrap]
+    PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
     SANDBOX --> PY[外部 Python 几何运行时]
-    PY --> WRITE
+    PY -->|重新校验身份 / 拒绝过期结果| GATE
     WRITE --> JOURNAL[投影 journal / 可重建工作区]
     API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]
     QUEUE --> SOURCE[已提交 IFC 与构建身份快照]
@@ -50,7 +51,8 @@ flowchart TB
 ```
 
 编辑写入、转换发布和状态更新共用数据库连接前的模型准入，PostgreSQL 模型锁
-继续保证跨进程互斥。几何执行仍持有编辑事务；进程内预算不代表跨副本共享资源上限。
+继续保证跨进程互斥。环境准备与几何执行期间释放数据库连接和模型锁；发布时发现
+源码、输入或分支已变化则返回 409。进程内预算不代表跨副本共享资源上限。
 
 ## 主要数据链路
 
@@ -77,11 +79,13 @@ sequenceDiagram
     E->>P: 提交
     U->>A: POST run 或 save
     A->>E: 执行当前源码
-    E->>P: 模型准入、事务与锁
-    E->>P: 在单条语句内取得项目归属与输入字节快照
+    E->>P: 短只读快照取得源码、输入、分支与模型身份
+    E->>P: 结束快照，释放连接
     E->>S: 只读输入 / 隔离几何执行
-    Note over E,P: 执行期间仍持有编辑事务与模型锁
+    Note over E,P: 环境准备与执行期间不持有连接或模型锁
     S-->>E: 产品、源码映射与环境身份
+    E->>P: 取得模型准入与锁，重新校验执行身份
+    Note over E,P: 状态变化时在发布前返回 409
     E->>P: 写入当前产物与构建、输入记录
     opt 保存版本
         E->>P: 写入不可变版本、暂存清理与 Git bundle

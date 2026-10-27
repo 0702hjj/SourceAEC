@@ -48,12 +48,17 @@ type transaction struct {
 	journalLocked bool
 	readOnly      bool
 }
-type candidate struct{ directory, repo, branch, root, model string }
+type candidate struct {
+	directory, repo, branch, root, model string
+	ctx                                  context.Context
+}
 type Runtime struct {
-	embedded     bool
-	opened       map[string]bool
-	transactions map[string]*transaction
-	candidates   map[string]*candidate
+	embedded           bool
+	opened             map[string]bool
+	transactions       map[string]*transaction
+	candidates         map[string]*candidate
+	commitTx           func(*sql.Tx) error
+	repositorySnapshot *RepositorySnapshot
 }
 
 func New() *Runtime {
@@ -189,7 +194,7 @@ func (r *Runtime) Handle(req Request) (any, error) {
 			}
 			return nil, e
 		}
-		if err := t.tx.Commit(); err != nil {
+		if err := r.commit(t); err != nil {
 			if t.journalLocked && restore(t) == nil {
 				artifact.ForgetProjections(t.root, req.Tx)
 			}

@@ -37,11 +37,12 @@ flowchart TB
     EDIT -->|Editing writes| GATE[Shared model admission<br/>Namespace + model / 1 active + 64 waiting per process]
     GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock / Git bundle]
     WRITE --> PG
-    WRITE --> INPUT[Project ownership and input snapshot<br/>One database statement / caller connection]
+    EDIT --> PREP[Short read snapshot / execution identity]
+    PREP --> INPUT[Project ownership and immutable inputs]
     INPUT --> PG
-    WRITE --> SANDBOX[3 shared slots / preparation and execution / bubblewrap]
+    PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
     SANDBOX --> PY[External Python geometry runtime]
-    PY --> WRITE
+    PY -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
     QUEUE --> SOURCE[Committed IFC and build identity snapshot]
@@ -63,8 +64,9 @@ flowchart TB
 
 Editing writes, conversion publication and status updates share admission before
 acquiring database connections. PostgreSQL locks provide cross-process exclusion.
-Geometry execution still holds its editing transaction; the process budgets do
-not provide a shared resource limit across replicas.
+Geometry preparation and execution release the database connection and model lock.
+Publication rejects changed source, inputs or branches with 409. Process budgets
+do not provide a shared resource limit across replicas.
 
 ## Main Data Flow
 
@@ -91,11 +93,13 @@ sequenceDiagram
     E->>P: Commit
     U->>A: POST run or save
     A->>E: Execute current source
-    E->>P: Model admission, transaction and lock
-    E->>P: Snapshot project ownership and input bytes in one statement
+    E->>P: Short read snapshot of source, inputs, branch and model identity
+    E->>P: End snapshot and release connection
     E->>S: Read-only inputs / isolated geometry execution
-    Note over E,P: Editing transaction and model lock remain held during execution
+    Note over E,P: No connection or model lock during environment preparation and execution
     S-->>E: Product, source map and environment identity
+    E->>P: Model admission and lock, recheck execution identity
+    Note over E,P: Changed state returns 409 before publication
     E->>P: Write current artifacts and build/input records
     opt Save
         E->>P: Write immutable version, staging reset and Git bundle

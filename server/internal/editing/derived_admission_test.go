@@ -35,7 +35,7 @@ func TestDerivedWaitersDoNotOccupyEditingPool(t *testing.T) {
 				t.Fatal(err)
 			}
 			db.SetMaxOpenConns(2)
-			startBlockedRun(t, s)
+			startBlockedWrite(t, s)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			done := make(chan error, 1)
 			go func() {

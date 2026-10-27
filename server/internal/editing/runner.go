@@ -135,7 +135,9 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	}
 	runCtx, cancel := context.WithTimeout(ctx, s.Timeout)
 	defer cancel()
+	started := time.Now()
 	python, identity, e := s.environment(runCtx, script, kind)
+	metrics.EnvironmentPrepare.Observe(started)
 	if e != nil {
 		if runCtx.Err() != nil {
 			return Product{}, failure(504, "script preparation timed out or canceled")

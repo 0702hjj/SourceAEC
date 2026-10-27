@@ -3,6 +3,7 @@ package editing
 
 import (
 	"errors"
+	"time"
 
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/metrics"
@@ -18,6 +19,8 @@ func (o *operation) begin() (func(), error) {
 		return func() {}, nil
 	}
 	metrics.EditModelWaiting.Inc()
+	started := time.Now()
+	defer metrics.ModelAdmission.Observe(started)
 	defer metrics.EditModelWaiting.Dec()
 	release, err := artifact.AcquireModel(o.ctx, o.service.Root, o.model)
 	if err != nil {

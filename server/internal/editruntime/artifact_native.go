@@ -21,6 +21,21 @@ func (r *Runtime) ReadStoredArtifact(ctx context.Context, root, token, key strin
 	return r.readArtifact(ctx, root, token, key, false)
 }
 
+func (r *Runtime) RequireStoredArtifact(ctx context.Context, root, token, key string) error {
+	db, err := r.database(Request{Root: root, Tx: token})
+	if err != nil {
+		return err
+	}
+	var exists bool
+	if err = db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM artifacts WHERE path=$1)", key).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return os.ErrNotExist
+	}
+	return nil
+}
+
 func (r *Runtime) readArtifact(ctx context.Context, root, token, key string, projectionFallback bool) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

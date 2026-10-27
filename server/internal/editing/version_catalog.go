@@ -2,8 +2,6 @@
 package editing
 
 import (
-	"os"
-
 	"ifcviewer/server/internal/editruntime"
 )
 
@@ -29,10 +27,7 @@ func (o *operation) prepareVersionRead() error {
 	}
 	defer release()
 	defer func() { _, _ = migration.call("rollback", nil) }()
-	if _, err = migration.read("uploads/" + o.model + "." + o.service.Kind); err != nil {
-		if os.IsNotExist(err) {
-			return failure(404, "model product not found")
-		}
+	if err = migration.requireSource(); err != nil {
 		return err
 	}
 	if err = migration.ensureVersionCatalog(); err != nil {
