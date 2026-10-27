@@ -3,10 +3,14 @@ package convert
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/store"
 )
 
 // convertOne runs without a database transaction. Only final publication takes
@@ -30,17 +34,34 @@ func (q *Queue) convertOne(ctx context.Context, id string) bool {
 	if err == nil {
 		err = q.runner.Run(ctx, input, output)
 	}
-	publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancel()
 	if err == nil {
 		err = ctx.Err()
 	}
-	accepted, publishErr := q.st.FinishConversion(publishCtx, id, source, output, err)
-	if publishErr != nil && err == nil {
-		accepted, publishErr = q.st.FinishConversion(publishCtx, id, source, "", publishErr)
-	}
+	accepted, publishErr := q.publishConversion(ctx, id, source, output, err)
 	if publishErr != nil {
 		log.Printf("conversion publication failed: %v", publishErr)
 	}
 	return publishErr == nil && !accepted && ctx.Err() == nil
+}
+
+func (q *Queue) publishConversion(ctx context.Context, id string, source store.ConversionSource, output string, runErr error) (bool, error) {
+	for {
+		publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		accepted, err := q.st.FinishConversion(publishCtx, id, source, output, runErr)
+		if err != nil && !errors.Is(err, artifact.ErrModelQueueFull) && runErr == nil {
+			accepted, err = q.st.FinishConversion(publishCtx, id, source, "", err)
+		}
+		cancel()
+		if !errors.Is(err, artifact.ErrModelQueueFull) || ctx.Err() != nil {
+			return accepted, err
+		}
+		// Only bounded workers retry overload; geometry is not executed again.
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return false, ctx.Err()
+		}
+	}
 }

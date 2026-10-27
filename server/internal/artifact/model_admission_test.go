@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-package editing
+package artifact
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestModelAdmissionBoundsQueueAndRecoversAfterCancellation(t *testing.T) {
 	waitCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	var workers sync.WaitGroup
-	for i := 0; i < modelWaitLimit; i++ {
+	for i := 0; i < ModelWaitLimit; i++ {
 		workers.Add(1)
 		go func() {
 			defer workers.Done()
@@ -40,7 +40,7 @@ func TestModelAdmissionBoundsQueueAndRecoversAfterCancellation(t *testing.T) {
 		a.mu.Lock()
 		refs := a.slots["hot"].refs
 		a.mu.Unlock()
-		if refs == modelWaitLimit+1 {
+		if refs == ModelWaitLimit+1 {
 			break
 		}
 		select {
@@ -50,8 +50,7 @@ func TestModelAdmissionBoundsQueueAndRecoversAfterCancellation(t *testing.T) {
 		}
 	}
 	_, err = a.acquire(ctx, "hot")
-	var domain *Error
-	if !errors.As(err, &domain) || domain.Status != 429 {
+	if !errors.Is(err, ErrModelQueueFull) {
 		t.Fatalf("expected bounded overload, got %v", err)
 	}
 	// Another model must still be admitted while the hot model is full.
@@ -67,6 +66,31 @@ func TestModelAdmissionBoundsQueueAndRecoversAfterCancellation(t *testing.T) {
 	if len(a.slots) != 1 || a.slots["hot"].refs != 1 {
 		t.Fatalf("canceled waiters retained slots: %v", a.slots)
 	}
+}
+
+func TestSharedModelAdmissionReleaseAndNamespace(t *testing.T) {
+	t.Setenv("VIEWER_STORAGE_NAMESPACE", "")
+	first, second := t.TempDir(), t.TempDir()
+	release, err := AcquireModel(context.Background(), first, "same-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	other, err := AcquireModel(ctx, second, "same-model")
+	if err != nil {
+		t.Fatal("different namespace blocked", err)
+	}
+	other()
+	other() // Public release must tolerate cleanup after early cancellation.
+	release()
+	release()
+	recovered, err := AcquireModel(ctx, first, "same-model")
+	if err != nil {
+		t.Fatal("model permit did not recover", err)
+	}
+	recovered()
 }
 
 func TestModelAdmissionForgetsIdleModels(t *testing.T) {

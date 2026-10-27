@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/store"
 )
 
@@ -97,13 +98,13 @@ func (h *handler) retry(w http.ResponseWriter, r *http.Request) {
 	}
 	// dxf 无转换链路：直接回 ready，不入队（W-0040）。
 	if m.Kind == store.KindDXF {
-		if err := h.st.SetStatus(m.ID, "ready", ""); err != nil {
-			writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		if err := h.st.SetStatusContext(r.Context(), m.ID, "ready", ""); err != nil {
+			writeModelWriteErr(w, err)
 			return
 		}
 	} else {
-		if err := h.st.SetStatus(m.ID, "converting", ""); err != nil {
-			writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+		if err := h.st.SetStatusContext(r.Context(), m.ID, "converting", ""); err != nil {
+			writeModelWriteErr(w, err)
 			return
 		}
 		h.q.Enqueue(m.ID)
@@ -114,6 +115,14 @@ func (h *handler) retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, m)
+}
+
+func writeModelWriteErr(w http.ResponseWriter, err error) {
+	if errors.Is(err, artifact.ErrModelQueueFull) {
+		writeErr(w, http.StatusTooManyRequests, 42900, err.Error())
+		return
+	}
+	writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) {

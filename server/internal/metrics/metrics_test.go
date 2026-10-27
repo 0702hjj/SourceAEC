@@ -34,7 +34,7 @@ func TestAibimVarPublished(t *testing.T) {
 	if err := json.Unmarshal([]byte(v.String()), &m); err != nil {
 		t.Fatalf("aibim 不是 JSON map: %v", err)
 	}
-	for _, key := range []string{"goroutines", "sseSubscribers", "convertPending", "convertRunning", "editInFlight", "editModelWaiting", "scriptRunning", "scriptRejected"} {
+	for _, key := range []string{"goroutines", "sseSubscribers", "convertPending", "convertRunning", "editInFlight", "editModelWaiting", "modelWaiting", "scriptRunning", "scriptRejected"} {
 		if _, ok := m[key]; !ok {
 			t.Errorf("aibim 缺字段 %q", key)
 		}

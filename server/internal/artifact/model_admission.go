@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
-package editing
+package artifact
 
 import (
 	"context"
+	"errors"
 	"sync"
+
+	"ifcviewer/server/internal/metrics"
 )
 
 // Bound hot-model queues without occupying PostgreSQL connections. This gate
 // is process-local; the database advisory lock remains the cross-process guard.
-const modelWaitLimit = 64
+const ModelWaitLimit = 64
 
 type modelSlot struct {
 	permit chan struct{}
@@ -20,7 +23,27 @@ type modelAdmission struct {
 	slots map[string]*modelSlot
 }
 
-var editAdmission = &modelAdmission{slots: make(map[string]*modelSlot)}
+var processModels = &modelAdmission{slots: make(map[string]*modelSlot)}
+
+var ErrModelQueueFull = errors.New("model request queue limit reached")
+
+// AcquireModel admits a model writer before it obtains a database connection.
+// All callers must release after their transaction and projection recovery.
+// PostgreSQL still provides the cross-process lock; this budget is process-local.
+func AcquireModel(ctx context.Context, root, model string) (func(), error) {
+	metrics.ModelWaiting.Inc()
+	defer metrics.ModelWaiting.Dec()
+	namespace, err := Namespace(root)
+	if err != nil {
+		return nil, err
+	}
+	release, err := processModels.acquire(ctx, namespace+":"+model)
+	if err != nil {
+		return nil, err
+	}
+	var once sync.Once
+	return func() { once.Do(release) }, nil
+}
 
 func (a *modelAdmission) acquire(ctx context.Context, key string) (func(), error) {
 	if err := ctx.Err(); err != nil {
@@ -33,9 +56,9 @@ func (a *modelAdmission) acquire(ctx context.Context, key string) (func(), error
 		slot.permit <- struct{}{}
 		a.slots[key] = slot
 	}
-	if slot.refs >= modelWaitLimit+1 {
+	if slot.refs >= ModelWaitLimit+1 {
 		a.mu.Unlock()
-		return nil, failure(429, "model request queue limit reached")
+		return nil, ErrModelQueueFull
 	}
 	slot.refs++
 	a.mu.Unlock()
