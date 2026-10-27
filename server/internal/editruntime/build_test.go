@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"ifcviewer/server/internal/artifact"
 )
 
 func put(t *testing.T, path, content string) {
@@ -18,7 +20,7 @@ func put(t *testing.T, path, content string) {
 	}
 }
 func TestCollectBuildInputsFiltersHistoryAndSymlinks(t *testing.T) {
-	root := t.TempDir()
+	r, root := databaseRuntime(t)
 	put(t, filepath.Join(root, "models/model/model.json"), `{"projectId":"p_synthetic"}`)
 	put(t, filepath.Join(root, "plans/p_synthetic/plan.json"), `{}`)
 	put(t, filepath.Join(root, "plans/p_synthetic/plan_history/v1.json"), `{}`)
@@ -27,14 +29,19 @@ func TestCollectBuildInputsFiltersHistoryAndSymlinks(t *testing.T) {
 	if err := os.Symlink(filepath.Join(root, "plans/p_synthetic/plan.json"), filepath.Join(root, "plans/p_synthetic/link.json")); err != nil {
 		t.Fatal(err)
 	}
-	inputs, err := collectInputs(root, "model")
-	if err != nil || len(inputs) != 2 {
-		t.Fatal(inputs, err)
+	if err := artifact.CaptureTree(root); err != nil {
+		t.Fatal(err)
 	}
-	put(t, filepath.Join(root, "models/model/model.json"), `{"projectId":"p_../escape"}`)
-	inputs, err = collectInputs(root, "model")
-	if err != nil || len(inputs) != 0 {
-		t.Fatal(inputs, err)
+	inputs := invoke(t, r, "build.collect", root, "", buildArgs{Model: "model"}).(map[string]string)
+	if len(inputs) != 2 {
+		t.Fatal(inputs)
+	}
+	if err := artifact.WriteFile(filepath.Join(root, "models/model/model.json"), []byte(`{"projectId":"p_../escape"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs = invoke(t, r, "build.collect", root, "", buildArgs{Model: "model"}).(map[string]string)
+	if len(inputs) != 0 {
+		t.Fatal(inputs)
 	}
 }
 func TestSuccessfulBuildReuseRequiresProductMapAndIdentity(t *testing.T) {
