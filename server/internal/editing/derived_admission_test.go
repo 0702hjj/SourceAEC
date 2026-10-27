@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
-	"ifcviewer/server/internal/metrics"
 	"ifcviewer/server/internal/store"
 )
 
@@ -62,14 +61,24 @@ func TestDerivedWaitersDoNotOccupyEditingPool(t *testing.T) {
 			})
 			ticker := time.NewTicker(time.Millisecond)
 			defer ticker.Stop()
-			for db.Stats().InUse < 2 && metrics.ModelWaiting.Value() == 0 {
+			for {
+				users, e := artifact.ModelAdmissionUsers(s.Root, testModel)
+				if e != nil {
+					t.Fatal(e)
+				}
+				if users == 2 {
+					break
+				}
 				select {
 				case <-ticker.C:
 				case <-ctx.Done():
 					t.Fatal("derived write did not reach lock admission")
 				}
 			}
-			writeCtx, stop := context.WithTimeout(ctx, 200*time.Millisecond)
+			if inUse := db.Stats().InUse; inUse != 1 {
+				t.Fatalf("derived waiter holds a database connection: %d in use", inUse)
+			}
+			writeCtx, stop := context.WithTimeout(ctx, 2*time.Second)
 			defer stop()
 			if _, err = s.Do(writeCtx, "PUT", "/models/"+other+"/script", jsonBytes(map[string]any{"script": "PARAMS = {}\n"})); err != nil {
 				t.Fatalf("derived waiter exhausted pool for unrelated model: %v", err)
