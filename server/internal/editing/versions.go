@@ -6,96 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
+
+	"ifcviewer/server/internal/editruntime"
 )
 
-type version struct {
-	Version   string `json:"version"`
-	CreatedAt string `json:"createdAt"`
-	Note      string `json:"note"`
-}
+type version = editruntime.Version
 
 func (o *operation) scriptVersions() ([]version, error) {
-	if o.readOnly {
-		return o.snapshotScriptVersions()
-	}
-	entries, e := os.ReadDir(filepath.Join(o.service.Root, o.key("scripts")))
-	if os.IsNotExist(e) {
-		return []version{}, nil
-	}
-	if e != nil {
-		return nil, e
-	}
-	result := []version{}
-	for _, entry := range entries {
-		name := strings.TrimSuffix(entry.Name(), ".py")
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".py") || !versionPattern.MatchString(name) {
-			continue
-		}
-		info, e := entry.Info()
-		if e != nil {
-			return nil, e
-		}
-		v := version{Version: name, CreatedAt: info.ModTime().UTC().Format(time.RFC3339Nano)}
-		b, e := o.read(o.key("scripts/" + name + ".meta.json"))
-		if e == nil {
-			var meta struct {
-				Note    string `json:"note"`
-				SavedAt string `json:"savedAt"`
-			}
-			if e = json.Unmarshal(b, &meta); e != nil {
-				return nil, e
-			}
-			v.Note = meta.Note
-			if meta.SavedAt != "" {
-				v.CreatedAt = meta.SavedAt
-			}
-		} else if !os.IsNotExist(e) {
-			return nil, e
-		}
-		result = append(result, v)
-	}
-	sort.Slice(result, func(i, j int) bool {
-		a, _ := strconv.Atoi(result[i].Version[1:])
-		b, _ := strconv.Atoi(result[j].Version[1:])
-		return a < b
-	})
-	return result, nil
+	return o.runtime.Versions(o.ctx, o.service.Root, o.tx, o.model, true)
 }
 func (o *operation) versions() ([]version, error) {
-	listed, e := o.scriptVersions()
-	if e != nil {
-		return nil, e
-	}
-	known := map[string]bool{}
-	for _, v := range listed {
-		known[v.Version] = true
-	}
-	entries, e := os.ReadDir(filepath.Join(o.service.Root, o.key("versions")))
-	if e != nil && !os.IsNotExist(e) {
-		return nil, e
-	}
-	for _, entry := range entries {
-		name := strings.TrimSuffix(entry.Name(), "."+o.service.Kind)
-		if entry.IsDir() || known[name] || !strings.HasSuffix(entry.Name(), "."+o.service.Kind) || !versionPattern.MatchString(name) {
-			continue
-		}
-		info, e := entry.Info()
-		if e != nil {
-			return nil, e
-		}
-		listed = append(listed, version{Version: name, CreatedAt: info.ModTime().UTC().Format(time.RFC3339Nano)})
-	}
-	sort.Slice(listed, func(i, j int) bool {
-		a, _ := strconv.Atoi(listed[i].Version[1:])
-		b, _ := strconv.Atoi(listed[j].Version[1:])
-		return a < b
-	})
-	return listed, nil
+	return o.runtime.Versions(o.ctx, o.service.Root, o.tx, o.model, false)
 }
 
 func (o *operation) versionScript(name string) (string, error) {
@@ -115,14 +38,12 @@ func (o *operation) versionProduct(name string) ([]byte, error) {
 	if !versionPattern.MatchString(name) {
 		return nil, failure(422, "invalid version")
 	}
-	for _, key := range []string{o.key("scripts/" + name + ".product"), o.key("versions/" + name + "." + o.service.Kind)} {
-		data, e := o.read(key)
-		if e == nil {
-			return data, nil
-		}
-		if !os.IsNotExist(e) {
-			return nil, e
-		}
+	data, e := o.read(o.key("scripts/" + name + ".product"))
+	if e == nil {
+		return data, nil
+	}
+	if !os.IsNotExist(e) {
+		return nil, e
 	}
 	script, e := o.versionScript(name)
 	if e != nil {

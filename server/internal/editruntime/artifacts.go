@@ -4,7 +4,6 @@ package editruntime
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io/fs"
 	"os"
@@ -13,10 +12,12 @@ import (
 	"ifcviewer/server/internal/artifact"
 )
 
-type fileEntry struct {
+type ArtifactFile struct {
 	Path    string `json:"path"`
 	Content []byte `json:"content"`
 }
+
+type fileEntry = ArtifactFile
 
 func (r *Runtime) track(req Request, key string) error {
 	t := r.transactions[req.Tx]
@@ -80,42 +81,13 @@ func (r *Runtime) artifactOperation(req Request) (any, error) {
 		if err = decode(req.Args, &files); err != nil {
 			return nil, err
 		}
-		// A batch is atomic even when the caller did not open a checkpoint.
-		if req.Tx == "" {
-			pool, e := artifact.Database(req.Root)
-			if e != nil {
-				return nil, e
-			}
-			tx, e := pool.Begin()
-			if e != nil {
-				return nil, e
-			}
-			defer tx.Rollback()
-			db = tx
-			if e = r.publish(req, db, files); e != nil {
-				return nil, e
-			}
-			return nil, tx.Commit()
-		}
-		return nil, r.publish(req, db, files)
+		return nil, r.PublishArtifacts(runtimeContext(req), req.Root, req.Tx, files)
 	case "read":
 		var key string
 		if err = decode(req.Args, &key); err != nil {
 			return nil, err
 		}
-		path, e := safePath(req.Root, key)
-		if e != nil {
-			return nil, e
-		}
-		var content []byte
-		err = db.QueryRow("SELECT content FROM artifacts WHERE path=$1", key).Scan(&content)
-		if errors.Is(err, sql.ErrNoRows) {
-			if t := r.transactions[req.Tx]; t != nil && t.readOnly {
-				return nil, os.ErrNotExist
-			}
-			content, err = os.ReadFile(path)
-		}
-		return content, err
+		return r.ReadArtifact(runtimeContext(req), req.Root, req.Tx, key)
 	case "remove":
 		var key string
 		if err = decode(req.Args, &key); err != nil {
@@ -176,6 +148,9 @@ func (r *Runtime) artifactOperation(req Request) (any, error) {
 }
 func (r *Runtime) publish(req Request, db queryer, files []fileEntry) error {
 	for _, file := range files {
+		if err := runtimeContext(req).Err(); err != nil {
+			return err
+		}
 		if !artifact.Durable(file.Path) {
 			continue
 		}
@@ -185,7 +160,7 @@ func (r *Runtime) publish(req Request, db queryer, files []fileEntry) error {
 		if err := r.track(req, file.Path); err != nil {
 			return err
 		}
-		if _, err := db.Exec("INSERT INTO artifacts(path,content) VALUES($1,$2) ON CONFLICT(path) DO UPDATE SET content=excluded.content", file.Path, file.Content); err != nil {
+		if _, err := db.ExecContext(runtimeContext(req), "INSERT INTO artifacts(path,content) VALUES($1,$2) ON CONFLICT(path) DO UPDATE SET content=excluded.content", file.Path, file.Content); err != nil {
 			return err
 		}
 	}

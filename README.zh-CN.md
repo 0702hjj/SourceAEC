@@ -20,10 +20,10 @@ flowchart TB
     API --> AGENT[Agent 工具与应用编排]
     API --> EDIT[editsvc / editing 生命周期]
     AGENT --> EDIT
-    EDIT -->|脚本与参数 GET| READ[数据库只读快照]
+    EDIT -->|脚本、参数与版本 GET| READ[数据库只读快照]
     READ --> PG[(PostgreSQL / 权威业务数据)]
     EDIT -->|编辑写入| GATE[共同模型准入<br/>命名空间 + 模型 / 每进程 1 个活动者与 64 个等待者]
-    GATE --> WRITE[editing + editruntime<br/>事务 / 模型锁 / Git bundle]
+    GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁 / Git bundle]
     WRITE --> PG
     WRITE --> INPUT[项目归属与输入快照<br/>单条数据库语句 / 复用调用者连接]
     INPUT --> PG
@@ -143,7 +143,7 @@ cd ../server && go run ./cmd/server
 | `server/internal/agent` | Agent 编排、工具、审批、技能与文件访问边界 |
 | `server/internal/editsvc` | 进程内编辑客户端与 HTTP 兼容适配 |
 | `server/internal/editing` | IFC/DXF 共用的暂存、执行、比较、保存、回滚及格式适配 |
-| `server/internal/editruntime` | 事务、Git bundle、构建与输入快照、私有协议分派 |
+| `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |
 | `server/internal/change`, `server/internal/issue`, `server/internal/override` | 来源记录、审阅问题与属性覆盖 |

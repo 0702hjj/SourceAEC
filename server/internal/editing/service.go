@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 
+	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/editruntime"
 )
 
@@ -60,27 +60,22 @@ func (o *operation) call(name string, args any) (any, error) {
 }
 func (o *operation) key(suffix string) string { return "models/" + o.model + "/" + suffix }
 func (o *operation) read(key string) ([]byte, error) {
-	value, e := o.call("read", key)
-	if e != nil {
-		return nil, e
+	if artifact.Durable(key) {
+		return o.runtime.ReadStoredArtifact(o.ctx, o.service.Root, o.tx, key)
 	}
-	b, ok := value.([]byte)
-	if !ok {
-		return nil, fmt.Errorf("invalid artifact")
-	}
-	return b, nil
+	return o.runtime.ReadArtifact(o.ctx, o.service.Root, o.tx, key)
 }
 func (o *operation) publish(files map[string][]byte) error {
-	entries := []map[string]any{}
+	entries := []editruntime.ArtifactFile{}
 	for key, data := range files {
-		entries = append(entries, map[string]any{"path": key, "content": data})
+		entries = append(entries, editruntime.ArtifactFile{Path: key, Content: data})
 	}
-	if _, e := o.call("publish", entries); e != nil {
+	if e := o.runtime.PublishArtifacts(o.ctx, o.service.Root, o.tx, entries); e != nil {
 		return e
 	}
 	for key, data := range files {
 		// Track disposable projections as well as durable database files.
-		if _, e := o.call("track", key); e != nil {
+		if e := o.runtime.TrackProjection(o.ctx, o.service.Root, o.tx, key); e != nil {
 			return e
 		}
 		path := filepath.Join(o.service.Root, filepath.FromSlash(key))
@@ -170,7 +165,12 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	o := &operation{service: s, runtime: editruntime.NewEmbedded(), model: parts[1], ctx: ctx, query: parsed.Query()}
 	defer o.runtime.Close()
 	suffix := strings.Join(parts[2:], "/")
-	o.readOnly = method == "GET" && (suffix == "script" || suffix == "script/params")
+	o.readOnly = method == "GET" && (suffix == "script" || suffix == "script/params" || suffix == "scripts" || suffix == "versions")
+	if method == "GET" && (suffix == "scripts" || suffix == "versions") {
+		if err := o.prepareVersionRead(); err != nil {
+			return nil, err
+		}
+	}
 	release, e := o.begin()
 	if e != nil {
 		return nil, e
@@ -182,6 +182,11 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 			return nil, failure(404, "model product not found")
 		}
 		return nil, e
+	}
+	if !o.readOnly {
+		if e = o.ensureVersionCatalog(); e != nil {
+			return nil, e
+		}
 	}
 	result, e := o.dispatch(method, suffix, body)
 	if e != nil {

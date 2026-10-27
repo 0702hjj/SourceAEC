@@ -224,7 +224,7 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 		return nil, persist(db, c)
 	}
 	if req.Op == "git.import" {
-		return nil, importHistory(db, req.Root, a.Model)
+		return nil, importHistory(runtimeContext(req), db, req.Root, a.Model)
 	}
 	c, err := workspace(db, req.Root, a.Model)
 	if err != nil {

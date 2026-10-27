@@ -32,10 +32,10 @@ flowchart TB
     API --> AGENT[Agent tools and application workflows]
     API --> EDIT[editsvc / editing lifecycle]
     AGENT --> EDIT
-    EDIT -->|Script and parameter GET| READ[Read-only database snapshot]
+    EDIT -->|Script, parameter and version GET| READ[Read-only database snapshot]
     READ --> PG[(PostgreSQL / authoritative business data)]
     EDIT -->|Editing writes| GATE[Shared model admission<br/>Namespace + model / 1 active + 64 waiting per process]
-    GATE --> WRITE[editing + editruntime<br/>Transaction / model lock / Git bundle]
+    GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock / Git bundle]
     WRITE --> PG
     WRITE --> INPUT[Project ownership and input snapshot<br/>One database statement / caller connection]
     INPUT --> PG
@@ -162,7 +162,7 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/agent` | Agent workflows, tools, approvals, skills and file-access boundaries |
 | `server/internal/editsvc` | In-process editing client and HTTP compatibility adapter |
 | `server/internal/editing` | Shared IFC/DXF staging, execution, comparison, save, rollback and format adapters |
-| `server/internal/editruntime` | Transactions, Git bundles, build/input snapshots and private protocol dispatch |
+| `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |
 | `server/internal/change`, `server/internal/issue`, `server/internal/override` | Provenance, review issues and property overrides |
