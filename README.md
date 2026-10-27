@@ -41,6 +41,8 @@ flowchart TB
     PREP --> INPUT[Project ownership and immutable inputs]
     INPUT --> PG
     PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
+    PREP --> COMPARE[3 stored-product comparisons / no geometry slot]
+    COMPARE -.->|Legacy source replay uses build budget| SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
     PY -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
@@ -66,7 +68,8 @@ flowchart TB
 Editing writes, model deletion, conversion publication and status updates share admission before
 acquiring database connections. PostgreSQL locks provide cross-process exclusion.
 Geometry preparation and execution release the database connection and model lock.
-Publication rejects changed source, inputs or branches with 409. Process budgets
+Publication rejects changed source, inputs or branches with 409. Three build lifecycles
+and three stored-product comparisons have separate budgets. Process budgets
 do not provide a shared resource limit across replicas.
 
 ## Main Data Flow

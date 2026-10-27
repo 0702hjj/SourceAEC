@@ -12,6 +12,9 @@ type versionInput struct {
 	inputs map[string]string
 }
 
+// Comparing stored products uses bounded memory but no geometry worker.
+var productComparisons = make(chan struct{}, 3)
+
 func (o *operation) captureVersion(name string) (versionInput, error) {
 	key := "uploads/" + o.model + "." + o.service.Kind
 	if name != "current" {
@@ -48,10 +51,10 @@ func (o *operation) detachedDiff(body []byte) (any, error) {
 		return nil, failure(422, "base and target required")
 	}
 	select {
-	case buildLifecycles <- struct{}{}:
-		defer func() { <-buildLifecycles }()
+	case productComparisons <- struct{}{}:
+		defer func() { <-productComparisons }()
 	default:
-		return nil, failure(429, "build capacity exhausted")
+		return nil, failure(429, "comparison capacity exhausted")
 	}
 	if err := o.prepareVersionRead(); err != nil {
 		return nil, err
@@ -79,6 +82,14 @@ func (o *operation) detachedDiff(body []byte) (any, error) {
 		return nil, err
 	}
 	o.tx = ""
+	if a.data == nil || b.data == nil {
+		select {
+		case buildLifecycles <- struct{}{}:
+			defer func() { <-buildLifecycles }()
+		default:
+			return nil, failure(429, "build capacity exhausted")
+		}
+	}
 	for _, v := range []*versionInput{&a, &b} {
 		if v.data == nil {
 			product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, v.inputs), v.script, o.service.Kind)
