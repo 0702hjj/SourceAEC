@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"ifcviewer/server/internal/change"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
 	"ifcviewer/server/internal/store"
@@ -32,7 +31,7 @@ func newChangesTestServer(t *testing.T) (http.Handler, string, *change.FileStore
 	st := store.NewStore(t.TempDir())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	q.Start(ctx)
 	chg := change.NewFileStore(st.DataDir)
 	mux := NewHandler(st, q, issue.NewFileStore(st.DataDir), chg, override.NewFileStore(st.DataDir), nil, nil, 1<<20)

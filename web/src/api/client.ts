@@ -145,7 +145,10 @@ function protectedAssetUrl(path: string): string {
   const token = getToken();
   return token ? `${path}?token=${encodeURIComponent(token)}` : path;
 }
-export const modelAssetUrl = (id: string, file: "model.xkt" | "metadata.json") => protectedAssetUrl(`/v1/models/${id}/${file}`);
+export const modelAssetUrl = (id: string, file: "model.xkt" | "metadata.json", generation?: string) => {
+  const url = protectedAssetUrl(`/v1/models/${id}/${file}`);
+  return generation ? `${url}${url.includes("?") ? "&" : "?"}generation=${encodeURIComponent(generation)}` : url;
+};
 // dxf 模型的实体级渲染载荷（Go 直挂只读，非 envelope）
 export const renderJsonUrl = (id: string) => protectedAssetUrl(`/v1/models/${id}/render.json`);
 

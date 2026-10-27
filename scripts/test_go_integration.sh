@@ -7,7 +7,8 @@ export VIEWER_PG_DSN="$VIEWER_TEST_PG_DSN"
 # Each temporary test root needs its own schema, regardless of shell settings.
 unset VIEWER_STORAGE_NAMESPACE
 export SOURCEAEC_TEST_GEOMETRY=1
-for executable in go git bwrap prlimit uv; do
+export SOURCEAEC_TEST_CONVERTER=1
+for executable in go git bwrap prlimit uv node; do
   command -v "$executable" >/dev/null || {
     echo "missing integration prerequisite: $executable" >&2
     exit 1
@@ -16,5 +17,5 @@ done
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT/server"
-go test -count=1 ./internal/artifact ./internal/editruntime ./internal/editing ./internal/api ./internal/mcpbridge
-go test -race -count=5 ./internal/editing -run '^Test(ConcurrentInstances|CanceledModel|IndependentNamespaces|BlockedModel|HotModel|ModelAdmission)'
+go test -count=1 ./internal/artifact ./internal/store ./internal/convert ./internal/editruntime ./internal/editing ./internal/api ./internal/mcpbridge
+go test -race -count=5 ./internal/artifact ./internal/store ./internal/convert ./internal/editing -run '^Test(ConcurrentInstances|CanceledModel|IndependentNamespaces|BlockedModel|HotModel|ModelAdmission|Conversion|Enqueue|FullQueue|Shutdown|Recovery|Projection|ScriptRead|ScriptSnapshot|EditingProcessCrash|Sandbox)'

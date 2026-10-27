@@ -2,11 +2,7 @@
 // Copyright (C) 2026 0702hjj
 package convert
 
-import (
-	"ifcviewer/server/internal/store"
-	"os"
-	"path/filepath"
-)
+import "ifcviewer/server/internal/store"
 
 // RestoreMissing rebuilds disposable viewer caches after database recovery.
 func (q *Queue) RestoreMissing() error {
@@ -18,13 +14,7 @@ func (q *Queue) RestoreMissing() error {
 		if model.Kind != store.KindIFC || model.Status != "ready" {
 			continue
 		}
-		missing := false
-		for _, file := range []string{"model.xkt", "metadata.json"} {
-			if _, err := os.Stat(filepath.Join(q.st.ModelDir(model.ID), file)); os.IsNotExist(err) {
-				missing = true
-			}
-		}
-		if missing {
+		if q.needsReconvert(model.ID) {
 			if err := q.st.SetStatus(model.ID, "converting", ""); err != nil {
 				return err
 			}

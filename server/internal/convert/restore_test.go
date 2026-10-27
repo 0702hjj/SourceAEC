@@ -20,7 +20,7 @@ func TestRestoreMissingQueuesIFCCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	runner := newBlockingRunner()
-	q := NewQueue(st, runner, 1)
+	q := testQueue(t, st, runner, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	q.Start(ctx)
 	t.Cleanup(func() {

@@ -7,6 +7,14 @@ import (
 )
 
 func (o *operation) begin() (func(), error) {
+	if o.readOnly {
+		value, err := o.call("begin_read", nil)
+		if err != nil {
+			return nil, err
+		}
+		o.tx = value.(string)
+		return func() {}, nil
+	}
 	metrics.EditModelWaiting.Inc()
 	defer metrics.EditModelWaiting.Dec()
 	namespace, err := artifact.Namespace(o.service.Root)

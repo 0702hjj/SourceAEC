@@ -164,6 +164,7 @@ func TestScriptMutatingActionsEnqueueReconvert(t *testing.T) {
 	py, pyURL := newFakePy(t)
 	env := newEditEnv(t, pyURL)
 	for _, action := range []string{"run", "save", "rollback"} {
+		changeTestSource(t, env.st, env.modelID, action)
 		py.set("POST", "/models/"+env.modelID+"/script/"+action, 200, `{"ok":true}`)
 		rec := doEditReq(t, env.mux, "POST", "/api/v1/models/"+env.modelID+"/script/"+action, `{}`)
 		if rec.Code != http.StatusOK {
@@ -226,6 +227,7 @@ func TestScriptSandboxActionsUseSlowClient(t *testing.T) {
 
 	// run/save/rollback 走 slow client：300ms 延迟下必须成功。
 	for _, action := range []string{"run", "save", "rollback"} {
+		changeTestSource(t, env.st, env.modelID, action)
 		rec := doEditReq(t, env.mux, "POST", "/api/v1/models/"+env.modelID+"/script/"+action, `{}`)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s: status = %d, want 200（应走 slow client，body %s）", action, rec.Code, rec.Body)

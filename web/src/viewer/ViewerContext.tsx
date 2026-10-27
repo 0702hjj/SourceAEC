@@ -35,15 +35,20 @@ export function useViewer() {
 
 export function ViewerProvider({
   modelId,
+  generation,
   children,
 }: {
   modelId: string;
+  generation?: string;
   children?: ReactNode;
 }) {
   const [ctx, setCtx] = useState<ViewerContextValue | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setCtx(null);
+    setError(null);
+    let active = true;
     const viewer = new Viewer({
       canvasId: "xeokit-canvas",
       transparent: true,
@@ -53,11 +58,12 @@ export function ViewerProvider({
     const xktLoader = new XKTLoaderPlugin(viewer);
     const sceneModel = xktLoader.load({
       id: "model",
-      src: modelAssetUrl(modelId, "model.xkt"),
-      metaModelSrc: modelAssetUrl(modelId, "metadata.json"),
+      src: modelAssetUrl(modelId, "model.xkt", generation),
+      metaModelSrc: modelAssetUrl(modelId, "metadata.json", generation),
       edges: true,
     });
     sceneModel.on("loaded", () => {
+      if (!active) return;
       viewer.cameraFlight.flyTo(sceneModel);
       setCtx({
         viewer,
@@ -66,12 +72,14 @@ export function ViewerProvider({
       });
     });
     sceneModel.on("error", (e: unknown) => {
+      if (!active) return;
       setError(e instanceof Error ? e.message : String(e));
     });
     return () => {
+      active = false;
       viewer.destroy();
     };
-  }, [modelId]);
+  }, [modelId, generation]);
 
   usePicking(ctx?.viewer ?? null);
   useSelectionHighlight(ctx?.viewer ?? null);

@@ -4,6 +4,7 @@
 package store
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -49,14 +50,15 @@ var idPattern = regexp.MustCompile(`^m_[0-9a-f]{16}$`)
 func validID(id string) bool { return idPattern.MatchString(id) }
 
 type Model struct {
-	Revision  string    `json:"revision,omitempty"`
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Size      int64     `json:"size"`
-	Status    string    `json:"status"`
-	Kind      string    `json:"kind"`
-	CreatedAt time.Time `json:"createdAt"`
-	Error     string    `json:"error"`
+	PreviewGeneration string    `json:"previewGeneration,omitempty"`
+	Revision          string    `json:"revision,omitempty"`
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	Size              int64     `json:"size"`
+	Status            string    `json:"status"`
+	Kind              string    `json:"kind"`
+	CreatedAt         time.Time `json:"createdAt"`
+	Error             string    `json:"error"`
 	// ProjectID 是模型→项目反向归属（A1：项目下模型；init_model 挂项目时写入）。
 	// omitempty 兼容存量模型（迁移前无该字段）；删除联动见 handler.delete / ProjectStore.RemoveModel。
 	ProjectID string `json:"projectId,omitempty"`
@@ -208,13 +210,7 @@ func (s *Store) List() ([]*Model, error) {
 }
 
 func (s *Store) SetStatus(id, status, errMsg string) error {
-	m, err := s.Get(id)
-	if err != nil {
-		return err
-	}
-	m.Status = status
-	m.Error = errMsg
-	return s.write(m)
+	return s.SetStatusContext(context.Background(), id, status, errMsg)
 }
 
 func (s *Store) Delete(id string) error {

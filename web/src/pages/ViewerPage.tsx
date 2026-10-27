@@ -36,6 +36,7 @@ export default function ViewerPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [status, setStatus] = useState<ModelInfo["status"] | null>(null);
   const [kind, setKind] = useState<ModelInfo["kind"] | null>(null);
+  const [generation, setGeneration] = useState<string | undefined>();
   const lastRevision = useRef<string | undefined>(undefined);
   const prevStatus = useRef<ModelInfo["status"] | null>(null);
   const [session, setSession] = useState<ChatSession | null>(null);
@@ -63,6 +64,7 @@ export default function ViewerPage() {
             if (m.status === "ready") lastRevision.current = m.revision;
             setStatus(m.status);
             setKind(m.kind ?? "ifc");
+            setGeneration(m.previewGeneration);
           }
         })
         .catch(() => {});
@@ -185,7 +187,7 @@ export default function ViewerPage() {
           </aside>
         </div>
       ) : (
-        <ViewerProvider key={`${reloadKey}-xeokit`} modelId={id}>
+        <ViewerProvider key={`${reloadKey}-xeokit`} modelId={id} generation={generation}>
           {stagedBanner && (
             <button
               type="button"

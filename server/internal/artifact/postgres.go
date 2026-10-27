@@ -51,6 +51,9 @@ func Connect(root string) (*sql.DB, error) {
         CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
         CREATE TABLE IF NOT EXISTS repositories (model_id TEXT PRIMARY KEY, bundle BYTEA NOT NULL, branch TEXT NOT NULL);`)
 	}
+	if err == nil {
+		_, err = tx.Exec("ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS content_hash BYTEA GENERATED ALWAYS AS (sha256(content)) STORED")
+	}
 	if err != nil {
 		db.Close()
 		return nil, err

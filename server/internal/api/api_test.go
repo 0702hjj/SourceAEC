@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/change"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
 	"ifcviewer/server/internal/store"
@@ -25,7 +24,7 @@ import (
 
 type okRunner struct{}
 
-func (okRunner) Run(ctx context.Context, in, out string) error { return nil }
+func (okRunner) Run(ctx context.Context, in, out string) error { return writeTestViewer(out) }
 
 type env struct {
 	Code    int             `json:"code"`
@@ -38,7 +37,7 @@ func setup(t *testing.T) (*httptest.Server, *store.Store) {
 	st := store.NewStore(t.TempDir())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	q.Start(ctx)
 	srv := httptest.NewServer(NewHandler(st, q, issue.NewFileStore(st.DataDir), change.NewFileStore(st.DataDir), override.NewFileStore(st.DataDir), nil, nil, 1<<20)) // 测试上限 1MB
 	t.Cleanup(srv.Close)
@@ -136,10 +135,10 @@ func TestUploadListDownloadDelete(t *testing.T) {
 	if !strings.Contains(resp.Header.Get("Content-Disposition"), "ok.ifc") || string(b) != "ISO-10303-21;fake" {
 		t.Fatalf("download: %v %q", resp.Header, b)
 	}
-	// 静态 xkt（文件不存在 → 404）
+	// Converted assets are served from the committed generation.
 	resp, _ = http.Get(srv.URL + "/v1/models/" + created.ID + "/model.xkt")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("static: %d", resp.StatusCode)
 	}
 	// 删除
@@ -242,7 +241,7 @@ func TestPutEntityPropertiesBodyTooLarge(t *testing.T) {
 func TestDeleteModelRemovesFromProject(t *testing.T) {
 	st := store.NewStore(t.TempDir())
 	ps := store.NewProjectStore(st.DataDir)
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)

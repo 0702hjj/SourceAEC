@@ -3,6 +3,7 @@
 package editruntime
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io/fs"
@@ -22,89 +23,29 @@ func (r *Runtime) track(req Request, key string) error {
 	if t == nil {
 		return nil
 	}
-	if _, ok := t.originals[key]; ok {
+	if _, ok := t.tracked[key]; ok {
 		return nil
 	}
-	path, err := safePath(req.Root, key)
-	if err != nil {
+	if !t.journalLocked {
+		if err := artifact.LockProjectionRecovery(runtimeContext(req), t.tx, req.Root, true); err != nil {
+			return err
+		}
+		t.journalLocked = true
+	}
+	if err := artifact.RecordProjection(req.Root, req.Tx, key); err != nil {
 		return err
 	}
-
-	if artifact.Durable(key) {
-		var data []byte
-		var mode uint32
-		err := t.tx.QueryRow("SELECT content,mode FROM artifacts WHERE path=$1", key).Scan(&data, &mode)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		t.originals[key] = original{Content: data, Exists: err == nil, Mode: os.FileMode(mode)}
-	} else {
-		data, err := os.ReadFile(path)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		mode := os.FileMode(0644)
-		if info, e := os.Stat(path); e == nil {
-			mode = info.Mode().Perm()
-		}
-		t.originals[key] = original{Content: data, Exists: err == nil, Mode: mode}
-	}
+	t.tracked[key] = struct{}{}
 	return nil
 }
 func restore(t *transaction) error {
-	var failures []error
-	for key, old := range t.originals {
-		path, err := safePath(t.root, key)
-		if err != nil {
-			failures = append(failures, err)
-			continue
-		}
-		if old.Exists {
-			err = os.MkdirAll(filepath.Dir(path), 0755)
-			if err == nil {
-				err = os.WriteFile(path, old.Content, old.Mode)
-			}
-		} else {
-			err = os.Remove(path)
-			if os.IsNotExist(err) {
-				err = nil
-			}
-		}
-		if err != nil {
-			failures = append(failures, err)
-		}
+	if !t.journalLocked {
+		return nil
 	}
-	return errors.Join(failures...)
+	return artifact.RecoverProjectionTransaction(t.root, t.token, t.model)
 }
 func (r *Runtime) restoreWorkspace(root string) error {
-	db, err := artifact.Database(root)
-	if err != nil {
-		return err
-	}
-	rows, err := db.Query("SELECT path,content,mode FROM artifacts")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var key string
-		var data []byte
-		var mode uint32
-		if err = rows.Scan(&key, &data, &mode); err != nil {
-			return err
-		}
-		path, e := safePath(root, key)
-		if e != nil {
-			return e
-		}
-		if err = os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return err
-		}
-		if err = os.WriteFile(path, data, fs.FileMode(mode)); err != nil {
-			return err
-		}
-	}
-	return rows.Err()
+	return artifact.Restore(context.Background(), root)
 }
 func (r *Runtime) artifactOperation(req Request) (any, error) {
 	db, err := r.database(req)
@@ -112,6 +53,28 @@ func (r *Runtime) artifactOperation(req Request) (any, error) {
 		return nil, err
 	}
 	switch req.Op {
+	case "list":
+		var prefix string
+		if err = decode(req.Args, &prefix); err != nil {
+			return nil, err
+		}
+		if _, err = safePath(req.Root, prefix); err != nil {
+			return nil, err
+		}
+		rows, err := db.Query("SELECT path FROM artifacts WHERE starts_with(path,$1) ORDER BY path", prefix)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		paths := []string{}
+		for rows.Next() {
+			var path string
+			if err = rows.Scan(&path); err != nil {
+				return nil, err
+			}
+			paths = append(paths, path)
+		}
+		return paths, rows.Err()
 	case "publish":
 		var files []fileEntry
 		if err = decode(req.Args, &files); err != nil {
@@ -147,6 +110,9 @@ func (r *Runtime) artifactOperation(req Request) (any, error) {
 		var content []byte
 		err = db.QueryRow("SELECT content FROM artifacts WHERE path=$1", key).Scan(&content)
 		if errors.Is(err, sql.ErrNoRows) {
+			if t := r.transactions[req.Tx]; t != nil && t.readOnly {
+				return nil, os.ErrNotExist
+			}
 			content, err = os.ReadFile(path)
 		}
 		return content, err

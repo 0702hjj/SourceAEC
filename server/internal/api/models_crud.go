@@ -55,7 +55,13 @@ func (h *handler) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	// dxf 无 XKT 转换（services/cad 直接产 render.json），创建即 ready、不入队。
 	if kind == store.KindIFC {
-		h.q.Enqueue(m.ID)
+		if !h.q.Enqueue(m.ID) {
+			m, err = h.st.Get(m.ID)
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
+				return
+			}
+		}
 	}
 	writeJSON(w, m)
 }
@@ -167,7 +173,16 @@ func (h *handler) serveModelFile(name string) http.HandlerFunc {
 			}
 		}
 		w.Header().Set("Cache-Control", "no-store")
-		http.ServeFile(w, r, filepath.Join(h.st.ModelDir(m.ID), name))
+		path := filepath.Join(h.st.ModelDir(m.ID), name)
+		if name == "model.xkt" || name == "metadata.json" {
+			var err error
+			path, err = h.st.ViewerPath(r.Context(), m.ID, name, r.URL.Query().Get("generation"))
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+		}
+		http.ServeFile(w, r, path)
 	}
 }
 

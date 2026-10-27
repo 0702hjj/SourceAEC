@@ -36,6 +36,9 @@
 
 单模型详情，结构同上。
 
+IFC 转换成功后，`previewGeneration` 表示已发布预览的 generation。
+源更新后，旧预览会失效，直到对应转换完成。
+
 ### POST /api/v1/models/{id}/retry
 
 对 failed 模型重新入队转换，返回更新后的模型对象。
@@ -113,6 +116,10 @@ change log 与 Issue 的 `provenance.source` 取值都是 `UI`、`AI`、`USER` �
 | `GET /v1/models/{id}/metadata.json` | xeokit 元模型，schema 见下 |
 | `GET /v1/models/{id}/render.json` | CAD 渲染数据，仅 dxf 模型，schema 见下 |
 | `GET /v1/models/{id}/issues/{file}` | Issue 截图，`file` 必须匹配 `i_[0-9a-f]{12}\.png` |
+
+XKT 与 metadata 请求可携带 `?generation=<previewGeneration>`，两者应使用
+同一次模型详情返回的值。指定 generation 已过期，或预览不属于当前已提交源时
+返回 404；未指定时解析当前 generation。客户端应重新获取模型状态后加载完整预览。
 
 ## metadata.json Schema
 

@@ -9,10 +9,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
-	"time"
 	"testing"
+	"time"
 
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/store"
 )
@@ -48,7 +47,7 @@ func newInitModelHandler(t *testing.T, fakeURL string) (*ChatHandler, *store.Pro
 	ed := editsvc.New(fakeURL)
 	cad := editsvc.New(fakeURL)
 	runs := make(chan string, 8)
-	q := convert.NewQueue(st, okRunner2{runs: runs}, 1)
+	q := testConversionQueue(t, st, okRunner2{runs: runs}, 1)
 	h := &ChatHandler{
 		deps:     ChatDeps{St: st, Ps: ps, PlanSt: store.NewPlanStore(dataDir), Ed: ed, Cad: cad, Q: q, DataDir: dataDir},
 		mux:      http.NewServeMux(),

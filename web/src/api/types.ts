@@ -2,6 +2,7 @@
 // Copyright (C) 2026 0702hjj
 
 export interface ModelInfo {
+	previewGeneration?: string;
   revision?: string;
   id: string;
   name: string;

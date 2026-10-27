@@ -13,7 +13,6 @@ import (
 	"sync"
 	"testing"
 
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/store"
 )
 
@@ -21,7 +20,7 @@ import (
 func newProjectChatHandler(t *testing.T, st *store.Store, ps *store.ProjectStore) *ChatHandler {
 	t.Helper()
 	dataDir := t.TempDir()
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	h := &ChatHandler{
 		deps:     ChatDeps{St: st, Ps: ps, Q: q, DataDir: dataDir},
 		mux:      http.NewServeMux(),

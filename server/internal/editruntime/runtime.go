@@ -37,15 +37,13 @@ type queryer interface {
 	Query(string, ...any) (*sql.Rows, error)
 	QueryRow(string, ...any) *sql.Row
 }
-type original struct {
-	Content []byte
-	Mode    os.FileMode
-	Exists  bool
-}
 type transaction struct {
-	tx        *sql.Tx
-	root      string
-	originals map[string]original
+	tx            *sql.Tx
+	root          string
+	tracked       map[string]struct{}
+	token, model  string
+	journalLocked bool
+	readOnly      bool
 }
 type candidate struct{ directory, repo, branch, root, model string }
 type Runtime struct {
@@ -86,9 +84,11 @@ func (r *Runtime) database(req Request) (queryer, error) {
 	return artifact.Database(req.Root)
 }
 func (r *Runtime) Close() {
-	for _, t := range r.transactions {
+	for token, t := range r.transactions {
 		_ = t.tx.Rollback()
-		_ = restore(t)
+		if t.journalLocked && restore(t) == nil {
+			artifact.ForgetProjections(t.root, token)
+		}
 	}
 	for _, c := range r.candidates {
 		_ = os.RemoveAll(c.directory)
@@ -135,18 +135,23 @@ func (r *Runtime) Handle(req Request) (any, error) {
 		r.opened[req.Root] = true
 		return nil, nil
 	}
-	if req.Op == "begin" {
+	if req.Op == "begin" || req.Op == "begin_read" {
 		r.opened[req.Root] = true
 		db, err := artifact.Database(req.Root)
 		if err != nil {
 			return nil, err
 		}
-		tx, err := db.BeginTx(runtimeContext(req), nil)
+		var options *sql.TxOptions
+		if req.Op == "begin_read" {
+			options = &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}
+		}
+		tx, err := db.BeginTx(runtimeContext(req), options)
 		if err != nil {
 			return nil, err
 		}
 		id := token()
-		r.transactions[id] = &transaction{tx: tx, root: req.Root, originals: map[string]original{}}
+		r.transactions[id] = &transaction{tx: tx, root: req.Root, token: id, tracked: map[string]struct{}{}}
+		r.transactions[id].readOnly = options != nil
 		return id, nil
 	}
 	if req.Op == "lock" {
@@ -158,12 +163,11 @@ func (r *Runtime) Handle(req Request) (any, error) {
 		if err := decode(req.Args, &model); err != nil {
 			return nil, err
 		}
-		namespace, err := artifact.Namespace(req.Root)
-		if err != nil {
+		if err := artifact.LockModel(runtimeContext(req), t.tx, req.Root, model); err != nil {
 			return nil, err
 		}
-		_, err = t.tx.ExecContext(runtimeContext(req), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", namespace+":"+model)
-		return nil, err
+		t.model = model
+		return nil, nil
 	}
 	if req.Op == "commit" || req.Op == "rollback" {
 		t := r.transactions[req.Tx]
@@ -174,14 +178,22 @@ func (r *Runtime) Handle(req Request) (any, error) {
 		if req.Op == "rollback" {
 			err := t.tx.Rollback()
 			e := restore(t)
+			if t.journalLocked && e == nil {
+				artifact.ForgetProjections(t.root, req.Tx)
+			}
 			if err != nil {
 				return nil, err
 			}
 			return nil, e
 		}
 		if err := t.tx.Commit(); err != nil {
-			_ = restore(t)
+			if t.journalLocked && restore(t) == nil {
+				artifact.ForgetProjections(t.root, req.Tx)
+			}
 			return nil, err
+		}
+		if t.journalLocked {
+			artifact.ForgetProjections(t.root, req.Tx)
 		}
 		return nil, nil
 	}

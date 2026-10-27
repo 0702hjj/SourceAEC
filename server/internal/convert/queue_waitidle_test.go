@@ -32,14 +32,15 @@ func TestWaitIdleDrainsInflightJob(t *testing.T) {
 	if err := st.Recover(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateWithKind("m_0123456789abcdef", 1, strings.NewReader("x"), store.KindIFC); err != nil {
+	m, err := st.CreateWithKind("synthetic.ifc", 1, strings.NewReader("x"), store.KindIFC)
+	if err != nil {
 		t.Fatal(err)
 	}
 	runner := &blockRunner{release: make(chan struct{}), started: make(chan struct{}, 1)}
-	q := NewQueue(st, runner, 1)
+	q := testQueue(t, st, runner, 1)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	q.Start(rootCtx)
-	if !q.Enqueue("m_0123456789abcdef") {
+	if !q.Enqueue(m.ID) {
 		t.Fatal("enqueue 失败")
 	}
 	<-runner.started // 转换执行中
@@ -73,13 +74,14 @@ func TestWaitIdleBudgetExpiry(t *testing.T) {
 	if err := st.Recover(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := st.CreateWithKind("m_0123456789abcdef", 1, strings.NewReader("x"), store.KindIFC); err != nil {
+	m, err := st.CreateWithKind("synthetic.ifc", 1, strings.NewReader("x"), store.KindIFC)
+	if err != nil {
 		t.Fatal(err)
 	}
 	runner := &blockRunner{release: make(chan struct{}), started: make(chan struct{}, 1)}
-	q := NewQueue(st, runner, 1)
+	q := testQueue(t, st, runner, 1)
 	q.Start(context.Background())
-	if !q.Enqueue("m_0123456789abcdef") {
+	if !q.Enqueue(m.ID) {
 		t.Fatal("enqueue 失败")
 	}
 	<-runner.started

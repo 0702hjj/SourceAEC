@@ -88,7 +88,7 @@ type spyRunner struct{ runs chan string }
 
 func (s spyRunner) Run(ctx context.Context, in, out string) error {
 	s.runs <- in
-	return nil
+	return writeTestViewer(out)
 }
 
 type editEnv struct {
@@ -124,7 +124,7 @@ func newEditEnvWithClient(t *testing.T, ed *editsvc.Client, chg change.Store) *e
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	runs := make(chan string, 4)
-	q := convert.NewQueue(st, spyRunner{runs: runs}, 1)
+	q := testConversionQueue(t, st, spyRunner{runs: runs}, 1)
 	q.Start(ctx)
 	if chg == nil {
 		chg = change.NewFileStore(st.DataDir)

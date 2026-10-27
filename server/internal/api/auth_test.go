@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"ifcviewer/server/internal/change"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
 	"ifcviewer/server/internal/store"
@@ -24,7 +23,7 @@ func setupSecure(t *testing.T, token string, origins []string) (*httptest.Server
 	st := store.NewStore(t.TempDir())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	q.Start(ctx)
 	h := NewHandlerWithCORS(st, q, issue.NewFileStore(st.DataDir), change.NewFileStore(st.DataDir), override.NewFileStore(st.DataDir), nil, nil, 1<<20, origins)
 	srv := httptest.NewServer(TokenAuth(token)(h))
