@@ -44,6 +44,12 @@ describe("api client", () => {
     expect(renderJsonUrl("m_x")).toBe("/v1/models/m_x/render.json?token=s3%20cret");
     expect(issueAssetUrl("m_x", { screenshot: "issues/i_x.png" } as never)).toBe("/v1/models/m_x/issues/i_x.png?token=s3%20cret");
   });
+  it("pins both preview assets to a generation without losing authentication", () => {
+    expect(modelAssetUrl("m_x", "model.xkt", "snapshot-a")).toBe("/v1/models/m_x/model.xkt?generation=snapshot-a");
+    setToken("s3 cret");
+    expect(modelAssetUrl("m_x", "model.xkt", "snapshot-a")).toBe("/v1/models/m_x/model.xkt?token=s3%20cret&generation=snapshot-a");
+    expect(modelAssetUrl("m_x", "metadata.json", "snapshot-a")).toBe("/v1/models/m_x/metadata.json?token=s3%20cret&generation=snapshot-a");
+  });
   it("deleteModel uses DELETE", async () => {
     const spy = vi.fn(async () => new Response(JSON.stringify(envelope(null)), { status: 200 }));
     vi.stubGlobal("fetch", spy);

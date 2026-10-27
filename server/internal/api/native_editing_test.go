@@ -16,7 +16,6 @@ import (
 
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/change"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
@@ -38,7 +37,7 @@ func nativeAPI(t *testing.T, kind string) (http.Handler, *store.Store, string) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	q.Start(ctx)
 	t.Cleanup(func() {

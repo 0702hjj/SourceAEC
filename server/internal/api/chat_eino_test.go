@@ -19,7 +19,6 @@ import (
 	"github.com/cloudwego/eino/schema"
 
 	"ifcviewer/server/internal/agent"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/store"
 )
@@ -254,7 +253,7 @@ func TestPostMessageTurnEndTriggersNotify(t *testing.T) {
 	dataDir := t.TempDir()
 	st := store.NewStore(dataDir)
 	runs := make(chan string, 4)
-	q := convert.NewQueue(st, spyRunner{runs: runs}, 1)
+	q := testConversionQueue(t, st, spyRunner{runs: runs}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)

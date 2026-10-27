@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0
+package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+
+	"ifcviewer/server/internal/artifact"
+)
+
+func (s *Store) SetStatusContext(ctx context.Context, id, status, detail string) error {
+	if !validID(id) {
+		return ErrInvalidID
+	}
+	db, err := artifact.Database(s.DataDir)
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = artifact.LockModel(ctx, tx, s.DataDir, id); err != nil {
+		return err
+	}
+	key := "models/" + id + "/model.json"
+	var raw []byte
+	if err = tx.QueryRowContext(ctx, "SELECT content FROM artifacts WHERE path=$1", key).Scan(&raw); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	var model Model
+	if err = json.Unmarshal(raw, &model); err != nil {
+		return err
+	}
+	model.Status, model.Error = status, detail
+	raw, err = json.Marshal(model)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE artifacts SET content=$2 WHERE path=$1", key, raw); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

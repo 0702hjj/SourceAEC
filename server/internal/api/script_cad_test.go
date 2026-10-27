@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/change"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
@@ -36,7 +35,7 @@ func newCadEnvWithClient(t *testing.T, ed, cad *editsvc.Client) *editEnv {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	runs := make(chan string, 4)
-	q := convert.NewQueue(st, spyRunner{runs: runs}, 1)
+	q := testConversionQueue(t, st, spyRunner{runs: runs}, 1)
 	q.Start(ctx)
 	mux := NewHandler(st, q, issue.NewFileStore(st.DataDir), change.NewFileStore(st.DataDir),
 		override.NewFileStore(st.DataDir), ed, cad, 1<<20)

@@ -17,7 +17,6 @@ import (
 	"testing"
 
 	"ifcviewer/server/internal/agent"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/store"
 )
 
@@ -28,7 +27,7 @@ func newProjectE2EHandler(t *testing.T, script agent.Script) (*ChatHandler, *sto
 	st := store.NewStore(dataDir)
 	ps := store.NewProjectStore(dataDir)
 	planSt := store.NewPlanStore(dataDir)
-	q := convert.NewQueue(st, okRunner{}, 1)
+	q := testConversionQueue(t, st, okRunner{}, 1)
 	h := &ChatHandler{
 		deps:     ChatDeps{St: st, Ps: ps, PlanSt: planSt, Q: q, DataDir: dataDir},
 		mux:      http.NewServeMux(),

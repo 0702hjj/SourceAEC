@@ -20,7 +20,6 @@ import (
 	"github.com/cloudwego/eino/components/model"
 
 	"ifcviewer/server/internal/agent"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/store"
 )
@@ -95,7 +94,7 @@ func newFlowHarness(t *testing.T) *flowHarness {
 	ps := store.NewProjectStore(dataDir)
 	planSt := store.NewPlanStore(dataDir)
 	runs := make(chan string, 16)
-	q := convert.NewQueue(st, okRunner2{runs: runs}, 1)
+	q := testConversionQueue(t, st, okRunner2{runs: runs}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)

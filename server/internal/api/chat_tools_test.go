@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/agent"
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/store"
 )
@@ -85,7 +84,7 @@ func newToolsTestHandler(t *testing.T, script agent.Script, fakeIFC, fakeCAD *fa
 	dataDir := t.TempDir()
 	st := store.NewStore(dataDir)
 	runs := make(chan string, 8)
-	q := convert.NewQueue(st, okRunner2{runs: runs}, 1)
+	q := testConversionQueue(t, st, okRunner2{runs: runs}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)
@@ -128,7 +127,7 @@ func (r okRunner2) Run(ctx context.Context, in, out string) error {
 		default:
 		}
 	}
-	return nil
+	return writeTestViewer(out)
 }
 
 // --- 装配契约：AgentToolDeps / DomainTools / SetAgent ---

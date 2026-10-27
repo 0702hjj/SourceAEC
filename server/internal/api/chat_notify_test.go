@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/store"
 )
@@ -26,7 +25,7 @@ func newNotifyTestHandler(t *testing.T, pyURL string) (*ChatHandler, *store.Stor
 	dataDir := t.TempDir()
 	st := store.NewStore(dataDir)
 	runs := make(chan string, 4)
-	q := convert.NewQueue(st, spyRunner{runs: runs}, 1)
+	q := testConversionQueue(t, st, spyRunner{runs: runs}, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	q.Start(ctx)
@@ -220,21 +219,7 @@ func TestNotifyReconvertSkippedWhenNotStale(t *testing.T) {
 
 	py.set("DELETE", "/models/"+mid+"/pending", 200, `{"discarded":0}`)
 
-	// 造一个 mtime 不早于 IFC 的 XKT → 同源未变
-	base := time.Now()
-	if err := os.Chtimes(h.deps.St.IFCPath(mid), base, base); err != nil {
-		t.Fatal(err)
-	}
-	xkt := filepath.Join(h.deps.DataDir, "models", mid, "model.xkt")
-	if err := os.WriteFile(xkt, []byte("xkt"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chtimes(xkt, base, base.Add(time.Minute)); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.SetStatus(mid, "ready", ""); err != nil {
-		t.Fatal(err)
-	}
+	publishTestViewer(t, st, mid)
 
 	h.notify(cs)
 
