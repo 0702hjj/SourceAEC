@@ -35,6 +35,7 @@ type Response struct {
 type queryer interface {
 	Exec(string, ...any) (sql.Result, error)
 	Query(string, ...any) (*sql.Rows, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRow(string, ...any) *sql.Row
 }
 type transaction struct {

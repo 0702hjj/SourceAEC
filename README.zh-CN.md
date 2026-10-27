@@ -2,12 +2,112 @@
 
 [English](README.md)
 
-SourceAEC 是开源、自托管、面向 Agent 的 IFC/CAD 操作接口。业务代码全部使用
+SourceAEC 是开源、自托管、面向 Agent 的 IFC 操作接口，支持可选的方案与 DXF 工作流。业务代码全部使用
 Go：编辑 API、暂存、校验、沙箱编排、持久化、Git、版本、方案交付和 MCP。
 
 Python 仅作为外部几何运行时。模型源码由用户或 Agent 生成，在沙箱中执行；
 仓库不维护 Python 应用、SDK、CLI、hooks 或测试。skill 只保留必要的声明和参考，
 不捆绑上游 SDK。IfcOpenShell、ezdxf、SimpleCADAPI 等属于外部运行能力。
+
+领域服务与外部 CAD 引擎的职责见[引擎与集成边界](docs/site/development/integration-boundaries.md)。
+
+## 架构
+
+```mermaid
+flowchart TB
+    WEB[Web / IFC 与 DXF 查看器] --> API[Go 网关 / 鉴权 / REST 与 SSE]
+    MCP[外部 MCP 桥接] -->|认证 HTTP| API
+    API --> AGENT[Agent 工具与应用编排]
+    API --> EDIT[editsvc / editing 生命周期]
+    AGENT --> EDIT
+    EDIT -->|脚本与参数 GET| READ[数据库只读快照]
+    READ --> PG[(PostgreSQL / 权威业务数据)]
+    EDIT -->|编辑写入| GATE[共同模型准入<br/>命名空间 + 模型 / 每进程 1 个活动者与 64 个等待者]
+    GATE --> WRITE[editing + editruntime<br/>事务 / 模型锁 / Git bundle]
+    WRITE --> PG
+    WRITE --> INPUT[项目归属与输入快照<br/>单条数据库语句 / 复用调用者连接]
+    INPUT --> PG
+    WRITE --> SANDBOX[共享 3 个名额 / 准备与执行 / bubblewrap]
+    SANDBOX --> PY[外部 Python 几何运行时]
+    PY --> WRITE
+    WRITE --> JOURNAL[投影 journal / 可重建工作区]
+    API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]
+    QUEUE --> SOURCE[已提交 IFC 与构建身份快照]
+    SOURCE --> PG
+    SOURCE --> NODE[Node 转换器 / 私有输入输出]
+    NODE -->|发布结果| GATE
+    QUEUE -->|状态更新| GATE
+    GATE --> DERIVED[store 事务 / 模型锁<br/>拒绝过期结果]
+    DERIVED --> PG
+    DERIVED --> CACHE[不可变预览 generation<br/>XKT + metadata]
+    API --> VIEW[校验请求的预览 generation]
+    VIEW --> PG
+    VIEW --> CACHE
+    RECOVER[启动与回滚恢复] --> PG
+    RECOVER --> JOURNAL
+    API --> OTHER[其他 store 操作<br/>模型 / 项目 / 方案]
+    OTHER --> PG
+```
+
+编辑写入、转换发布和状态更新共用数据库连接前的模型准入，PostgreSQL 模型锁
+继续保证跨进程互斥。几何执行仍持有编辑事务；进程内预算不代表跨副本共享资源上限。
+
+## 主要数据链路
+
+```mermaid
+sequenceDiagram
+    participant U as Web 或 Agent
+    participant A as Go 网关
+    participant E as 编辑生命周期
+    participant P as PostgreSQL
+    participant S as 几何沙箱
+    participant F as Journal 与文件投影
+    participant Q as IFC 转换队列
+    U->>A: GET script
+    A->>E: 读取已提交脚本快照
+    E->>P: 只读事务
+    P-->>E: 已提交脚本数据
+    E-->>A: 脚本与 revision
+    A-->>U: 脚本与 revision
+    U->>A: PUT script，携带 baseRevision
+    A->>E: 暂存源码
+    E->>P: 模型准入、事务与锁，校验 revision
+    E->>P: 写入暂存状态
+    E->>F: 先记录路径 journal，再更新投影
+    E->>P: 提交
+    U->>A: POST run 或 save
+    A->>E: 执行当前源码
+    E->>P: 模型准入、事务与锁
+    E->>P: 在单条语句内取得项目归属与输入字节快照
+    E->>S: 只读输入 / 隔离几何执行
+    Note over E,P: 执行期间仍持有编辑事务与模型锁
+    S-->>E: 产品、源码映射与环境身份
+    E->>P: 写入当前产物与构建、输入记录
+    opt 保存版本
+        E->>P: 写入不可变版本、暂存清理与 Git bundle
+    end
+    E->>F: 先记录路径 journal，再更新投影
+    E->>P: 提交
+    E-->>A: 编辑成功
+    alt IFC
+        A->>Q: 按已提交源与构建身份判断是否入队
+        A-->>U: 编辑成功；预览转换异步进行
+        Q->>P: 读取固定源快照
+        Q->>Q: 在私有目录转换
+        Q->>P: 取得模型准入与锁，重新校验身份
+        opt 转换成功
+            Q->>F: 发布完整的不可变预览 generation
+        end
+        Q->>P: 提交匹配的 ready/failed 状态及成功预览清单
+    else DXF
+        Note over E,F: 编辑时已生成 render.json
+        A-->>U: 返回编辑结果
+    end
+```
+
+`run` 更新当前产品但不创建版本；`save` 再次执行源码并保存不可变版本；
+`rollback` 使用归档输入重新执行旧源码。IFC 模型提交与预览转换是两个完成点，
+过期转换结果不能替换当前预览。
 
 ## 启动
 
@@ -30,6 +130,42 @@ cd ../server && go run ./cmd/server
 试运行成功并检查真实产物后再保存。方案交付只校验并版本化声明性数据，
 不包含旧规划 CLI 的自动设计或合规判断。
 
+## 仓库目录与职责
+
+| 路径 | 职责 |
+| --- | --- |
+| `server/cmd/server` | 网关启动、配置、依赖装配与生命周期 |
+| `server/cmd/sourceaec-mcp` | 外部 stdio MCP 入口，通过认证网关调用业务 |
+| `server/cmd/edit-runtime` | 存储与版本操作的私有 stdio 协议适配 |
+| `server/cmd/loadgen` | HTTP/SSE、读取与上传负载工具 |
+| `server/cmd/migrate-sqlite` | 历史 SQLite 数据的离线迁移 |
+| `server/internal/api` | REST、鉴权、响应 envelope、聊天与 SSE 适配 |
+| `server/internal/agent` | Agent 编排、工具、审批、技能与文件访问边界 |
+| `server/internal/editsvc` | 进程内编辑客户端与 HTTP 兼容适配 |
+| `server/internal/editing` | IFC/DXF 共用的暂存、执行、比较、保存、回滚及格式适配 |
+| `server/internal/editruntime` | 事务、Git bundle、构建与输入快照、私有协议分派 |
+| `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
+| `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |
+| `server/internal/change`, `server/internal/issue`, `server/internal/override` | 来源记录、审阅问题与属性覆盖 |
+| `server/internal/convert` | 有界 IFC 转换队列、源快照、过期结果处理与 Node 适配 |
+| `server/internal/metrics` | 请求、队列、准入与执行观测 |
+| `server/internal/mcpbridge` | MCP 工具到认证网关的桥接 |
+| `server/internal/migration`, `server/internal/reviewmigration` | 历史数据迁移与验证 |
+| `server/internal/releasepackage` | 服务端分发与打包约束检查 |
+| `web/src/api` | 浏览器请求封装与 API 契约 |
+| `web/src/pages`, `web/src/components` | 页面、聊天与模型操作界面 |
+| `web/src/ifcviewer`, `web/src/dxfviewer`, `web/src/viewer` | IFC/DXF 渲染与查看交互适配 |
+| `converter/convert.js`, `converter/lib` | IFC 到 XKT 与 metadata 的转换 |
+| `converter/test` | 转换测试与合成几何样例 |
+| `skills/sourceaec` | 集成声明、可选格式参考与许可证通知 |
+| `examples` | 可公开的示例输入与模型源码 |
+| `docs/site` | 公共 VitePress 文档；`docs` 同时保存构建配置 |
+| `scripts` | 构建、发行、smoke/集成验证与仓库边界检查 |
+| `.github/workflows` | PR 验证与手动工作流 |
+
+`data/`、构建输出、依赖目录和缓存属于运行或生成状态，不是维护源码。
+已退役的服务目录不属于在线业务组件；Python 几何库保留为外部依赖。
+
 ## 验证
 
 ```bash
@@ -49,28 +185,6 @@ Go MCP 桥。前端、转换器和几何依赖单独安装。MCP 通过 `SOURCEA
 
 文档：<https://0702hjj.github.io/SourceAEC/>。贡献与授权要求见
 [CONTRIBUTING.md](CONTRIBUTING.md)，许可证与依赖声明见 [NOTICE](NOTICE)。
-
-## 开发来源声明
-
-SourceAEC 是一项独立实现，其公开技术背景包括 SimpleCADAPI 项目及其发表于
-*Computer-Aided Design* 的相关研究、公开 IFC 标准、有文档记录的开源接口和其他
-公开技术资料。任何第三方的私有或保密仓库、源代码、内部文档、客户数据、图纸或
-其他非公开技术材料，均未被有意用作实现输入或复制到本项目中。公开 Git 历史始于
-首次源码快照；此后的开发由 commit 和 Pull Request 记录。
-
-本项目在维护者实习合同约定的职责范围之外独立开展，并非为履行实习工作任务而
-开发；未利用实习单位的物质技术条件，完全基于公开资料及个人自费取得的设备、
-账号、算力与其他资源独立实现。
-
-所有贡献都必须具有可说明的合法来源。贡献者须确认其有权提交相关内容，披露所含
-第三方材料及其许可证，并且不得提交保密信息或商业秘密。DCO 签署和来源要求详见
-[CONTRIBUTING.md](CONTRIBUTING.md)。如认为仓库中的材料侵犯了你的合法权益，请
-通过 Issue 或私密渠道提供受影响的路径和权利依据，以便及时调查处理。不要在公开
-Issue 中披露保密材料或个人数据；如可用，应优先使用 GitHub 私密安全报告或私下联系
-维护者。
-
-项目的独立来源、开发记录、权利立场和第三方许可边界详见
-[PROJECT_PROVENANCE.md](PROJECT_PROVENANCE.md)。
 
 ## 使用边界与保证
 
