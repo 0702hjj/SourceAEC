@@ -9,7 +9,8 @@ people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
-SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与集成边界](docs/site/development/integration-boundaries.md)。
+See [engine and integration boundaries](docs/site/development/integration-boundaries.md)
+for the responsibilities of SourceAEC domain services and external CAD engines.
 
 ## Highlights
 
@@ -24,26 +25,104 @@ SourceAEC 的领域服务与通用 CAD 引擎之间的职责边界见[引擎与�
 
 ## Architecture
 
-```text
-Browser / Agent / Go MCP bridge
-                 |
-                 v
-Go gateway :8090 (editing + sandbox orchestration + agent)
-        |             |                  |
-   PostgreSQL      converter       bubblewrap sandbox
-                                   generated model source
-                                   external geometry runtime
+```mermaid
+flowchart TB
+    WEB[Web / IFC and DXF viewers] --> API[Go gateway / authentication / REST and SSE]
+    MCP[External MCP bridge] -->|Authenticated HTTP| API
+    API --> AGENT[Agent tools and application workflows]
+    API --> EDIT[editsvc / editing lifecycle]
+    AGENT --> EDIT
+    EDIT -->|Script and parameter GET| READ[Read-only database snapshot]
+    READ --> PG[(PostgreSQL / authoritative business data)]
+    EDIT -->|Editing writes| GATE[Shared model admission<br/>Namespace + model / 1 active + 64 waiting per process]
+    GATE --> WRITE[editing + editruntime<br/>Transaction / model lock / Git bundle]
+    WRITE --> PG
+    WRITE --> INPUT[Project ownership and input snapshot<br/>One database statement / caller connection]
+    INPUT --> PG
+    WRITE --> SANDBOX[3 shared slots / preparation and execution / bubblewrap]
+    SANDBOX --> PY[External Python geometry runtime]
+    PY --> WRITE
+    WRITE --> JOURNAL[Projection journal / disposable workspace]
+    API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
+    QUEUE --> SOURCE[Committed IFC and build identity snapshot]
+    SOURCE --> PG
+    SOURCE --> NODE[Node converter / private input and output]
+    NODE -->|Publish result| GATE
+    QUEUE -->|Status update| GATE
+    GATE --> DERIVED[store transaction / model lock<br/>Reject stale results]
+    DERIVED --> PG
+    DERIVED --> CACHE[Immutable preview generation<br/>XKT + metadata]
+    API --> VIEW[Validate requested preview generation]
+    VIEW --> PG
+    VIEW --> CACHE
+    RECOVER[Startup and rollback recovery] --> PG
+    RECOVER --> JOURNAL
+    API --> OTHER[Other store operations<br/>Models / projects / planning]
+    OTHER --> PG
 ```
 
-## Screenshots
+Editing writes, conversion publication and status updates share admission before
+acquiring database connections. PostgreSQL locks provide cross-process exclusion.
+Geometry execution still holds its editing transaction; the process budgets do
+not provide a shared resource limit across replicas.
 
-| Model library | IFC properties |
-|---|---|
-| ![Model library](assets/screenshots/library.png) | ![IFC properties](assets/screenshots/properties.png) |
+## Main Data Flow
 
-| Version diff | AI chat |
-|---|---|
-| ![Version diff](assets/screenshots/diff.png) | ![AI chat](assets/screenshots/chat.png) |
+```mermaid
+sequenceDiagram
+    participant U as Web or Agent
+    participant A as Go gateway
+    participant E as Editing lifecycle
+    participant P as PostgreSQL
+    participant S as Geometry sandbox
+    participant F as Journal and file projections
+    participant Q as IFC conversion queue
+    U->>A: GET script
+    A->>E: Read committed script snapshot
+    E->>P: Read-only transaction
+    P-->>E: Committed script data
+    E-->>A: Script and revision
+    A-->>U: Script and revision
+    U->>A: PUT script with baseRevision
+    A->>E: Stage source
+    E->>P: Model admission, transaction and lock, check revision
+    E->>P: Write staging state
+    E->>F: Journal paths, then update projections
+    E->>P: Commit
+    U->>A: POST run or save
+    A->>E: Execute current source
+    E->>P: Model admission, transaction and lock
+    E->>P: Snapshot project ownership and input bytes in one statement
+    E->>S: Read-only inputs / isolated geometry execution
+    Note over E,P: Editing transaction and model lock remain held during execution
+    S-->>E: Product, source map and environment identity
+    E->>P: Write current artifacts and build/input records
+    opt Save
+        E->>P: Write immutable version, staging reset and Git bundle
+    end
+    E->>F: Journal paths, then update projections
+    E->>P: Commit
+    E-->>A: Editing succeeded
+    alt IFC
+        A->>Q: Enqueue if committed source/build identity is stale
+        A-->>U: Editing succeeded, preview conversion is asynchronous
+        Q->>P: Read a fixed source snapshot
+        Q->>Q: Convert in a private directory
+        Q->>P: Acquire model admission and lock, recheck identity
+        opt Conversion succeeded
+            Q->>F: Publish a complete immutable preview generation
+        end
+        Q->>P: Commit matching ready/failed status and successful preview manifest
+    else DXF
+        Note over E,F: Editing already produced render.json
+        A-->>U: Editing result
+    end
+```
+
+`run` updates the current product without creating a version. `save` executes
+the source again and creates an immutable version. `rollback` re-executes saved
+source with archived inputs. IFC model commit and preview conversion are separate
+completion points; stale conversion results cannot replace the current preview.
 
 ## Quick Start
 
@@ -72,14 +151,40 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 
 ## Repository Layout
 
-```text
-server/       Go gateway, editing domain, sandbox runner, agent and MCP bridge
-web/          React frontend
-converter/    IFC-to-XKT conversion
-skills/       one SourceAEC integration skill with optional IFC/DXF references
-scripts/      shell build and boundary checks
-docs/         public VitePress documentation
-```
+| Path | Responsibility |
+| --- | --- |
+| `server/cmd/server` | Gateway startup, configuration, dependency wiring and lifecycle |
+| `server/cmd/sourceaec-mcp` | External stdio MCP entry point; calls the authenticated gateway |
+| `server/cmd/edit-runtime` | Private stdio adapter for storage and version operations |
+| `server/cmd/loadgen` | HTTP/SSE, read and upload load tools |
+| `server/cmd/migrate-sqlite` | Offline migration of legacy SQLite data |
+| `server/internal/api` | REST, authentication, response envelopes, chat and SSE adapters |
+| `server/internal/agent` | Agent workflows, tools, approvals, skills and file-access boundaries |
+| `server/internal/editsvc` | In-process editing client and HTTP compatibility adapter |
+| `server/internal/editing` | Shared IFC/DXF staging, execution, comparison, save, rollback and format adapters |
+| `server/internal/editruntime` | Transactions, Git bundles, build/input snapshots and private protocol dispatch |
+| `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
+| `server/internal/store` | Models, projects, planning data, status and conditional preview publication |
+| `server/internal/change`, `server/internal/issue`, `server/internal/override` | Provenance, review issues and property overrides |
+| `server/internal/convert` | Bounded IFC conversion queue, source snapshots, stale-result handling and Node adapter |
+| `server/internal/metrics` | Request, queue, admission and execution observability |
+| `server/internal/mcpbridge` | MCP tools routed through the authenticated gateway |
+| `server/internal/migration`, `server/internal/reviewmigration` | Legacy data migration and verification |
+| `server/internal/releasepackage` | Server distribution and packaging checks |
+| `web/src/api` | Browser request clients and API contracts |
+| `web/src/pages`, `web/src/components` | Pages, chat and model-operation UI |
+| `web/src/ifcviewer`, `web/src/dxfviewer`, `web/src/viewer` | IFC/DXF rendering and viewer interaction adapters |
+| `converter/convert.js`, `converter/lib` | IFC-to-XKT and metadata conversion |
+| `converter/test` | Converter tests and synthetic geometry fixtures |
+| `skills/sourceaec` | Integration declarations, optional format references and license notices |
+| `examples` | Public example inputs and model source |
+| `docs/site` | Public VitePress documentation; `docs` also holds its build configuration |
+| `scripts` | Builds, releases, smoke/integration checks and repository boundaries |
+| `.github/workflows` | Pull-request verification and manual workflows |
+
+`data/`, build output, dependency directories and caches are runtime/generated
+state, not maintained source. Retired service directories are not online runtime
+components. Python geometry libraries remain external dependencies.
 
 ## Development
 
@@ -102,37 +207,6 @@ scripts/check_go_business.sh
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [documentation](https://0702hjj.github.io/SourceAEC/) for details.
-
-## Development Provenance
-
-SourceAEC is an independent implementation informed by the public SimpleCADAPI
-project and its related research published in *Computer-Aided Design*, public
-IFC standards, documented open-source interfaces, and other public technical
-literature. No private or confidential third-party repository, source code,
-internal document, customer data, drawing, or other non-public technical
-material was intentionally used as an implementation input or copied into this
-project. The public Git history begins with an initial source snapshot;
-subsequent development is recorded through commits and pull requests.
-
-The project was independently undertaken outside the duties specified in the
-maintainer's internship agreement and was not developed to perform an
-internship work assignment. It did not use the internship organization's
-material or technical resources and was implemented from public materials
-using personally funded resources.
-
-Contributions must have a documented, lawful provenance. Contributors certify
-their right to submit each contribution, disclose incorporated third-party
-material and its license, and must not submit confidential information or
-trade secrets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the DCO sign-off and
-provenance requirements. If you believe material in this repository infringes
-your rights, please open an Issue with the affected path and the basis of your
-claim so it can be investigated promptly. Do not disclose confidential
-materials or personal data in a public Issue; use a private GitHub security
-report or private maintainer contact when available.
-
-The project's independent origin, development record, rights position, and
-third-party licensing boundaries are described in
-[PROJECT_PROVENANCE.md](PROJECT_PROVENANCE.md).
 
 ## Use And Warranty Boundary
 
