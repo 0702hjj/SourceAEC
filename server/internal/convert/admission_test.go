@@ -3,7 +3,6 @@ package convert
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -53,21 +52,14 @@ func testFullModelAdmission(t *testing.T, shutdown bool) {
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
 	for {
-		// The exported waiting gauge increments before namespace resolution
-		// and registry admission. It cannot synchronize a full registry. Probe
-		// actual overload instead; a not-yet-full probe has its own deadline.
-		probe, stop := context.WithTimeout(ctx, 20*time.Millisecond)
-		unlock, err := artifact.AcquireModel(probe, st.DataDir, m.ID)
-		stop()
-		if err == nil {
-			unlock()
-			t.Fatal("probe acquired a held model")
-		}
-		if errors.Is(err, artifact.ErrModelQueueFull) {
-			break
-		}
-		if !errors.Is(err, context.DeadlineExceeded) {
+		// Observe actual registrations without consuming a waiting slot. The
+		// aggregate ModelWaiting gauge increments before registry admission.
+		users, err := artifact.ModelAdmissionUsers(st.DataDir, m.ID)
+		if err != nil {
 			t.Fatal(err)
+		}
+		if users == artifact.ModelWaitLimit+1 {
+			break
 		}
 		select {
 		case <-ticker.C:
