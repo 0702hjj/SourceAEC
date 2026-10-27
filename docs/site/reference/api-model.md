@@ -43,6 +43,8 @@ IFC 转换成功后，`previewGeneration` 表示已发布预览的 generation。
 
 对 failed 模型重新入队转换，返回更新后的模型对象。
 
+同模型写入等待队列已满时返回 HTTP 429，envelope 的 `code=42900`；稍后可重试。
+
 ### DELETE /api/v1/models/{id} {#delete-model}
 
 删除该模型的 IFC、XKT、metadata、状态文件及 issues、changes、overrides。

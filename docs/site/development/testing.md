@@ -20,6 +20,21 @@ go vet ./...
 `converter` 的 npm 依赖。它启用真实 IFC/DXF 几何及 IFC 转换器测试，验证转换
 快照、过期结果、预览 generation、进程崩溃恢复及脚本读取快照，并重复运行聚焦 race 检查。
 
+原生混合负载基准在 `server` 目录运行：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkMixedNativeEditing$' \
+  -benchtime=2000x -count=5 -cpu=1,4,8,16,32
+```
+
+它轮转脚本/参数读取、乐观暂存、运行和派生状态写入，报告所有操作的成功、冲突、
+过载、超时与其他错误数量、成功吞吐、p50/p95/p99 和连接池等待。
+默认使用确定性执行器；设置 `SOURCEAEC_BENCH_GEOMETRY=1` 及已准备好的
+`SOURCEAEC_PYTHON` 可测预热后的真实 IFC/DXF 几何，宜降低每组操作数。
+Linux 下每 5ms 采样进程树 RSS 之和，可能重复计入共享页、漏掉短命子进程，
+不包含 PostgreSQL，也不表示唯一内存占用或保证捕获峰值。
+该基准不包含 HTTP、Node 转换或冷依赖准备，不能作为这些链路的吞吐结论。
+
 其他组件：`web` 执行 npm test/lint/build；`converter` 执行 npm test；
 `docs` 执行 npm run docs:build。
 
