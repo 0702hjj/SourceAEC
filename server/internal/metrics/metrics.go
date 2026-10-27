@@ -46,6 +46,7 @@ var (
 	ConvertRunning   Counter // convert 队列执行中任务数
 	EditInFlight     Counter // Compatibility HTTP editing calls currently in flight.
 	EditModelWaiting Counter // Native edit requests waiting for a connection or model lock.
+	ModelWaiting     Counter // Editing and derived-product writers waiting for process admission.
 	ScriptRunning    Counter // Geometry jobs including environment preparation.
 	ScriptRejected   Counter // Geometry jobs rejected by process admission.
 )
@@ -59,6 +60,7 @@ func init() {
 			"convertRunning":   ConvertRunning.Value(),
 			"editInFlight":     EditInFlight.Value(),
 			"editModelWaiting": EditModelWaiting.Value(),
+			"modelWaiting":     ModelWaiting.Value(),
 			"scriptRunning":    ScriptRunning.Value(),
 			"scriptRejected":   ScriptRejected.Value(),
 		}

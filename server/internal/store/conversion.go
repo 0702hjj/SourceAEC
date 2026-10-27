@@ -79,6 +79,11 @@ func (s *Store) FinishConversion(ctx context.Context, id string, source Conversi
 	if !validID(id) {
 		return false, ErrInvalidID
 	}
+	release, err := artifact.AcquireModel(ctx, s.DataDir, id)
+	if err != nil {
+		return false, err
+	}
+	defer release()
 	db, err := artifact.Database(s.DataDir)
 	if err != nil {
 		return false, err

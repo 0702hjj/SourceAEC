@@ -14,6 +14,11 @@ func (s *Store) SetStatusContext(ctx context.Context, id, status, detail string)
 	if !validID(id) {
 		return ErrInvalidID
 	}
+	release, err := artifact.AcquireModel(ctx, s.DataDir, id)
+	if err != nil {
+		return err
+	}
+	defer release()
 	db, err := artifact.Database(s.DataDir)
 	if err != nil {
 		return err

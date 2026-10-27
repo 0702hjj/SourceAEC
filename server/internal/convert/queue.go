@@ -5,11 +5,13 @@ package convert
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
 	"time"
 
+	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/metrics"
 	"ifcviewer/server/internal/store"
 )
@@ -118,16 +120,24 @@ func (q *Queue) Enqueue(id string) bool {
 
 func (q *Queue) enqueue(id string) (bool, bool) {
 	q.mu.Lock()
+	unavailable := q.unavailableLocked(id)
+	q.mu.Unlock()
+	if unavailable {
+		return q.reject(id)
+	}
+	// Admission and database locks can wait for geometry. Never hold the queue
+	// mutex here: unrelated workers and producers must continue to progress.
+	if err := q.st.SetStatusContext(q.ctx, id, "converting", ""); err != nil && !errors.Is(err, artifact.ErrModelQueueFull) {
+		return false, false
+	}
+	// A full model gate must not drop a committed edit's conversion. The
+	// bounded queue still accepts it; the worker retries final publication.
+	q.mu.Lock()
+	if q.unavailableLocked(id) {
+		q.mu.Unlock()
+		return q.reject(id)
+	}
 	defer q.mu.Unlock()
-	if q.closed || q.ctx.Err() != nil || !q.pending[id] && len(q.jobs) == cap(q.jobs) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		_ = q.st.SetStatusContext(ctx, id, "failed", "conversion queue unavailable; retry")
-		return false, false
-	}
-	if err := q.st.SetStatusContext(q.ctx, id, "converting", ""); err != nil {
-		return false, false
-	}
 	if q.pending[id] {
 		if q.running[id] {
 			q.dirty[id] = true
@@ -138,6 +148,17 @@ func (q *Queue) enqueue(id string) (bool, bool) {
 	q.jobs <- id // capacity was checked under the producer mutex
 	q.publishDepthLocked()
 	return true, true
+}
+
+func (q *Queue) unavailableLocked(id string) bool {
+	return q.closed || q.ctx.Err() != nil || !q.pending[id] && len(q.jobs) == cap(q.jobs)
+}
+
+func (q *Queue) reject(id string) (bool, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_ = q.st.SetStatusContext(ctx, id, "failed", "conversion queue unavailable; retry")
+	return false, false
 }
 
 // Depth 返回队列当前深度快照（pending = 已排队+执行中；running = 执行中）。

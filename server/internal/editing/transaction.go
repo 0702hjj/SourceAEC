@@ -2,6 +2,8 @@
 package editing
 
 import (
+	"errors"
+
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/metrics"
 )
@@ -17,12 +19,11 @@ func (o *operation) begin() (func(), error) {
 	}
 	metrics.EditModelWaiting.Inc()
 	defer metrics.EditModelWaiting.Dec()
-	namespace, err := artifact.Namespace(o.service.Root)
+	release, err := artifact.AcquireModel(o.ctx, o.service.Root, o.model)
 	if err != nil {
-		return nil, err
-	}
-	release, err := editAdmission.acquire(o.ctx, namespace+":"+o.model)
-	if err != nil {
+		if errors.Is(err, artifact.ErrModelQueueFull) {
+			return nil, failure(429, err.Error())
+		}
 		return nil, err
 	}
 	value, err := o.call("begin", nil)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/metrics"
 	"ifcviewer/server/internal/store"
 )
 
@@ -44,6 +45,59 @@ func TestFullQueueRejectsWithoutBlockingShutdown(t *testing.T) {
 	defer cancel()
 	if !q.WaitIdle(ctx) {
 		t.Fatal("full queue blocked shutdown")
+	}
+}
+
+func TestModelAdmissionDoesNotBlockUnrelatedQueueWork(t *testing.T) {
+	st := store.NewStore(t.TempDir())
+	first, err := st.Create("first.ifc", 1, strings.NewReader("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := st.Create("second.ifc", 1, strings.NewReader("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := testQueue(t, st, fakeRunner{}, 1)
+	release, err := artifact.AcquireModel(context.Background(), st.DataDir, first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	done := make(chan bool, 1)
+	go func() { done <- q.Enqueue(first.ID) }()
+	t.Cleanup(func() {
+		release()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("enqueue did not finish after admission released")
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for metrics.ModelWaiting.Value() == 0 {
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			t.Fatal("first enqueue did not reach admission")
+		}
+	}
+	other := make(chan bool, 1)
+	go func() { other <- q.Enqueue(second.ID) }()
+	select {
+	case accepted := <-other:
+		if !accepted {
+			t.Fatal("unrelated model rejected")
+		}
+	case <-ctx.Done():
+		t.Fatal("one model's admission blocked the queue mutex")
+	}
+	current, err := st.Get(second.ID)
+	if err != nil || current.Status != "converting" && current.Status != "ready" {
+		t.Fatal(current, err)
 	}
 }
 
