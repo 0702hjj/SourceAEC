@@ -53,16 +53,17 @@ flowchart TB
     GATE --> DERIVED[store transaction / model lock<br/>Reject stale results]
     DERIVED --> PG
     DERIVED --> CACHE[Immutable preview generation<br/>XKT + metadata]
-    API --> VIEW[Validate requested preview generation]
+    API --> VIEW[Open committed preview generation under model lock]
     VIEW --> PG
     VIEW --> CACHE
+    GC[Collect unreferenced generations older than one hour] --> CACHE
     RECOVER[Startup and rollback recovery] --> PG
     RECOVER --> JOURNAL
     API --> OTHER[Other store operations<br/>Models / projects / planning]
     OTHER --> PG
 ```
 
-Editing writes, conversion publication and status updates share admission before
+Editing writes, model deletion, conversion publication and status updates share admission before
 acquiring database connections. PostgreSQL locks provide cross-process exclusion.
 Geometry preparation and execution release the database connection and model lock.
 Publication rejects changed source, inputs or branches with 409. Process budgets

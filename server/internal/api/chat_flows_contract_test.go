@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"ifcviewer/server/internal/agent"
+	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/store"
 )
 
@@ -66,7 +67,7 @@ func TestFlowPlanCadIFCFullChain(t *testing.T) {
 		t.Fatal(err)
 	}
 	zoneDXF := []byte("0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n")
-	if err := os.WriteFile(filepath.Join(uploads, "m_0123456789abcdef.dxf"), zoneDXF, 0o644); err != nil {
+	if err := artifact.WriteFile(filepath.Join(uploads, "m_0123456789abcdef.dxf"), zoneDXF, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// plan 注入（REST PUT → v1 归档；deliver_plan 后升 v2）

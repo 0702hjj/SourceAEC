@@ -41,16 +41,17 @@ flowchart TB
     GATE --> DERIVED[store 事务 / 模型锁<br/>拒绝过期结果]
     DERIVED --> PG
     DERIVED --> CACHE[不可变预览 generation<br/>XKT + metadata]
-    API --> VIEW[校验请求的预览 generation]
+    API --> VIEW[模型锁内打开已提交预览 generation]
     VIEW --> PG
     VIEW --> CACHE
+    GC[回收超过一小时的未引用 generation] --> CACHE
     RECOVER[启动与回滚恢复] --> PG
     RECOVER --> JOURNAL
     API --> OTHER[其他 store 操作<br/>模型 / 项目 / 方案]
     OTHER --> PG
 ```
 
-编辑写入、转换发布和状态更新共用数据库连接前的模型准入，PostgreSQL 模型锁
+编辑写入、模型删除、转换发布和状态更新共用数据库连接前的模型准入，PostgreSQL 模型锁
 继续保证跨进程互斥。环境准备与几何执行期间释放数据库连接和模型锁；发布时发现
 源码、输入或分支已变化则返回 409。进程内预算不代表跨副本共享资源上限。
 
