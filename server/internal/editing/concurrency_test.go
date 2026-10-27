@@ -74,7 +74,7 @@ func TestCanceledModelLockWaitReleasesConnection(t *testing.T) {
 	}
 	waitCtx, stop := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer stop()
-	_, err = s.Do(waitCtx, "GET", "/models/"+testModel+"/script", nil)
+	_, err = s.Do(waitCtx, "PUT", "/models/"+testModel+"/script", jsonBytes(map[string]any{"params": map[string]any{"name": "waiting"}}))
 	if err == nil || !errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
 		t.Fatalf("lock wait must honor deadline: %v (%v)", err, waitCtx.Err())
 	}

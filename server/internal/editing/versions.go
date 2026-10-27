@@ -20,6 +20,9 @@ type version struct {
 }
 
 func (o *operation) scriptVersions() ([]version, error) {
+	if o.readOnly {
+		return o.snapshotScriptVersions()
+	}
 	entries, e := os.ReadDir(filepath.Join(o.service.Root, o.key("scripts")))
 	if os.IsNotExist(e) {
 		return []version{}, nil

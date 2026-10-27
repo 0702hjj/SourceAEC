@@ -33,6 +33,13 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
       - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: converter/package-lock.json
+      - run: npm ci && npm test
+        working-directory: converter
       - name: Prepare external geometry runtime and Linux isolation
         run: |
           sudo apt-get update

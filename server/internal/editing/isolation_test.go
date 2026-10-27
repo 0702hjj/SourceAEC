@@ -57,7 +57,7 @@ func TestIndependentNamespacesDoNotShareModelLock(t *testing.T) {
 	startBlockedRun(t, first)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if _, err := second.Do(ctx, "GET", "/models/"+testModel+"/script", nil); err != nil {
+	if _, err := second.Do(ctx, "PUT", "/models/"+testModel+"/script", jsonBytes(map[string]any{"params": map[string]any{"name": "independent"}})); err != nil {
 		t.Fatalf("unrelated namespace blocked by identical model ID: %v", err)
 	}
 }
@@ -95,7 +95,7 @@ func TestHotModelWaitDoesNotOccupyDatabasePool(t *testing.T) {
 	done := make(chan error, 1)
 	otherInstance := New(s.Root, "ifc")
 	go func() {
-		_, err := otherInstance.Do(waitCtx, "GET", "/models/"+testModel+"/script", nil)
+		_, err := otherInstance.Do(waitCtx, "PUT", "/models/"+testModel+"/script", jsonBytes(map[string]any{"params": map[string]any{"name": "waiting"}}))
 		done <- err
 	}()
 	t.Cleanup(func() {

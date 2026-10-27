@@ -12,10 +12,15 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"ifcviewer/server/internal/metrics"
 )
 
 const productLimit = 256 << 20
 const outputLimit = 1 << 20
+
+// IFC and DXF services share one process budget, including environment setup.
+var processScriptGate = make(chan struct{}, 3)
 
 type Product struct {
 	Data, Map   []byte
@@ -34,7 +39,7 @@ type Sandbox struct {
 
 func NewSandbox() *Sandbox {
 	cache, _ := os.UserCacheDir()
-	return &Sandbox{Python: os.Getenv("SOURCEAEC_PYTHON"), UV: "uv", CacheDir: filepath.Join(cache, "sourceaec", "environments"), Timeout: 60 * time.Second, gate: make(chan struct{}, 3)}
+	return &Sandbox{Python: os.Getenv("SOURCEAEC_PYTHON"), UV: "uv", CacheDir: filepath.Join(cache, "sourceaec", "environments"), Timeout: 60 * time.Second, gate: processScriptGate}
 }
 
 type limitedLog struct {
@@ -100,6 +105,12 @@ func execute(ctx context.Context, cmd *exec.Cmd) (string, error) {
 	return string(log.data), err
 }
 func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error) {
+	if err := ctx.Err(); err != nil {
+		return Product{}, err
+	}
+	if s.Timeout <= 0 {
+		return Product{}, failure(503, "sandbox timeout must be positive")
+	}
 	if kind != "ifc" && kind != "dxf" {
 		return Product{}, failure(422, "unsupported product kind")
 	}
@@ -114,13 +125,21 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	select {
 	case s.gate <- struct{}{}:
 		defer func() { <-s.gate }()
+		metrics.ScriptRunning.Inc()
+		defer metrics.ScriptRunning.Dec()
 	case <-ctx.Done():
 		return Product{}, ctx.Err()
 	default:
+		metrics.ScriptRejected.Inc()
 		return Product{}, failure(429, "script concurrency limit reached")
 	}
-	python, identity, e := s.environment(ctx, script, kind)
+	runCtx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+	python, identity, e := s.environment(runCtx, script, kind)
 	if e != nil {
+		if runCtx.Err() != nil {
+			return Product{}, failure(504, "script preparation timed out or canceled")
+		}
 		return Product{}, e
 	}
 	directory, e := os.MkdirTemp("", "sourceaec-run-")
@@ -131,7 +150,7 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	if e = os.WriteFile(filepath.Join(directory, "script.py"), []byte(script), 0600); e != nil {
 		return Product{}, e
 	}
-	inputDir, e := projectInputs(ctx)
+	inputDir, e := projectInputs(runCtx)
 	if e != nil {
 		return Product{}, e
 	}
@@ -152,8 +171,6 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 		argv = append(argv, "--ro-bind", runtimeDir, runtimeDir)
 	}
 	argv = append(argv, "--ro-bind", inputDir, "/inputs", "--setenv", "SOURCEAEC_INPUTS_DIR", "/inputs", "--setenv", "VIEWER_DATA_DIR", "/inputs", "--bind", directory, "/work", "--chdir", "/work", "--setenv", "SOURCEAEC_MAP_OUT", "/work/out.map.json", "--", prlimit, "--as=1073741824", "--nproc=256", "--fsize=268435456", "--", python, "-I", "-B", "/work/script.py", "/work/out."+kind)
-	runCtx, cancel := context.WithTimeout(ctx, s.Timeout)
-	defer cancel()
 	cmd := command(runCtx, bwrap, argv...)
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LANG=C.UTF-8"}
 	log, e := execute(runCtx, cmd)

@@ -15,6 +15,11 @@ go vet ./...
 `SOURCEAEC_PYTHON` 提供安装 IfcOpenShell 与 ezdxf 的环境。
 执行测试需要 bubblewrap 和 prlimit；无相应运行时的测试会说明跳过原因。
 
+根目录的 `scripts/test_go_integration.sh` 是严格入口：必须显式提供专用数据库的
+`VIEWER_TEST_PG_DSN`，并准备 Go、Git、bubblewrap、prlimit、uv、Node 和
+`converter` 的 npm 依赖。它启用真实 IFC/DXF 几何及 IFC 转换器测试，验证转换
+快照、过期结果、预览 generation、进程崩溃恢复及脚本读取快照，并重复运行聚焦 race 检查。
+
 其他组件：`web` 执行 npm test/lint/build；`converter` 执行 npm test；
 `docs` 执行 npm run docs:build。
 

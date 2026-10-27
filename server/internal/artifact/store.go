@@ -7,6 +7,7 @@
 package artifact
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io/fs"
@@ -22,12 +23,15 @@ var openMu sync.Mutex
 // Open imports legacy files once and restores missing workspace projections.
 // The gateway and Go edit runtime share one PostgreSQL namespace.
 func Open(root string) error {
-	openMu.Lock()
-	defer openMu.Unlock()
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return err
 	}
+	if _, ok := roots.Load(root); ok {
+		return nil
+	}
+	openMu.Lock()
+	defer openMu.Unlock()
 	if _, ok := roots.Load(root); ok {
 		return nil
 	}
@@ -111,33 +115,7 @@ func Open(root string) error {
 		db.Close()
 		return err
 	}
-	rows, err := db.Query("SELECT path,content,mode FROM artifacts")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var key string
-		var data []byte
-		var mode uint32
-		if err = rows.Scan(&key, &data, &mode); err != nil {
-			return err
-		}
-		path := filepath.Join(root, filepath.FromSlash(key))
-		if !inside(root, path) {
-			return errors.New("invalid artifact path")
-		}
-		if old, e := os.ReadFile(path); e == nil && string(old) == string(data) {
-			continue
-		}
-		if err = os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return err
-		}
-		if err = os.WriteFile(path, data, fs.FileMode(mode)); err != nil {
-			return err
-		}
-	}
-	if err := rows.Err(); err != nil {
+	if err = restoreWorkspace(context.Background(), root, db); err != nil {
 		return err
 	}
 	roots.Store(root, db)

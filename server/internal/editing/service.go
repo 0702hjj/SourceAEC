@@ -48,6 +48,7 @@ type operation struct {
 	query         url.Values
 	inputOverride map[string]string
 	replayVersion string
+	readOnly      bool
 }
 
 func (o *operation) call(name string, args any) (any, error) {
@@ -168,6 +169,8 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	}
 	o := &operation{service: s, runtime: editruntime.NewEmbedded(), model: parts[1], ctx: ctx, query: parsed.Query()}
 	defer o.runtime.Close()
+	suffix := strings.Join(parts[2:], "/")
+	o.readOnly = method == "GET" && (suffix == "script" || suffix == "script/params")
 	release, e := o.begin()
 	if e != nil {
 		return nil, e
@@ -180,7 +183,6 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 		}
 		return nil, e
 	}
-	suffix := strings.Join(parts[2:], "/")
 	result, e := o.dispatch(method, suffix, body)
 	if e != nil {
 		return nil, e
