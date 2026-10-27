@@ -3,6 +3,7 @@ package convert
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
-	"ifcviewer/server/internal/metrics"
 	"ifcviewer/server/internal/store"
 )
 
@@ -37,6 +37,7 @@ func testFullModelAdmission(t *testing.T, shutdown bool) {
 	defer release()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	q.Start(ctx)
 	var wg sync.WaitGroup
 	for i := 0; i < artifact.ModelWaitLimit; i++ {
 		wg.Add(1)
@@ -51,7 +52,23 @@ func testFullModelAdmission(t *testing.T, shutdown bool) {
 	t.Cleanup(func() { cancel(); wg.Wait() })
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
-	for metrics.ModelWaiting.Value() != artifact.ModelWaitLimit {
+	for {
+		// The exported waiting gauge increments before namespace resolution
+		// and registry admission. It cannot synchronize a full registry. Probe
+		// actual overload instead; a not-yet-full probe has its own deadline.
+		probe, stop := context.WithTimeout(ctx, 20*time.Millisecond)
+		unlock, err := artifact.AcquireModel(probe, st.DataDir, m.ID)
+		stop()
+		if err == nil {
+			unlock()
+			t.Fatal("probe acquired a held model")
+		}
+		if errors.Is(err, artifact.ErrModelQueueFull) {
+			break
+		}
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal(err)
+		}
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
