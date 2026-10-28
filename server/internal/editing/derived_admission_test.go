@@ -13,7 +13,7 @@ import (
 )
 
 func TestDerivedWaitersDoNotOccupyEditingPool(t *testing.T) {
-	for _, operation := range []string{"status", "conversion"} {
+	for _, operation := range []string{"status", "conversion", "delete"} {
 		t.Run(operation, func(t *testing.T) {
 			s, _ := testService(t, "ifc")
 			if err := artifact.WriteFile(filepath.Join(s.Root, "models", testModel, "model.json"), jsonBytes(store.Model{ID: testModel, Kind: "ifc", Status: "converting"}), 0644); err != nil {
@@ -41,6 +41,8 @@ func TestDerivedWaitersDoNotOccupyEditingPool(t *testing.T) {
 				var err error
 				if operation == "status" {
 					err = st.SetStatusContext(ctx, testModel, "failed", "synthetic")
+				} else if operation == "delete" {
+					err = st.DeleteContext(ctx, testModel)
 				} else {
 					_, err = st.FinishConversion(ctx, testModel, source, "", errors.New("synthetic"))
 				}

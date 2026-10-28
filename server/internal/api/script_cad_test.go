@@ -370,19 +370,19 @@ func TestRetryDXFNoConvert(t *testing.T) {
 	assertNoRun(t, env.runs)
 }
 
-// render.json 只读端点（serveModelFile 模式，与 model.xkt 同族）：已发布的
-// payload 文件直接下发；缺失 → 404。
+// The raw render endpoint obtains a committed-source render from the service.
 func TestRenderJSONServed(t *testing.T) {
-	env, _, _ := newCadEnv(t)
+	env, _, cad := newCadEnv(t)
 	payload := `{"version":2,"entities":[]}`
-	if err := os.WriteFile(filepath.Join(env.st.ModelDir(env.modelID), "render.json"), []byte(payload), 0o644); err != nil {
+	cad.set("GET", "/models/"+env.modelID+"/render", 200, payload)
+	if err := os.WriteFile(filepath.Join(env.st.ModelDir(env.modelID), "render.json"), []byte(`{"uncommitted":true}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	rec := doEditReq(t, env.mux, "GET", "/v1/models/"+env.modelID+"/render.json", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	if rec.Body.String() != payload {
+	if strings.TrimSpace(rec.Body.String()) != payload {
 		t.Fatalf("body = %q, want %q", rec.Body.String(), payload)
 	}
 

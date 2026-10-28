@@ -12,8 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/metrics"
 )
 
 type ConversionSource struct {
@@ -79,6 +81,14 @@ func (s *Store) FinishConversion(ctx context.Context, id string, source Conversi
 	if !validID(id) {
 		return false, ErrInvalidID
 	}
+	collect := false
+	defer func() {
+		if collect {
+			if err := s.PruneViewerCache(ctx, id, time.Now().Add(-time.Hour)); err != nil {
+				metrics.PreviewGCFailed.Inc()
+			}
+		}
+	}()
 	release, err := artifact.AcquireModel(ctx, s.DataDir, id)
 	if err != nil {
 		return false, err
@@ -97,6 +107,9 @@ func (s *Store) FinishConversion(ctx context.Context, id string, source Conversi
 		return false, err
 	}
 	current, err := conversionIdentity(ctx, tx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
@@ -112,15 +125,31 @@ func (s *Store) FinishConversion(ctx context.Context, id string, source Conversi
 	if err = json.Unmarshal(raw, &model); err != nil {
 		return false, err
 	}
+	// Another queue may already have published this exact source. A late
+	// duplicate failure must not replace a complete ready generation.
+	complete := false
+	if _, e := s.viewerPath(ctx, tx, id, "model.xkt"); e == nil {
+		if _, e = s.viewerPath(ctx, tx, id, "metadata.json"); e == nil {
+			complete = true
+		}
+	}
 	model.Status, model.Error = "ready", ""
-	if runErr != nil {
+	if complete {
+		// Preserve the matching generation and restore ready after redundant
+		// queue admission, even if the redundant converter subsequently failed.
+	} else if runErr != nil {
 		model.Status, model.Error = "failed", runErr.Error()
 	} else {
+		var total int64
 		for _, name := range []string{"model.xkt", "metadata.json"} {
 			info, e := os.Lstat(filepath.Join(output, name))
 			if e != nil || !info.Mode().IsRegular() || info.Size() == 0 || info.Size() > 1<<30 {
 				return false, fmt.Errorf("missing or invalid converted %s", name)
 			}
+			total += info.Size()
+		}
+		if total > 1<<30 {
+			return false, fmt.Errorf("converted generation exceeds 1 GiB")
 		}
 		generation := newGeneration()
 		model.PreviewGeneration = generation
@@ -145,7 +174,9 @@ func (s *Store) FinishConversion(ctx context.Context, id string, source Conversi
 	if _, err = tx.ExecContext(ctx, "UPDATE artifacts SET content=$2 WHERE path=$1", modelKey, raw); err != nil {
 		return false, err
 	}
-	return true, tx.Commit()
+	err = tx.Commit()
+	collect = err == nil
+	return true, err
 }
 
 func newGeneration() string { return newID()[2:] + newID()[2:] }
@@ -165,6 +196,10 @@ func (s *Store) ViewerPath(ctx context.Context, id, name string, generation ...s
 		return "", err
 	}
 	defer tx.Rollback()
+	return s.viewerPath(ctx, tx, id, name, generation...)
+}
+
+func (s *Store) viewerPath(ctx context.Context, tx *sql.Tx, id, name string, generation ...string) (string, error) {
 	identity, err := conversionIdentity(ctx, tx, id)
 	if err != nil {
 		return "", err

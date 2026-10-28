@@ -188,21 +188,35 @@ func (s *Store) Get(id string) (*Model, error) {
 }
 
 func (s *Store) List() ([]*Model, error) {
-	entries, err := os.ReadDir(filepath.Join(s.DataDir, "models"))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
+	db, err := artifact.Database(s.DataDir)
+	if err != nil {
+		return nil, err
 	}
+	rows, err := db.Query("SELECT path FROM artifacts WHERE path ~ '^models/m_[0-9a-f]{16}/model[.]json$'")
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var key string
+		if err = rows.Scan(&key); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, strings.Split(key, "/")[1])
+	}
+	err = rows.Err()
+	rows.Close()
 	if err != nil {
 		return nil, err
 	}
 	var out []*Model
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		m, err := s.Get(e.Name())
+	for _, id := range ids {
+		m, err := s.Get(id)
 		if err == nil {
 			out = append(out, m)
+		} else if !errors.Is(err, ErrNotFound) {
+			return nil, err
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
@@ -214,12 +228,7 @@ func (s *Store) SetStatus(id, status, errMsg string) error {
 }
 
 func (s *Store) Delete(id string) error {
-	m, err := s.Get(id)
-	if err != nil {
-		return err
-	}
-	_ = artifact.Remove(s.SourcePath(m))
-	return artifact.RemoveAll(s.ModelDir(id))
+	return s.DeleteContext(context.Background(), id)
 }
 
 func (s *Store) Recover() error {
@@ -232,6 +241,9 @@ func (s *Store) Recover() error {
 			if err := s.SetStatus(m.ID, "failed", "interrupted by server restart"); err != nil {
 				return err
 			}
+		}
+		if err := s.PruneViewerCache(context.Background(), m.ID, time.Now().Add(-time.Hour)); err != nil {
+			return err
 		}
 	}
 	return nil

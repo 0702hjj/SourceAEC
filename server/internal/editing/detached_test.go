@@ -4,11 +4,13 @@ package editing
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/store"
 )
 
 type pausedExecutor struct{ entered, resume chan struct{} }
@@ -156,6 +158,34 @@ func TestCanceledExecutionReleasesLifecycleBudget(t *testing.T) {
 		}
 	}
 	invoke(t, s, "POST", "script/run", nil)
+}
+
+func TestDeletedModelRejectsInFlightExecution(t *testing.T) {
+	s, _ := testService(t, "ifc")
+	invoke(t, s, "PUT", "script", map[string]any{"script": "PARAMS = {'name':'old'}\n"})
+	p := &pausedExecutor{make(chan struct{}), make(chan struct{})}
+	s.Executor = p
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, err := s.Do(ctx, "POST", "/models/"+testModel+"/script/save", nil); done <- err }()
+	select {
+	case <-p.entered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	if err := store.NewStore(s.Root).DeleteContext(ctx, testModel); err != nil {
+		t.Fatal(err)
+	}
+	close(p.resume)
+	err := <-done
+	var domain *Error
+	if !errors.As(err, &domain) || domain.Status != 409 {
+		t.Fatalf("deleted model accepted old build: %v", err)
+	}
+	if _, err = artifact.ReadFile(filepath.Join(s.Root, "uploads", testModel+".ifc")); !os.IsNotExist(err) {
+		t.Fatalf("source resurrected: %v", err)
+	}
 }
 
 func TestExecutionReleasesDatabaseAndRejectsStaleResult(t *testing.T) {

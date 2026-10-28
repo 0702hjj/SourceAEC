@@ -7,13 +7,15 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/store"
@@ -149,7 +151,7 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
 			log.Printf("models/%s: 项目摘除 %s 失败（仅告警，不阻断删除）: %v", m.ID, m.ProjectID, err)
 		}
 	}
-	if err := h.st.Delete(m.ID); err != nil {
+	if err := h.st.DeleteContext(r.Context(), m.ID); err != nil {
 		writeErr(w, http.StatusInternalServerError, codeInternal, err.Error())
 		return
 	}
@@ -163,7 +165,12 @@ func (h *handler) download(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(m.Name))
 	w.Header().Set("Cache-Control", "no-store")
-	http.ServeFile(w, r, h.st.SourcePath(m))
+	data, err := artifact.ReadFile(h.st.SourcePath(m))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeContent(w, r, m.Name, time.Time{}, bytes.NewReader(data))
 }
 
 func (h *handler) serveModelFile(name string) http.HandlerFunc {
@@ -173,23 +180,31 @@ func (h *handler) serveModelFile(name string) http.HandlerFunc {
 			return
 		}
 		if name == "render.json" && m.Kind == store.KindDXF {
-			path := filepath.Join(h.st.ModelDir(m.ID), name)
-			if _, err := os.Stat(path); os.IsNotExist(err) && h.cad != nil {
-				if _, err = h.cad.Do(r.Context(), http.MethodGet, "/models/"+m.ID+"/render", nil); err != nil {
-					writeEditErr(w, err)
-					return
-				}
+			if h.cad == nil {
+				http.NotFound(w, r)
+				return
 			}
+			result, err := h.cad.Do(r.Context(), http.MethodGet, "/models/"+m.ID+"/render", nil)
+			if err != nil {
+				writeEditErr(w, err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			_ = json.NewEncoder(w).Encode(result)
+			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		path := filepath.Join(h.st.ModelDir(m.ID), name)
 		if name == "model.xkt" || name == "metadata.json" {
-			var err error
-			path, err = h.st.ViewerPath(r.Context(), m.ID, name, r.URL.Query().Get("generation"))
+			file, err := h.st.OpenViewer(r.Context(), m.ID, name, r.URL.Query().Get("generation"))
 			if err != nil {
 				http.NotFound(w, r)
 				return
 			}
+			defer file.Close()
+			http.ServeContent(w, r, name, time.Time{}, file)
+			return
 		}
 		http.ServeFile(w, r, path)
 	}

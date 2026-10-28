@@ -173,6 +173,7 @@ func ReadFile(path string) ([]byte, error) {
 		if !errors.Is(e, sql.ErrNoRows) {
 			return nil, e
 		}
+		return nil, os.ErrNotExist
 	}
 	return os.ReadFile(path)
 }
