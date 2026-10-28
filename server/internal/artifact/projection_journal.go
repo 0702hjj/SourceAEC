@@ -171,6 +171,10 @@ func recoverProjections(root string, tx *sql.Tx) error {
 }
 
 func recoverJournal(root, path string, tx *sql.Tx) error {
+	return recoverJournalScope(context.Background(), root, path, tx, nil)
+}
+
+func recoverJournalScope(ctx context.Context, root, path string, tx *sql.Tx, include func(string) bool) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -197,13 +201,16 @@ func recoverJournal(root, path string, tx *sql.Tx) error {
 		if err = json.Unmarshal(line, &key); err != nil {
 			return fmt.Errorf("invalid projection journal entry: %w", err)
 		}
+		if include != nil && !include(key) {
+			continue
+		}
 		target, err := projectionPath(root, key)
 		if err != nil {
 			return err
 		}
 		var data []byte
 		var mode uint32
-		err = tx.QueryRow("SELECT content,mode FROM artifacts WHERE path=$1", key).Scan(&data, &mode)
+		err = tx.QueryRowContext(ctx, "SELECT content,mode FROM artifacts WHERE path=$1", key).Scan(&data, &mode)
 		if errors.Is(err, sql.ErrNoRows) {
 			err = os.Remove(target)
 			if os.IsNotExist(err) {
