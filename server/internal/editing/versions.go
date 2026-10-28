@@ -61,9 +61,16 @@ func (o *operation) versionProduct(name string) ([]byte, error) {
 	return product.Data, nil
 }
 func (o *operation) execute(script string) (Product, map[string][]byte, error) {
+	if o.execution != nil && !o.execution.capturing {
+		return o.execution.product, o.execution.files, nil
+	}
 	inputs, e := o.inputs()
 	if e != nil {
 		return Product{}, nil, e
+	}
+	if o.execution != nil {
+		o.execution.script, o.execution.inputs = script, inputs
+		return Product{}, nil, errExecutionPrepared
 	}
 	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, inputs), script, o.service.Kind)
 	if e != nil {
@@ -233,6 +240,9 @@ func (o *operation) gitMutation(s *staging, path string, body []byte) (any, erro
 		return nil, failure(409, e.Error())
 	}
 	candidate := prepared.(map[string]string)
+	if o.execution != nil && o.execution.capturing {
+		o.execution.candidate = prepared
+	}
 	script := candidate["script"]
 	savedInputs, e := o.call("git.inputs", map[string]any{"model": o.model, "candidate": candidate["candidate"]})
 	if e != nil {

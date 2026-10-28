@@ -27,6 +27,22 @@ var processModels = &modelAdmission{slots: make(map[string]*modelSlot)}
 
 var ErrModelQueueFull = errors.New("model request queue limit reached")
 
+// ModelAdmissionUsers reports registered holders plus waiters for one model.
+// Unlike ModelWaiting it excludes callers still resolving their namespace.
+// This is a process-local observation, not a reservation of future capacity.
+func ModelAdmissionUsers(root, model string) (int, error) {
+	namespace, err := Namespace(root)
+	if err != nil {
+		return 0, err
+	}
+	processModels.mu.Lock()
+	defer processModels.mu.Unlock()
+	if slot := processModels.slots[namespace+":"+model]; slot != nil {
+		return slot.refs, nil
+	}
+	return 0, nil
+}
+
 // AcquireModel admits a model writer before it obtains a database connection.
 // All callers must release after their transaction and projection recovery.
 // PostgreSQL still provides the cross-process lock; this budget is process-local.
