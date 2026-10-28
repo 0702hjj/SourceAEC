@@ -41,7 +41,7 @@ flowchart TB
     PREP --> INPUT[Project ownership and immutable inputs]
     INPUT --> PG
     PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
-    PREP --> COMPARE[3 stored-product comparisons / no geometry slot]
+    PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
     PY -->|Recheck identity / reject stale result| GATE
@@ -58,6 +58,8 @@ flowchart TB
     API --> VIEW[Open committed preview generation under model lock]
     VIEW --> PG
     VIEW --> CACHE
+    API --> DOWNLOAD[Committed download / private file snapshot<br/>8 readers / 4 GiB temporary disk budget]
+    PG --> DOWNLOAD
     GC[Collect unreferenced generations older than one hour] --> CACHE
     RECOVER[Committed state and projection recovery<br/>No running-script resumption] --> PG
     RECOVER --> JOURNAL

@@ -49,6 +49,16 @@ SOURCEAEC_BENCH_GEOMETRY=1 go test ./internal/api -run '^$' \
 
 ## 大模型与长时间运行
 
+已提交源的整份读取与文件快照可单独比较：
+
+```bash
+go test ./internal/artifact -run '^$' -bench '^BenchmarkArtifactRead$' \
+  -benchtime=1x -count=5 -benchmem
+```
+
+该基准要求专用 `VIEWER_TEST_PG_DSN`，使用 1/32/128/256 MiB 可压缩合成内容。
+`B/op` 为累计分配而非峰值；PostgreSQL 导出、临时文件与慢客户端须另外观察。
+
 小模型的吞吐不能证明大模型的内存效率。按产品大小、历史长度、热点/多模型和并发
 分别测量，加入慢下载与构建/比较混合负载，并记录成功构建数量与冲突/过载比例。
 同时观察 Go heap、Python/Node RSS、PostgreSQL、磁盘及临时目录；

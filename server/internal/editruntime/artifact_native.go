@@ -21,6 +21,21 @@ func (r *Runtime) ReadStoredArtifact(ctx context.Context, root, token, key strin
 	return r.readArtifact(ctx, root, token, key, false)
 }
 
+// StoredArtifactSize uses the caller's snapshot so admission can precede reading
+// the same immutable bytes, without a size/read race across commits.
+func (r *Runtime) StoredArtifactSize(ctx context.Context, root, token, key string) (int64, error) {
+	db, err := r.database(Request{Root: root, Tx: token})
+	if err != nil {
+		return 0, err
+	}
+	var size int64
+	err = db.QueryRowContext(ctx, "SELECT octet_length(content) FROM artifacts WHERE path=$1", key).Scan(&size)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, os.ErrNotExist
+	}
+	return size, err
+}
+
 func (r *Runtime) RequireStoredArtifact(ctx context.Context, root, token, key string) error {
 	db, err := r.database(Request{Root: root, Tx: token})
 	if err != nil {

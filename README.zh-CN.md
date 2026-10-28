@@ -29,7 +29,7 @@ flowchart TB
     PREP --> INPUT[项目归属与不可变输入]
     INPUT --> PG
     PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
-    PREP --> COMPARE[3 个已有产品比较 / 不占几何名额]
+    PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
     PY -->|重新校验身份 / 拒绝过期结果| GATE
@@ -46,6 +46,8 @@ flowchart TB
     API --> VIEW[模型锁内打开已提交预览 generation]
     VIEW --> PG
     VIEW --> CACHE
+    API --> DOWNLOAD[已提交下载 / 私有文件快照<br/>8 个读取名额 / 4 GiB 临时磁盘预算]
+    PG --> DOWNLOAD
     GC[回收超过一小时的未引用 generation] --> CACHE
     RECOVER[已提交状态与投影恢复<br/>不恢复执行中的脚本] --> PG
     RECOVER --> JOURNAL
