@@ -19,22 +19,24 @@ func BenchmarkArtifactRead(b *testing.B) {
 	b.Setenv("VIEWER_PG_DSN", os.Getenv("VIEWER_TEST_PG_DSN"))
 	for _, mib := range []int{1, 32, 128, 256} {
 		b.Run(fmt.Sprintf("MiB=%d", mib), func(b *testing.B) {
-			root := b.TempDir()
-			if err := Open(root); err != nil {
-				b.Fatal(err)
-			}
-			defer Close(root)
-			db, _ := Database(root)
-			key := "uploads/m_0000000000000001.ifc"
-			// Keep setup outside the measured Go allocations.
-			if _, err := db.Exec("INSERT INTO artifacts(path,content) SELECT $1,convert_to(repeat('x',$2),'UTF8')", key, mib<<20); err != nil {
-				b.Fatal(err)
-			}
-			path := filepath.Join(root, key)
 			for _, mode := range []string{"memory", "snapshot"} {
 				b.Run(mode, func(b *testing.B) {
+					// Separate pools prevent the snapshot path from inheriting a
+					// large receive buffer left by the whole-product comparison.
+					root := b.TempDir()
+					if err := Open(root); err != nil {
+						b.Fatal(err)
+					}
+					defer Close(root)
+					db, _ := Database(root)
+					key := "uploads/m_0000000000000001.ifc"
+					if _, err := db.Exec("INSERT INTO artifacts(path,content) SELECT $1,convert_to(repeat('x',$2),'UTF8')", key, mib<<20); err != nil {
+						b.Fatal(err)
+					}
+					path := filepath.Join(root, key)
 					b.SetBytes(int64(mib << 20))
 					b.ReportAllocs()
+					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						if mode == "memory" {
 							if _, err := ReadFile(path); err != nil {
@@ -52,6 +54,7 @@ func BenchmarkArtifactRead(b *testing.B) {
 							}
 						}
 					}
+					b.StopTimer()
 				})
 			}
 		})

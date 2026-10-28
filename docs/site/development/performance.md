@@ -59,6 +59,17 @@ go test ./internal/artifact -run '^$' -bench '^BenchmarkArtifactRead$' \
 该基准要求专用 `VIEWER_TEST_PG_DSN`，使用 1/32/128/256 MiB 可压缩合成内容。
 `B/op` 为累计分配而非峰值；PostgreSQL 导出、临时文件与慢客户端须另外观察。
 
+版本历史成本可用以下基准独立测量：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkSaveHistory$' \
+  -benchtime=1x -count=3 -benchmem -timeout=10m
+```
+
+它通过真实保存入口准备 1/100/1000 个版本，使用极小确定性几何结果隔离历史开销。
+准备过程不计入测量；`initial-bundle-bytes` 是测量开始前的仓库大小。
+每次测量会追加版本，因此应使用固定操作数，并与相同历史长度、格式和环境对比。
+
 小模型的吞吐不能证明大模型的内存效率。按产品大小、历史长度、热点/多模型和并发
 分别测量，加入慢下载与构建/比较混合负载，并记录成功构建数量与冲突/过载比例。
 同时观察 Go heap、Python/Node RSS、PostgreSQL、磁盘及临时目录；

@@ -106,3 +106,39 @@ func TestSnapshotChunksUseOneCommittedRevision(t *testing.T) {
 		t.Fatal("ignored cancellation")
 	}
 }
+
+func TestSnapshotCancellationDuringCopy(t *testing.T) {
+	if os.Getenv("VIEWER_PG_DSN") == "" {
+		t.Skip("VIEWER_PG_DSN not set")
+	}
+	root := t.TempDir()
+	if err := Open(root); err != nil {
+		t.Fatal(err)
+	}
+	defer Close(root)
+	db, _ := Database(root)
+	key := "uploads/m_0000000000000001.ifc"
+	if _, err := db.Exec("INSERT INTO artifacts(path,content) SELECT $1,convert_to(repeat('x',8388608),'UTF8')", key); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
+	if err != nil {
+		conn.Close()
+		t.Fatal(err)
+	}
+	w := &mutatingWriter{change: cancel}
+	if err := copySnapshot(ctx, conn, key, w, 8<<20); err == nil {
+		t.Error("copy ignored cancellation")
+	}
+	_ = tx.Rollback()
+	_ = conn.Close()
+	if db.Stats().InUse != 0 {
+		t.Fatal("canceled copy retained connection")
+	}
+}
