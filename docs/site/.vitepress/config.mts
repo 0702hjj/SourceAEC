@@ -56,18 +56,21 @@ export default defineConfig({
       ],
       '/development/': [
         {
-          text: '开发',
+          text: '架构与运行时',
           items: [
             { text: '总体架构', link: '/development/architecture' },
             { text: '引擎与集成边界', link: '/development/integration-boundaries' },
             { text: 'Web 前端', link: '/development/web' },
             { text: 'Go Server', link: '/development/server' },
-            { text: 'IFC 编辑服务', link: '/development/edit-service' },
-            { text: 'CAD 编辑服务', link: '/development/cad-service' },
+            { text: 'Go 编辑领域', link: '/development/edit-service' },
+            { text: 'DXF 格式适配', link: '/development/cad-service' },
             { text: '沙箱执行环境', link: '/development/sandbox' },
-            { text: '存储与前端对接', link: '/development/integration' },
-            { text: '模型版本与增量构建', link: '/development/model-storage' },
-            { text: '测试与调试', link: '/development/testing' },
+            { text: 'REST / Agent / MCP 集成', link: '/development/integration' },
+            { text: '模型与版本存储', link: '/development/model-storage' },
+            { text: '执行、并发与恢复', link: '/development/execution-lifecycle' },
+            { text: '预览与产物读取', link: '/development/preview-storage' },
+            { text: '测试与边界检查', link: '/development/testing' },
+            { text: '性能与容量验证', link: '/development/performance' },
           ],
         },
         {

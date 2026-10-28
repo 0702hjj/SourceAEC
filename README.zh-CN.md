@@ -47,7 +47,7 @@ flowchart TB
     VIEW --> PG
     VIEW --> CACHE
     GC[回收超过一小时的未引用 generation] --> CACHE
-    RECOVER[启动与回滚恢复] --> PG
+    RECOVER[已提交状态与投影恢复<br/>不恢复执行中的脚本] --> PG
     RECOVER --> JOURNAL
     API --> OTHER[其他 store 操作<br/>模型 / 项目 / 方案]
     OTHER --> PG

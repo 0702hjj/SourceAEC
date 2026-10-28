@@ -59,7 +59,7 @@ flowchart TB
     VIEW --> PG
     VIEW --> CACHE
     GC[Collect unreferenced generations older than one hour] --> CACHE
-    RECOVER[Startup and rollback recovery] --> PG
+    RECOVER[Committed state and projection recovery<br/>No running-script resumption] --> PG
     RECOVER --> JOURNAL
     API --> OTHER[Other store operations<br/>Models / projects / planning]
     OTHER --> PG
