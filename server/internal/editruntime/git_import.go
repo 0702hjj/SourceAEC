@@ -9,7 +9,7 @@ import (
 
 func importHistory(ctx context.Context, db queryer, root, model string) error {
 	var count int
-	if err := db.QueryRow("SELECT count(*) FROM repositories WHERE model_id=$1", model).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM repositories WHERE model_id=$1", model).Scan(&count); err != nil {
 		return err
 	}
 	if count > 0 {
@@ -28,7 +28,11 @@ func importHistory(ctx context.Context, db queryer, root, model string) error {
 		if err = db.QueryRowContext(ctx, "SELECT content FROM artifacts WHERE path=$1", "models/"+model+"/scripts/"+version+".py").Scan(&data); err != nil {
 			return err
 		}
-		c, err := workspace(db, root, model)
+		snapshot, err := repositorySnapshot(ctx, db, model)
+		if err != nil {
+			return err
+		}
+		c, err := workspaceSnapshot(ctx, root, model, snapshot)
 		if err != nil {
 			return err
 		}

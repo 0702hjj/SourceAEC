@@ -24,7 +24,7 @@ var ErrInvalidID = errors.New("invalid model id")
 var ErrInvalidKind = errors.New("invalid model kind")
 var ErrUnsupportedExt = errors.New("unsupported file extension")
 
-// 模型类别（W-0040）：ifc 走 converter XKT 链路；dxf 由 services/cad 直接产
+// 模型类别（W-0040）：ifc 走 converter XKT 链路；dxf 由 Go editing 直接产
 // render.json，无转换。空 kind 视为 ifc（存量 model.json 迁移口径，见 Get）。
 const (
 	KindIFC = "ifc"

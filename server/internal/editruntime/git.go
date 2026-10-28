@@ -38,16 +38,9 @@ func gitContext(parent context.Context, repo string, args ...string) (string, er
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LANG=C.UTF-8", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1"}
 	data, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("Git operation failed: %s", strings.TrimSpace(string(data)))
+		return "", fmt.Errorf("Git operation failed: %w: %s", err, strings.TrimSpace(string(data)))
 	}
 	return strings.TrimSpace(string(data)), nil
-}
-func workspace(db queryer, root, model string) (*candidate, error) {
-	snapshot, err := repositorySnapshot(context.Background(), db, model)
-	if err != nil {
-		return nil, err
-	}
-	return workspaceSnapshot(context.Background(), root, model, snapshot)
 }
 func workspaceSnapshot(ctx context.Context, root, model string, snapshot RepositorySnapshot) (*candidate, error) {
 	directory, err := os.MkdirTemp("", "sourceaec-git-")

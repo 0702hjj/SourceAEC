@@ -15,8 +15,8 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 )
 
-// modelTools 返回模型编辑/巡检域工具（8 个）：语义镜像 services/ifc（:8100）
-// 与 services/cad（:8200）的 REST 端点；run/save/diff 走 slow client
+// modelTools 返回模型编辑/巡检工具，复用 Go editing 的 IFC/DXF 生命周期；
+// run/save/diff 使用适配器的长任务调用
 // （沙箱执行最长 60s，fast 10s 会三方状态分叉）。
 func modelTools(deps ToolDeps) []tool.InvokableTool {
 	return []tool.InvokableTool{

@@ -188,6 +188,50 @@ func TestDeletedModelRejectsInFlightExecution(t *testing.T) {
 	}
 }
 
+func TestProductComparisonDoesNotConsumeGeometryCapacity(t *testing.T) {
+	s, _ := testService(t, "ifc")
+	invoke(t, s, "PUT", "script", map[string]any{"script": "PARAMS = {'name':'saved'}\n"})
+	invoke(t, s, "POST", "script/save", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	done := make(chan error, 3)
+	t.Cleanup(func() {
+		cancel()
+		for range 3 {
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				t.Error("execution did not cancel")
+			}
+		}
+	})
+	for range 3 {
+		p := &pausedExecutor{make(chan struct{}), make(chan struct{})}
+		other := New(s.Root, "ifc")
+		other.Executor = p
+		go func() { _, err := other.Do(ctx, "POST", "/models/"+testModel+"/script/run", nil); done <- err }()
+		select {
+		case <-p.entered:
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+	}
+	if _, err := s.Do(ctx, "POST", "/models/"+testModel+"/diff", jsonBytes(map[string]any{"base": "current", "target": "current"})); err != nil {
+		t.Fatalf("stored product comparison consumed geometry admission: %v", err)
+	}
+	db, err := artifact.Database(s.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec("DELETE FROM artifacts WHERE path=$1", "models/"+testModel+"/scripts/v1.product"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.Do(ctx, "POST", "/models/"+testModel+"/diff", jsonBytes(map[string]any{"base": "v1", "target": "current"}))
+	var domain *Error
+	if !errors.As(err, &domain) || domain.Status != 429 {
+		t.Fatalf("legacy replay bypassed full geometry budget: %v", err)
+	}
+}
+
 func TestExecutionReleasesDatabaseAndRejectsStaleResult(t *testing.T) {
 	s, _ := testService(t, "ifc")
 	invoke(t, s, "PUT", "script", map[string]any{"script": "PARAMS = {'name':'old'}\n"})

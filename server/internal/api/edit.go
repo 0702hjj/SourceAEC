@@ -30,8 +30,8 @@ func (h *handler) registerEditRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/models/{id}/edit/diff-upload", h.editUpload)
 }
 
-// writeEditErr 透传 Python 状态码语义：404→404、409→409、422→400、504→504（diff
-// 超时，edit-service DIFF_TIMEOUT_S 默认 60s），其余（含不可达）→502。
+// writeEditErr 将编辑领域错误映射到网关：404→404、409→409、422→400、
+// 504→504；其余错误（包括兼容 HTTP 传输不可达）→502。
 func writeEditErr(w http.ResponseWriter, err error) {
 	var ee *editsvc.Error
 	if errors.As(err, &ee) {
