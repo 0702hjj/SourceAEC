@@ -49,9 +49,13 @@ type operation struct {
 	inputOverride map[string]string
 	replayVersion string
 	readOnly      bool
+	execution     *preparedExecution
 }
 
 func (o *operation) call(name string, args any) (any, error) {
+	if name == "git.prepare" && o.execution != nil && !o.execution.capturing && o.execution.candidate != nil {
+		return o.execution.candidate, nil
+	}
 	raw, e := json.Marshal(args)
 	if e != nil {
 		return nil, e
@@ -165,6 +169,12 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	o := &operation{service: s, runtime: editruntime.NewEmbedded(), model: parts[1], ctx: ctx, query: parsed.Query()}
 	defer o.runtime.Close()
 	suffix := strings.Join(parts[2:], "/")
+	if method == "POST" && suffix == "diff" {
+		return o.detachedDiff(body)
+	}
+	if executableRoute(method, suffix) {
+		return o.detached(suffix, body)
+	}
 	o.readOnly = method == "GET" && (suffix == "script" || suffix == "script/params" || suffix == "scripts" || suffix == "versions")
 	if method == "GET" && (suffix == "scripts" || suffix == "versions") {
 		if err := o.prepareVersionRead(); err != nil {
@@ -177,7 +187,7 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	}
 	defer release()
 	defer func() { _, _ = o.call("rollback", nil) }()
-	if _, e = o.read("uploads/" + o.model + "." + s.Kind); e != nil {
+	if e = o.requireSource(); e != nil {
 		if os.IsNotExist(e) {
 			return nil, failure(404, "model product not found")
 		}
@@ -196,6 +206,14 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 		return nil, e
 	}
 	return result, nil
+}
+
+func (o *operation) requireSource() error {
+	err := o.runtime.RequireStoredArtifact(o.ctx, o.service.Root, o.tx, "uploads/"+o.model+"."+o.service.Kind)
+	if os.IsNotExist(err) {
+		return failure(404, "model product not found")
+	}
+	return err
 }
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data, e := io.ReadAll(io.LimitReader(r.Body, (1<<20)+1))

@@ -10,8 +10,8 @@ import (
 	"ifcviewer/server/internal/store"
 )
 
-// kind 分流（W-0040）：script/edit 代理面在 ifc（services/ifc :8100）与
-// dxf（services/cad :8200）间按模型 kind 选后端，Go 路由表两 kind 完全同构。
+// kind 分流：script/edit 按模型格式选择 IFC/DXF 编辑适配，默认在 Go 进程内运行；
+// 两种格式使用相同网关路由，HTTP 编辑传输保留兼容用途。
 // edit-call 经同一网关代理与转换调度；render.json 走
 // serveModelFile 只读下发（见 api.go 路由注册）。
 

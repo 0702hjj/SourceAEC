@@ -49,7 +49,9 @@ func Connect(root string) (*sql.DB, error) {
 	if err == nil {
 		_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS artifacts (path TEXT PRIMARY KEY, content BYTEA NOT NULL, mode INTEGER NOT NULL DEFAULT 420);
         CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
-        CREATE TABLE IF NOT EXISTS repositories (model_id TEXT PRIMARY KEY, bundle BYTEA NOT NULL, branch TEXT NOT NULL);`)
+        CREATE TABLE IF NOT EXISTS repositories (model_id TEXT PRIMARY KEY, bundle BYTEA NOT NULL, branch TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS transaction_receipts(token TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+        CREATE INDEX IF NOT EXISTS transaction_receipts_created ON transaction_receipts(created_at);`)
 	}
 	if err == nil {
 		_, err = tx.Exec("ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS content_hash BYTEA GENERATED ALWAYS AS (sha256(content)) STORED")

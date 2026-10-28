@@ -11,6 +11,15 @@ import (
 )
 
 func (s *Store) SetStatusContext(ctx context.Context, id, status, detail string) error {
+	return s.setStatusContext(ctx, id, status, detail, false)
+}
+
+// Conversion admission/rejection preserves a complete preview of current source.
+func (s *Store) SetConversionStatusContext(ctx context.Context, id, status, detail string) error {
+	return s.setStatusContext(ctx, id, status, detail, true)
+}
+
+func (s *Store) setStatusContext(ctx context.Context, id, status, detail string, preservePreview bool) error {
 	if !validID(id) {
 		return ErrInvalidID
 	}
@@ -44,6 +53,13 @@ func (s *Store) SetStatusContext(ctx context.Context, id, status, detail string)
 		return err
 	}
 	model.Status, model.Error = status, detail
+	if preservePreview && status != "ready" {
+		if _, e := s.viewerPath(ctx, tx, id, "model.xkt"); e == nil {
+			if _, e = s.viewerPath(ctx, tx, id, "metadata.json"); e == nil {
+				model.Status, model.Error = "ready", ""
+			}
+		}
+	}
 	raw, err = json.Marshal(model)
 	if err != nil {
 		return err

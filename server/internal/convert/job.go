@@ -18,12 +18,12 @@ import (
 func (q *Queue) convertOne(ctx context.Context, id string) bool {
 	source, err := q.st.ConversionSource(ctx, id)
 	if err != nil {
-		_ = q.st.SetStatusContext(ctx, id, "failed", err.Error())
+		_ = q.st.SetConversionStatusContext(ctx, id, "failed", err.Error())
 		return false
 	}
 	directory, err := os.MkdirTemp(q.st.ModelDir(id), ".convert-")
 	if err != nil {
-		_ = q.st.SetStatusContext(ctx, id, "failed", err.Error())
+		_ = q.st.SetConversionStatusContext(ctx, id, "failed", err.Error())
 		return false
 	}
 	defer os.RemoveAll(directory)

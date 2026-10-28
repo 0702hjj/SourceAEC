@@ -4,7 +4,6 @@ package editruntime
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,23 +24,30 @@ func validateBranch(branch string) error {
 	return nil
 }
 func git(repo string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	return gitContext(context.Background(), repo, args...)
+}
+func (c *candidate) git(args ...string) (string, error) { return gitContext(c.ctx, c.repo, args...) }
+func gitContext(parent context.Context, repo string, args ...string) (string, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 	argv := append([]string{"-C", repo, "-c", "user.name=SourceAEC", "-c", "user.email=sourceaec@localhost", "-c", "core.hooksPath=/dev/null"}, args...)
 	cmd := exec.CommandContext(ctx, "git", argv...)
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LANG=C.UTF-8", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1"}
 	data, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("Git operation failed: %s", strings.TrimSpace(string(data)))
+		return "", fmt.Errorf("Git operation failed: %w: %s", err, strings.TrimSpace(string(data)))
 	}
 	return strings.TrimSpace(string(data)), nil
 }
-func workspace(db queryer, root, model string) (*candidate, error) {
+func workspaceSnapshot(ctx context.Context, root, model string, snapshot RepositorySnapshot) (*candidate, error) {
 	directory, err := os.MkdirTemp("", "sourceaec-git-")
 	if err != nil {
 		return nil, err
 	}
-	c := &candidate{directory: directory, repo: filepath.Join(directory, "repo"), branch: "main", root: root, model: model}
+	c := &candidate{directory: directory, repo: filepath.Join(directory, "repo"), branch: "main", root: root, model: model, ctx: ctx}
 	success := false
 	defer func() {
 		if !success {
@@ -51,23 +57,20 @@ func workspace(db queryer, root, model string) (*candidate, error) {
 	if err = os.Mkdir(c.repo, 0700); err != nil {
 		return nil, err
 	}
-	if _, err = git(c.repo, "init", "-b", "main"); err != nil {
+	if _, err = c.git("init", "-b", "main"); err != nil {
 		return nil, err
 	}
-	var bundle []byte
-	err = db.QueryRow("SELECT bundle,branch FROM repositories WHERE model_id=$1", model).Scan(&bundle, &c.branch)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-	if err == nil {
+	if snapshot.Bundle != nil {
+		c.branch = snapshot.Branch
+		bundle := snapshot.Bundle
 		path := filepath.Join(directory, "history.bundle")
 		if err = os.WriteFile(path, bundle, 0600); err != nil {
 			return nil, err
 		}
-		if _, err = git(c.repo, "fetch", path, "+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*", "+refs/notes/*:refs/notes/*", "--update-head-ok"); err != nil {
+		if _, err = c.git("fetch", path, "+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*", "+refs/notes/*:refs/notes/*", "--update-head-ok"); err != nil {
 			return nil, err
 		}
-		if _, err = git(c.repo, "checkout", c.branch); err != nil {
+		if _, err = c.git("checkout", c.branch); err != nil {
 			return nil, err
 		}
 	}
@@ -77,7 +80,7 @@ func workspace(db queryer, root, model string) (*candidate, error) {
 func persist(db queryer, c *candidate) error {
 	path := filepath.Join(c.directory, "saved.bundle")
 	_ = os.Remove(path)
-	if _, err := git(c.repo, "bundle", "create", path, "--all"); err != nil {
+	if _, err := c.git("bundle", "create", path, "--all"); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(path)
@@ -125,7 +128,7 @@ func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
 	if err = os.WriteFile(filepath.Join(c.repo, "inputs.json"), data, 0600); err != nil {
 		return nil, err
 	}
-	if _, err = git(c.repo, "add", "--", "build.py", "inputs.json"); err != nil {
+	if _, err = c.git("add", "--", "build.py", "inputs.json"); err != nil {
 		return nil, err
 	}
 	note := a.Note
@@ -136,10 +139,10 @@ func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
 	if source == "" {
 		source = "human"
 	}
-	if _, err = git(c.repo, "commit", "--allow-empty", "-m", note, "-m", "SourceAEC-Source: "+source); err != nil {
+	if _, err = c.git("commit", "--allow-empty", "-m", note, "-m", "SourceAEC-Source: "+source); err != nil {
 		return nil, err
 	}
-	revision, err := git(c.repo, "rev-parse", "HEAD")
+	revision, err := c.git("rev-parse", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +151,7 @@ func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err = git(c.repo, "notes", "--ref=build", "add", "-f", "-m", string(data), revision); err != nil {
+		if _, err = c.git("notes", "--ref=build", "add", "-f", "-m", string(data), revision); err != nil {
 			return nil, err
 		}
 	}
@@ -156,7 +159,7 @@ func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
 		if !regexp.MustCompile(`^v[0-9]+$`).MatchString(a.Version) {
 			return nil, errors.New("invalid version tag")
 		}
-		if _, err = git(c.repo, "tag", a.Version); err != nil {
+		if _, err = c.git("tag", a.Version); err != nil {
 			return nil, err
 		}
 	}
@@ -166,7 +169,7 @@ func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
 	return map[string]string{"commit": revision, "branch": c.branch}, nil
 }
 func gitState(c *candidate) (map[string]any, error) {
-	refs, err := git(c.repo, "for-each-ref", "--format=%(refname:short)", "refs/heads")
+	refs, err := c.git("for-each-ref", "--format=%(refname:short)", "refs/heads")
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +180,7 @@ func gitState(c *candidate) (map[string]any, error) {
 		return result, nil
 	}
 	result["branches"] = strings.Split(refs, "\n")
-	raw, err := git(c.repo, "log", "--branches", "--tags", "--topo-order", "-100", "--format=%H%x09%P%x09%s")
+	raw, err := c.git("log", "--branches", "--tags", "--topo-order", "-100", "--format=%H%x09%P%x09%s")
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +192,7 @@ func gitState(c *candidate) (map[string]any, error) {
 		commits = append(commits, map[string]any{"commit": parts[0], "parents": strings.Fields(parts[1]), "note": parts[2]})
 	}
 	result["commits"] = commits
-	result["commit"], err = git(c.repo, "rev-parse", "HEAD")
+	result["commit"], err = c.git("rev-parse", "HEAD")
 	return result, err
 }
 func (r *Runtime) gitOperation(req Request) (any, error) {
@@ -226,7 +229,17 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 	if req.Op == "git.import" {
 		return nil, importHistory(runtimeContext(req), db, req.Root, a.Model)
 	}
-	c, err := workspace(db, req.Root, a.Model)
+	var snapshot RepositorySnapshot
+	if req.Op == "git.prepare" && r.repositorySnapshot != nil {
+		snapshot = *r.repositorySnapshot
+		r.repositorySnapshot = nil
+	} else {
+		snapshot, err = repositorySnapshot(runtimeContext(req), db, a.Model)
+	}
+	if err != nil {
+		return nil, err
+	}
+	c, err := workspaceSnapshot(runtimeContext(req), req.Root, a.Model, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -247,13 +260,13 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 		}
 		switch a.Action {
 		case "create":
-			_, err = git(c.repo, "checkout", "-b", a.Branch)
+			_, err = c.git("checkout", "-b", a.Branch)
 			c.branch = a.Branch
 		case "checkout":
-			_, err = git(c.repo, "checkout", a.Branch)
+			_, err = c.git("checkout", a.Branch)
 			c.branch = a.Branch
 		case "merge":
-			_, err = git(c.repo, "merge", "--no-ff", "--no-edit", a.Branch)
+			_, err = c.git("merge", "--no-ff", "--no-edit", a.Branch)
 		default:
 			return nil, errors.New("unknown version action")
 		}

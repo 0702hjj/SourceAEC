@@ -37,8 +37,8 @@ func SessionIDFromContext(ctx context.Context) string {
 // ToolDeps 是领域工具集的依赖包。工具面领域收敛：不持有 bash/任意文件写能力，
 // 全部变更经 edit-service（ifc）/ cad-service（dxf）REST，按模型 kind 路由。
 type ToolDeps struct {
-	IFC *editsvc.Client // ifc kind 后端（services/ifc :8100）
-	CAD *editsvc.Client // dxf kind 后端（services/cad :8200）；nil 时 dxf 工具报错文本
+	IFC *editsvc.Client // IFC 编辑适配（默认进程内 Go）
+	CAD *editsvc.Client // DXF 编辑适配；nil 时 dxf 工具报错文本
 	St  *store.Store    // kind 路由 + list/get model info
 
 	// SessionModel 从 ctx 解析当前会话绑定的模型 id（无绑定返回 ""）；可空。
@@ -136,7 +136,7 @@ func mustTool[T, R any](name, desc string, fn func(context.Context, T) (R, error
 // DomainTools 装配 chat agent 的领域工具集（9 个）：
 // list_models / get_model_info / get_script / stage_script / run_script /
 // save_script / get_versions / get_diff / create_project。
-// 语义镜像 services/ifc（:8100）与 services/cad（:8200）的 REST 端点；
+// 复用 IFC/DXF 的统一 editing API；HTTP 传输只用于兼容；
 // run/save/diff 走 slow client（沙箱执行最长 60s，fast 10s 会三方状态分叉）。
 // 分域装配（W-0057 拆分）：modelTools + projectTools + locateTools 顺序拼接，
 // 注册顺序与拆分前的单一切片完全一致。

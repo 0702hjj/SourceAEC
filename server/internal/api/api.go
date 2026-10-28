@@ -39,8 +39,8 @@ type handler struct {
 	iss       issue.Store
 	chg       change.Store
 	ovr       override.Store
-	ed        *editsvc.Client // services/ifc :8100（kind=ifc）
-	cad       *editsvc.Client // services/cad :8200（kind=dxf，W-0040）
+	ed        *editsvc.Client     // IFC 编辑适配（默认进程内）
+	cad       *editsvc.Client     // DXF 编辑适配（默认进程内）
 	ps        *store.ProjectStore // 删除模型联动项目摘除（nil 跳过——测试/无项目装配）
 	maxUpload int64
 }
