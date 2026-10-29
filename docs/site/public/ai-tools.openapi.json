@@ -2200,16 +2200,109 @@
         "properties": {
           "script": {
             "type": "string",
-            "description": "脚本全文（与 params 恰好二选一）"
+            "description": "脚本全文；script、params、patch 恰好提供一个"
           },
           "params": {
             "type": "object",
-            "description": "PARAMS 块改写（与 script 恰好二选一）"
+            "description": "PARAMS 块改写；script、params、patch 恰好提供一个"
           },
           "note": {
             "type": "string"
+          },
+          "baseRevision": {
+            "type": "string",
+            "description": "当前源码 SHA-256；patch 必需，其他编辑可选",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "patch": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "description": "原始 UTF-8 源码的字节区间，start 包含、end 不包含；区间有序且不重叠，不能切开字符",
+            "items": {
+              "type": "object",
+              "required": [
+                "start",
+                "end",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
           }
-        }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "script"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "params"
+                  ]
+                },
+                {
+                  "required": [
+                    "patch"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "params"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "script"
+                  ]
+                },
+                {
+                  "required": [
+                    "patch"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "patch",
+              "baseRevision"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "script"
+                  ]
+                },
+                {
+                  "required": [
+                    "params"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       },
       "ScriptState": {
         "type": "object",
@@ -2358,8 +2451,7 @@
         "required": [
           "modelId",
           "version",
-          "staged",
-          "alignment"
+          "staged"
         ],
         "properties": {
           "modelId": {
@@ -2387,7 +2479,17 @@
               "changed": {
                 "type": "integer"
               }
-            }
+            },
+            "deprecated": true,
+            "description": "旧适配器兼容字段；原生保存不返回自动对齐计数"
+          },
+          "historyRevision": {
+            "type": "string",
+            "pattern": "^r_[0-9a-f]{32}$",
+            "description": "权威源码历史 ID，不是 Git commit SHA"
+          },
+          "branch": {
+            "type": "string"
           }
         }
       },

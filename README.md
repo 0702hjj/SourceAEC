@@ -35,8 +35,12 @@ flowchart TB
     EDIT -->|Script, parameter and version GET| READ[Read-only database snapshot]
     READ --> PG[(PostgreSQL / authoritative business data)]
     EDIT -->|Editing writes| GATE[Shared model admission<br/>Namespace + model / 1 active + 64 waiting per process]
-    GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock / Git bundle]
-    WRITE --> PG
+    GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock]
+    WRITE --> VERSION[versionstore / immutable source references<br/>Head and version counter]
+    VERSION --> PG
+    API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
+    GIT --> GATE
+    GIT --> PG
     EDIT --> PREP[Short read snapshot / execution identity]
     PREP --> INPUT[Project ownership and immutable inputs]
     INPUT --> PG
@@ -71,7 +75,8 @@ Editing writes, model deletion, conversion publication and status updates share 
 acquiring database connections. PostgreSQL locks provide cross-process exclusion.
 Geometry preparation and execution release the database connection and model lock.
 Publication rejects changed source, inputs or branches with 409. Three build lifecycles
-and three stored-product comparisons have separate budgets. Process budgets
+and three stored-product comparisons have separate budgets. Saves commit source-history
+references without running Git; opening branch management projects real commits on demand. Process budgets
 do not provide a shared resource limit across replicas.
 
 ## Main Data Flow
@@ -108,7 +113,7 @@ sequenceDiagram
     Note over E,P: Changed state returns 409 before publication
     E->>P: Write current artifacts and build/input records
     opt Save
-        E->>P: Write immutable version, staging reset and Git bundle
+        E->>P: Write immutable version, history references, head and staging reset
     end
     E->>F: Journal paths, then update projections
     E->>P: Commit
@@ -173,6 +178,8 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/editsvc` | In-process editing client and HTTP compatibility adapter |
 | `server/internal/editing` | Shared IFC/DXF staging, execution, comparison, save, rollback and format adapters |
 | `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
+| `server/internal/versionstore`, `server/internal/sourcepatch` | Immutable source-history references, head/counter and exact revision patches |
+| `server/internal/resourcebudget` | Process-local payload byte reservations |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |
 | `server/internal/change`, `server/internal/issue`, `server/internal/override` | Provenance, review issues and property overrides |

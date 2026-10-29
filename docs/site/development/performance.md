@@ -15,7 +15,7 @@ Linux 下每 5ms 采样进程树 RSS 之和，可能重复计入共享页、漏�
 不包含 PostgreSQL，也不表示唯一内存占用或保证捕获峰值。
 该基准不包含 HTTP、Node 转换或冷依赖准备，不能作为这些链路的吞吐结论。
 
-完整网关负载使用真实几何、认证 HTTP、暂存、保存/Git、产品比较、下载与 Node 转换：
+完整网关负载使用真实几何、认证 HTTP、暂存、快照保存、产品比较、下载与 Node 转换：
 
 ```bash
 SOURCEAEC_BENCH_GEOMETRY=1 go test ./internal/api -run '^$' \
@@ -68,6 +68,7 @@ go test ./internal/editing -run '^$' -bench '^BenchmarkSaveHistory$' \
 
 它通过真实保存入口准备 1/100/1000 个版本，使用极小确定性几何结果隔离历史开销。
 准备过程不计入测量；`initial-bundle-bytes` 是测量开始前的仓库大小。
+快照保存不会自动构建 Git bundle，因此该值可以为零；按需 Git 查询不在该保存基准内。
 每次测量会追加版本，因此应使用固定操作数，并与相同历史长度、格式和环境对比。
 
 小模型的吞吐不能证明大模型的内存效率。按产品大小、历史长度、热点/多模型和并发

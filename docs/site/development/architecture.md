@@ -24,6 +24,7 @@ Go 网关是唯一业务入口。`server/internal/editing` 在进程内处理 IF
 | api / agent / mcpbridge | 鉴权、协议与应用入口；MCP 经认证网关访问 |
 | editing | IFC/DXF 共享的编辑、执行和发布生命周期 |
 | editruntime | 事务、版本/Git 与产物读写；保留私有 stdio 兼容入口 |
+| versionstore / sourcepatch | 不可变源码历史引用、head/计数，以及精确 revision 的文本修改 |
 | artifact | PostgreSQL 权威内容、模型锁与文件投影恢复 |
 | store / convert | 模型记录、不可变预览清单与有界转换队列 |
 | 外部 Python / Node | 隔离几何执行与显示格式转换 |

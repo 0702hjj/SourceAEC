@@ -4,9 +4,10 @@ package editruntime
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
+	"ifcviewer/server/internal/versionstore"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,87 +88,47 @@ func persist(db queryer, c *candidate) error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("INSERT INTO repositories(model_id,bundle,branch) VALUES($1,$2,$3) ON CONFLICT(model_id) DO UPDATE SET bundle=excluded.bundle,branch=excluded.branch", c.model, data, c.branch)
-	return err
+	var head string
+	if !c.projectionOnly {
+		head, err = c.git("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+	}
+	write := func(db queryer) error {
+		_, err := db.ExecContext(c.ctx, "INSERT INTO repositories(model_id,bundle,branch) VALUES($1,$2,$3) ON CONFLICT(model_id) DO UPDATE SET bundle=excluded.bundle,branch=excluded.branch", c.model, data, c.branch)
+		if err == nil && !c.projectionOnly {
+			err = versionstore.New(db).MoveGitHead(c.ctx, c.model, c.branch, head)
+		}
+		return err
+	}
+	if pool, ok := db.(*sql.DB); ok {
+		tx, err := pool.BeginTx(c.ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if err = write(tx); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	return write(db)
 }
 
 type gitArgs struct {
-	Model     string         `json:"model"`
-	Script    string         `json:"script"`
-	Note      string         `json:"note"`
-	Source    string         `json:"source"`
-	Inputs    map[string]any `json:"inputs"`
-	Version   string         `json:"version"`
-	Action    string         `json:"action"`
-	Branch    string         `json:"branch"`
-	Candidate string         `json:"candidate"`
+	Model      string         `json:"model"`
+	Script     string         `json:"script"`
+	Note       string         `json:"note"`
+	Source     string         `json:"source"`
+	Inputs     map[string]any `json:"inputs"`
+	Version    string         `json:"version"`
+	Action     string         `json:"action"`
+	Branch     string         `json:"branch"`
+	Candidate  string         `json:"candidate"`
+	AcceptedAt string         `json:"acceptedAt,omitempty"`
 }
 
-func commitGit(db queryer, c *candidate, a gitArgs) (map[string]string, error) {
-	if err := os.WriteFile(filepath.Join(c.repo, "build.py"), []byte(a.Script), 0600); err != nil {
-		return nil, err
-	}
-	identity := map[string]any{}
-	if build, ok := a.Inputs["current.build.json"].(map[string]any); ok {
-		identity, _ = build["identity"].(map[string]any)
-	}
-	environment := map[string]any{}
-	for _, key := range []string{"python", "packages", "environment", "helpers", "engine"} {
-		if value, ok := identity[key]; ok {
-			environment[key] = value
-		}
-	}
-	inputs := a.Inputs["current.inputs.json"]
-	if inputs == nil {
-		inputs = map[string]any{}
-	}
-	data, err := json.MarshalIndent(map[string]any{"current.inputs.json": inputs, "current.build.json": map[string]any{"identity": environment}}, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	if err = os.WriteFile(filepath.Join(c.repo, "inputs.json"), data, 0600); err != nil {
-		return nil, err
-	}
-	if _, err = c.git("add", "--", "build.py", "inputs.json"); err != nil {
-		return nil, err
-	}
-	note := a.Note
-	if note == "" {
-		note = "Update model"
-	}
-	source := a.Source
-	if source == "" {
-		source = "human"
-	}
-	if _, err = c.git("commit", "--allow-empty", "-m", note, "-m", "SourceAEC-Source: "+source); err != nil {
-		return nil, err
-	}
-	revision, err := c.git("rev-parse", "HEAD")
-	if err != nil {
-		return nil, err
-	}
-	if len(a.Inputs) > 0 {
-		data, err = json.Marshal(a.Inputs)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = c.git("notes", "--ref=build", "add", "-f", "-m", string(data), revision); err != nil {
-			return nil, err
-		}
-	}
-	if a.Version != "" {
-		if !regexp.MustCompile(`^v[0-9]+$`).MatchString(a.Version) {
-			return nil, errors.New("invalid version tag")
-		}
-		if _, err = c.git("tag", a.Version); err != nil {
-			return nil, err
-		}
-	}
-	if err = persist(db, c); err != nil {
-		return nil, err
-	}
-	return map[string]string{"commit": revision, "branch": c.branch}, nil
-}
 func gitState(c *candidate) (map[string]any, error) {
 	refs, err := c.git("for-each-ref", "--format=%(refname:short)", "refs/heads")
 	if err != nil {
@@ -210,6 +171,11 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 	var a gitArgs
 	if err = decode(req.Args, &a); err != nil {
 		return nil, err
+	}
+	if req.Op == "git.state" || req.Op == "git.prepare" {
+		if err = historyProjectionReady(runtimeContext(req), db, a.Model); err != nil {
+			return nil, err
+		}
 	}
 
 	if req.Op == "git.persist" || req.Op == "git.discard" || req.Op == "git.inputs" {

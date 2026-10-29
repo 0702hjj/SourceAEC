@@ -169,7 +169,7 @@ func TestLegacySnapshotsDoNotCollideWithNewVersions(t *testing.T) {
 		t.Fatal("legacy snapshot overwritten", e)
 	}
 }
-func TestGitFailureRollsBackPublishedModel(t *testing.T) {
+func TestSourceHistoryFailureRollsBackPublishedModel(t *testing.T) {
 	s, _ := testService(t, "ifc")
 	invoke(t, s, "PUT", "script", map[string]any{"script": "PARAMS = {'name':'first'}\n"})
 	invoke(t, s, "POST", "script/save", nil)
@@ -178,10 +178,16 @@ func TestGitFailureRollsBackPublishedModel(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	// All subprocess calls are Go-owned. Force Git to fail after product generation.
-	t.Setenv("PATH", t.TempDir())
+	db, e := artifact.Database(s.Root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(`CREATE FUNCTION reject_history() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic history failure'; END $$;
+ CREATE TRIGGER reject_history BEFORE INSERT ON version_events FOR EACH ROW EXECUTE FUNCTION reject_history()`); e != nil {
+		t.Fatal(e)
+	}
 	if _, e = s.Do(context.Background(), "POST", "/models/"+testModel+"/script/save", nil); e == nil {
-		t.Fatal("Git failure ignored")
+		t.Fatal("history failure ignored")
 	}
 	after, e := artifact.ReadFile(filepath.Join(s.Root, "uploads", testModel+".ifc"))
 	if e != nil || string(after) != string(before) {
@@ -190,6 +196,12 @@ func TestGitFailureRollsBackPublishedModel(t *testing.T) {
 	listed := invoke(t, s, "GET", "versions", nil).(map[string]any)["versions"].([]version)
 	if len(listed) != 1 {
 		t.Fatal("failed save retained version", listed)
+	}
+	if _, e = db.Exec("DROP TRIGGER reject_history ON version_events; DROP FUNCTION reject_history()"); e != nil {
+		t.Fatal(e)
+	}
+	if result := invoke(t, s, "POST", "script/save", nil).(map[string]any); result["version"] != "v2" {
+		t.Fatal("failed transaction consumed a version number", result)
 	}
 }
 

@@ -41,7 +41,7 @@ func BenchmarkSaveHistory(b *testing.B) {
 			}
 			db, _ := artifact.Database(root)
 			var bundleBytes int64
-			if err := db.QueryRow("SELECT octet_length(bundle) FROM repositories WHERE model_id=$1", testModel).Scan(&bundleBytes); err != nil {
+			if err := db.QueryRow("SELECT coalesce((SELECT octet_length(bundle) FROM repositories WHERE model_id=$1),0)", testModel).Scan(&bundleBytes); err != nil {
 				b.Fatal(err)
 			}
 			b.ReportAllocs()

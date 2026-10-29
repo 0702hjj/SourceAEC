@@ -51,6 +51,7 @@ type transaction struct {
 type candidate struct {
 	directory, repo, branch, root, model string
 	ctx                                  context.Context
+	projectionOnly                       bool
 }
 type Runtime struct {
 	embedded           bool

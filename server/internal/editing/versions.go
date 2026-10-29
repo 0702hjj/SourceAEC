@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"ifcviewer/server/internal/editruntime"
+	"ifcviewer/server/internal/versionstore"
 )
 
 type version = editruntime.Version
@@ -148,17 +148,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		result["semanticDiff"] = diffCounts(old, product.Data, o.service.Kind)
 	}
 	if path == "script/save" {
-		listed, e := o.versions()
+		n, e := o.runtime.NextVersionNumber(o.ctx, o.service.Root, o.tx, o.model)
 		if e != nil {
 			return nil, e
-		}
-		n := 1
-		if len(listed) > 0 {
-			previous, e := strconv.Atoi(listed[len(listed)-1].Version[1:])
-			if e != nil {
-				return nil, e
-			}
-			n = previous + 1
 		}
 		name := fmt.Sprintf("v%d", n)
 		prefix := o.key("scripts/" + name)
@@ -184,14 +176,7 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		result["version"] = in.Version
 		result["script"] = *script
 	}
-	if path != "script/run" {
-		if _, e = o.call("git.import", map[string]any{"model": o.model}); e != nil {
-			return nil, e
-		}
-	}
-	if e = o.publish(files); e != nil {
-		return nil, e
-	}
+	var history versionstore.Event
 	if path != "script/run" {
 		name := ""
 		if path == "script/save" {
@@ -200,19 +185,20 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		if path == "script/rollback" && in.Note == "" {
 			in.Note = "Restore " + in.Version
 		}
-		gitInputs := map[string]any{}
-		for _, name := range []string{"current.inputs.json", "current.build.json", "current.map.json"} {
-			var value any
-			_ = json.Unmarshal(files[o.key(name)], &value)
-			gitInputs[name] = value
-		}
-		state, e := o.call("git.commit", map[string]any{"inputs": gitInputs, "model": o.model, "script": *script, "note": in.Note, "source": in.Source, "version": name})
+		history, e = o.historySnapshot(path, *script, name, in.Note, in.Source, files)
 		if e != nil {
 			return nil, e
 		}
-		for key, value := range state.(map[string]string) {
-			result[key] = value
+	}
+	if e = o.publish(files); e != nil {
+		return nil, e
+	}
+	if history.Revision != "" {
+		history, e = o.runtime.AppendSourceHistory(o.ctx, o.service.Root, o.tx, o.model, history)
+		if e != nil {
+			return nil, e
 		}
+		result["historyRevision"], result["branch"] = history.Revision, history.Branch
 	}
 	return result, nil
 }
