@@ -48,23 +48,24 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 func (c *cappedBuffer) String() string { return string(c.buf) }
 
 type Queue struct {
-	st      *store.Store
-	runner  Runner
-	jobs    chan string
-	mu      sync.Mutex
-	pending map[string]bool
-	running map[string]bool
-	dirty   map[string]bool
-	closed  bool
-	ctx     context.Context
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup // worker 生命周期跟踪——停机 WaitIdle 排干等待（W-0061 S1）
+	st         *store.Store
+	runner     Runner
+	jobTimeout time.Duration
+	jobs       chan string
+	mu         sync.Mutex
+	pending    map[string]bool
+	running    map[string]bool
+	dirty      map[string]bool
+	closed     bool
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup // worker 生命周期跟踪——停机 WaitIdle 排干等待（W-0061 S1）
 }
 
 func NewQueue(st *store.Store, r Runner, workers int) *Queue {
 	ctx, cancel := context.WithCancel(context.Background())
 	q := &Queue{
-		st: st, runner: r, jobs: make(chan string, 64),
+		st: st, runner: r, jobTimeout: 2 * time.Minute, jobs: make(chan string, 64),
 		pending: map[string]bool{}, running: map[string]bool{}, dirty: map[string]bool{},
 		ctx: ctx, cancel: cancel,
 	}

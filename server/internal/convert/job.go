@@ -32,7 +32,14 @@ func (q *Queue) convertOne(ctx context.Context, id string) bool {
 		err = os.Mkdir(output, 0700)
 	}
 	if err == nil {
-		err = q.runner.Run(ctx, input, output)
+		// Keep the queue context for publication and stale-source retries. A
+		// single expired conversion must not cancel the worker's next job.
+		runCtx, cancel := context.WithTimeout(ctx, q.jobTimeout)
+		err = q.runner.Run(runCtx, input, output)
+		if runCtx.Err() != nil {
+			err = runCtx.Err()
+		}
+		cancel()
 	}
 	if err == nil {
 		err = ctx.Err()
