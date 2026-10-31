@@ -88,7 +88,19 @@ func TestCanceledModelLockWaitReleasesConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if active := db.Stats().InUse; active != 0 {
-		t.Fatalf("connections retained after cancellation: %d", active)
+	// database/sql may already be rolling this canceled transaction back in
+	// awaitDone. A concurrent Rollback then returns ErrTxDone before that
+	// goroutine has returned the connection. Observe eventual release rather
+	// than treating that transient cleanup window as a connection leak.
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cleanupCancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for db.Stats().InUse != 0 {
+		select {
+		case <-ticker.C:
+		case <-cleanupCtx.Done():
+			t.Fatalf("connections retained after cancellation cleanup: %+v", db.Stats())
+		}
 	}
 }
