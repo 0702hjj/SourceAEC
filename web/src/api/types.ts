@@ -114,6 +114,8 @@ export interface ScriptSaveResult {
   modelId: string;
   version: string;
   staged: number;
+  historyRevision?: string;
+  branch?: string;
 }
 
 export interface ScriptParamsResponse {

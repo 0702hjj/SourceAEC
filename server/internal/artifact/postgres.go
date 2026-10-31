@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"ifcviewer/server/internal/versionstore"
 )
 
 // Connect creates the schema but neither imports nor restores workspace files.
@@ -55,6 +56,9 @@ func Connect(root string) (*sql.DB, error) {
 	}
 	if err == nil {
 		_, err = tx.Exec("ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS content_hash BYTEA GENERATED ALWAYS AS (sha256(content)) STORED")
+	}
+	if err == nil {
+		err = versionstore.Schema(context.Background(), tx)
 	}
 	if err != nil {
 		db.Close()

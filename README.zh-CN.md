@@ -23,13 +23,17 @@ flowchart TB
     EDIT -->|脚本、参数与版本 GET| READ[数据库只读快照]
     READ --> PG[(PostgreSQL / 权威业务数据)]
     EDIT -->|编辑写入| GATE[共同模型准入<br/>命名空间 + 模型 / 每进程 1 个活动者与 64 个等待者]
-    GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁 / Git bundle]
-    WRITE --> PG
+    GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁]
+    WRITE --> VERSION[versionstore / 不可变源码引用<br/>历史 head 与版本计数]
+    VERSION --> PG
+    API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
+    GIT --> GATE
+    GIT --> PG
     EDIT --> PREP[短只读快照 / 执行身份]
     PREP --> INPUT[项目归属与不可变输入]
     INPUT --> PG
     PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
-    PREP --> COMPARE[3 个已有产品比较 / 不占几何名额]
+    PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
     PY -->|重新校验身份 / 拒绝过期结果| GATE
@@ -46,6 +50,8 @@ flowchart TB
     API --> VIEW[模型锁内打开已提交预览 generation]
     VIEW --> PG
     VIEW --> CACHE
+    API --> DOWNLOAD[已提交下载 / 私有文件快照<br/>8 个读取名额 / 4 GiB 临时磁盘预算]
+    PG --> DOWNLOAD
     GC[回收超过一小时的未引用 generation] --> CACHE
     RECOVER[已提交状态与投影恢复<br/>不恢复执行中的脚本] --> PG
     RECOVER --> JOURNAL
@@ -56,6 +62,7 @@ flowchart TB
 编辑写入、模型删除、转换发布和状态更新共用数据库连接前的模型准入，PostgreSQL 模型锁
 继续保证跨进程互斥。环境准备与几何执行期间释放数据库连接和模型锁；发布时发现
 源码、输入或分支已变化则返回 409。三个构建生命周期与三个已有产品比较名额分别限流。
+正常保存提交源码历史引用，不执行 Git；展开分支管理时按需生成真实提交。
 进程内预算不代表跨副本共享资源上限。
 
 ## 主要数据链路
@@ -92,7 +99,7 @@ sequenceDiagram
     Note over E,P: 状态变化时在发布前返回 409
     E->>P: 写入当前产物与构建、输入记录
     opt 保存版本
-        E->>P: 写入不可变版本、暂存清理与 Git bundle
+        E->>P: 写入不可变版本、历史引用、head 与暂存清理
     end
     E->>F: 先记录路径 journal，再更新投影
     E->>P: 提交
@@ -152,6 +159,8 @@ cd ../server && go run ./cmd/server
 | `server/internal/editsvc` | 进程内编辑客户端与 HTTP 兼容适配 |
 | `server/internal/editing` | IFC/DXF 共用的暂存、执行、比较、保存、回滚及格式适配 |
 | `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
+| `server/internal/versionstore`, `server/internal/sourcepatch` | 不可变源码历史引用、head/计数与精确 revision patch |
+| `server/internal/resourcebudget` | 进程内产物字节预留 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |
 | `server/internal/change`, `server/internal/issue`, `server/internal/override` | 来源记录、审阅问题与属性覆盖 |

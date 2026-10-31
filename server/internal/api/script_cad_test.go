@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/change"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
@@ -298,6 +299,13 @@ func decodeUploaded(t *testing.T, rec *httptest.ResponseRecorder) store.Model {
 // .dxf 上传：kind=dxf、直接 ready、不进 converter 队列；download 回 .dxf 源文件。
 func TestUploadDXFKindReadyNoConvert(t *testing.T) {
 	env, _, _ := newCadEnv(t)
+	if os.Getenv("VIEWER_PG_DSN") == "" {
+		t.Skip("VIEWER_PG_DSN not set")
+	}
+	if err := artifact.Open(env.st.DataDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = artifact.Close(env.st.DataDir) })
 	rec := uploadToMux(t, env.mux, "plan.dxf", "0\nSECTION\n")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("upload: %d %s", rec.Code, rec.Body)

@@ -4,6 +4,9 @@ package editruntime
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"ifcviewer/server/internal/versionstore"
 	"os"
 )
 
@@ -19,8 +22,18 @@ func importHistory(ctx context.Context, db queryer, root, model string) error {
 	if err != nil {
 		return err
 	}
+	known, err := versionstore.New(db).RecordedVersions(ctx, model)
+	if err != nil {
+		return err
+	}
+	var c *candidate
+	defer func() {
+		if c != nil {
+			os.RemoveAll(c.directory)
+		}
+	}()
 	for _, record := range records {
-		if !record.script {
+		if !record.script || known[record.Version.Version] {
 			continue
 		}
 		version := record.Version.Version
@@ -28,19 +41,48 @@ func importHistory(ctx context.Context, db queryer, root, model string) error {
 		if err = db.QueryRowContext(ctx, "SELECT content FROM artifacts WHERE path=$1", "models/"+model+"/scripts/"+version+".py").Scan(&data); err != nil {
 			return err
 		}
-		snapshot, err := repositorySnapshot(ctx, db, model)
+		if c == nil {
+			c, err = workspaceSnapshot(ctx, root, model, RepositorySnapshot{})
+			if err != nil {
+				return err
+			}
+			c.projectionOnly = true
+		}
+		inputs, err := legacyGitInputs(ctx, db, model, version)
 		if err != nil {
 			return err
 		}
-		c, err := workspaceSnapshot(ctx, root, model, snapshot)
-		if err != nil {
-			return err
+		note := record.Note
+		if note == "" {
+			note = "Import " + version
 		}
-		_, err = commitGit(db, c, gitArgs{Script: string(data), Note: "Import " + version, Source: "migration", Version: version})
-		os.RemoveAll(c.directory)
+		_, err = commitCandidate(c, gitArgs{Model: model, Script: string(data), Note: note, Source: "migration", Version: version, Inputs: inputs})
 		if err != nil {
 			return err
 		}
 	}
+	if c != nil {
+		return persist(db, c)
+	}
 	return nil
+}
+
+func legacyGitInputs(ctx context.Context, db queryer, model, version string) (map[string]any, error) {
+	result := map[string]any{}
+	for _, suffix := range []string{"inputs", "build", "map"} {
+		var data []byte
+		err := db.QueryRowContext(ctx, "SELECT content FROM artifacts WHERE path=$1", "models/"+model+"/scripts/"+version+"."+suffix+".json").Scan(&data)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		value, err := archiveJSONValue(data)
+		if err != nil {
+			return nil, err
+		}
+		result["current."+suffix+".json"] = value
+	}
+	return result, nil
 }

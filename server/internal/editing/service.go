@@ -17,6 +17,8 @@ import (
 
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/editruntime"
+	"ifcviewer/server/internal/sourcepatch"
+	"ifcviewer/server/internal/versionstore"
 )
 
 type Error struct {
@@ -60,7 +62,11 @@ func (o *operation) call(name string, args any) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	return o.runtime.Handle(editruntime.Request{Context: o.ctx, Op: name, Root: o.service.Root, Tx: o.tx, Args: raw})
+	value, err := o.runtime.Handle(editruntime.Request{Context: o.ctx, Op: name, Root: o.service.Root, Tx: o.tx, Args: raw})
+	if errors.Is(err, versionstore.ErrProjectionPending) || errors.Is(err, versionstore.ErrConflict) {
+		return nil, failure(409, err.Error())
+	}
+	return value, err
 }
 func (o *operation) key(suffix string) string { return "models/" + o.model + "/" + suffix }
 func (o *operation) read(key string) ([]byte, error) {
@@ -174,6 +180,9 @@ func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any
 	}
 	if executableRoute(method, suffix) {
 		return o.detached(suffix, body)
+	}
+	if method == "GET" && suffix == "git" {
+		return o.sourceGitState()
 	}
 	o.readOnly = method == "GET" && (suffix == "script" || suffix == "script/params" || suffix == "scripts" || suffix == "versions")
 	if method == "GET" && (suffix == "scripts" || suffix == "versions") {
@@ -339,15 +348,25 @@ func (o *operation) dispatch(method, path string, body []byte) (any, error) {
 }
 func (o *operation) stage(s *staging, body []byte) (any, error) {
 	var in struct {
-		Script   *string        `json:"script"`
-		Params   map[string]any `json:"params"`
-		Revision *string        `json:"baseRevision"`
+		Script   *string             `json:"script"`
+		Params   map[string]any      `json:"params"`
+		Revision *string             `json:"baseRevision"`
+		Patch    *[]sourcepatch.Edit `json:"patch"`
 	}
 	if e := decodeBody(body, &in); e != nil {
 		return nil, e
 	}
-	if (in.Script == nil) == (in.Params == nil) {
-		return nil, failure(422, "exactly one of script / params required")
+	choices := 0
+	for _, present := range []bool{in.Script != nil, in.Params != nil, in.Patch != nil} {
+		if present {
+			choices++
+		}
+	}
+	if choices != 1 {
+		return nil, failure(422, "exactly one of script / params / patch required")
+	}
+	if in.Patch != nil && (s.current() == nil || in.Revision == nil) {
+		return nil, failure(422, "patch requires current source and baseRevision")
 	}
 	current := ""
 	if s.current() != nil {
@@ -359,6 +378,12 @@ func (o *operation) stage(s *staging, body []byte) (any, error) {
 	text := ""
 	if in.Script != nil {
 		text = *in.Script
+	} else if in.Patch != nil {
+		var err error
+		text, err = sourcepatch.Apply(current, *in.Patch, 1<<20)
+		if err != nil {
+			return nil, failure(422, err.Error())
+		}
 	} else {
 		if s.current() == nil {
 			return nil, failure(409, "no script to update params on")

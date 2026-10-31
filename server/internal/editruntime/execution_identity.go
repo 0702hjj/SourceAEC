@@ -5,20 +5,23 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"ifcviewer/server/internal/versionstore"
 	"strings"
 )
 
 // ExecutionIdentity excludes derived viewer/status updates, but includes source,
-// staging, immutable history, repository state and the model's ownership/epoch.
+// staging, authoritative history head/branch and the model's ownership/epoch.
+// Immutable archives and a lazily materialized Git cache are not rehashed.
 // The caller supplies a repeatable-read snapshot or holds the model write lock.
 func (r *Runtime) ExecutionIdentity(ctx context.Context, root, token, model string) (string, error) {
 	db, err := r.database(Request{Root: root, Tx: token})
 	if err != nil {
 		return "", err
 	}
-	rows, err := db.QueryContext(ctx, `SELECT path,encode(content_hash,'hex') FROM artifacts
- WHERE (starts_with(path,$1) AND path<>$2 AND path<>$3) OR starts_with(path,$4)
- ORDER BY path`, "models/"+model+"/", "models/"+model+"/model.json", "models/"+model+"/viewer.json", "uploads/"+model+".")
+	prefix := "models/" + model + "/"
+	keys := []string{prefix + "script_staging.json", prefix + "current.build.json", prefix + "current.inputs.json", prefix + "current.map.json",
+		"uploads/" + model + ".ifc", "uploads/" + model + ".dxf", "uploads/" + model + ".ifc.build.json", "uploads/" + model + ".dxf.build.json"}
+	rows, err := db.QueryContext(ctx, `SELECT path,encode(content_hash,'hex') FROM artifacts WHERE path=ANY($1::text[]) ORDER BY path`, keys)
 	if err != nil {
 		return "", err
 	}
@@ -44,12 +47,19 @@ func (r *Runtime) ExecutionIdentity(ctx context.Context, root, token, model stri
 		return "", err
 	}
 	state.Write(metadata)
-	var repo, branch string
-	err = db.QueryRowContext(ctx, "SELECT encode(sha256(bundle),'hex'),branch FROM repositories WHERE model_id=$1", model).Scan(&repo, &branch)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	head, err := versionstore.New(db).Head(ctx, model)
+	if err == nil {
+		state.Write(canonical(head))
+	} else if errors.Is(err, sql.ErrNoRows) {
+		var repo, branch string
+		err = db.QueryRowContext(ctx, "SELECT encode(sha256(bundle),'hex'),branch FROM repositories WHERE model_id=$1", model).Scan(&repo, &branch)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", err
+		}
+		state.WriteString(repo + ":" + branch)
+	} else {
 		return "", err
 	}
-	state.WriteString(repo + ":" + branch)
 	inputs, err := collectInputs(ctx, db, model)
 	if err != nil {
 		return "", err

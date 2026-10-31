@@ -4,6 +4,7 @@ package editing
 import (
 	"errors"
 	"ifcviewer/server/internal/metrics"
+	"ifcviewer/server/internal/versionstore"
 	"time"
 )
 
@@ -42,7 +43,8 @@ func (o *operation) detached(path string, body []byte) (any, error) {
 	default:
 		return nil, failure(429, "build capacity exhausted")
 	}
-	if err := o.prepareVersionRead(); err != nil {
+	gitRoute := path == "git/branches" || path == "git/checkout" || path == "git/merge"
+	if err := o.prepareSourceHistory(gitRoute); err != nil {
 		return nil, err
 	}
 	o.readOnly = true
@@ -72,6 +74,9 @@ func (o *operation) detached(path string, body []byte) (any, error) {
 			return nil, err
 		}
 		if err = o.runtime.CaptureRepository(o.ctx, o.service.Root, o.tx, o.model); err != nil {
+			if errors.Is(err, versionstore.ErrProjectionPending) {
+				return nil, failure(409, err.Error())
+			}
 			return nil, err
 		}
 		if _, err = o.call("commit", nil); err != nil {

@@ -7,12 +7,12 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -120,7 +120,7 @@ func (h *handler) retry(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeModelWriteErr(w http.ResponseWriter, err error) {
-	if errors.Is(err, artifact.ErrModelQueueFull) {
+	if errors.Is(err, artifact.ErrModelQueueFull) || errors.Is(err, artifact.ErrReadCapacity) {
 		writeErr(w, http.StatusTooManyRequests, 42900, err.Error())
 		return
 	}
@@ -165,12 +165,17 @@ func (h *handler) download(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(m.Name))
 	w.Header().Set("Cache-Control", "no-store")
-	data, err := artifact.ReadFile(h.st.SourcePath(m))
+	file, err := artifact.OpenSnapshot(r.Context(), h.st.SourcePath(m))
 	if err != nil {
-		http.NotFound(w, r)
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+		} else {
+			writeModelWriteErr(w, err)
+		}
 		return
 	}
-	http.ServeContent(w, r, m.Name, time.Time{}, bytes.NewReader(data))
+	defer file.Close()
+	http.ServeContent(w, r, m.Name, time.Time{}, file)
 }
 
 func (h *handler) serveModelFile(name string) http.HandlerFunc {

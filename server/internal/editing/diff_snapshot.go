@@ -3,6 +3,7 @@ package editing
 
 import (
 	"context"
+	"ifcviewer/server/internal/resourcebudget"
 	"os"
 )
 
@@ -14,8 +15,9 @@ type versionInput struct {
 
 // Comparing stored products uses bounded memory but no geometry worker.
 var productComparisons = make(chan struct{}, 3)
+var comparisonBytes = resourcebudget.NewBytes(512 << 20)
 
-func (o *operation) captureVersion(name string) (versionInput, error) {
+func (o *operation) captureVersion(name string, reserve func(int64) error) (versionInput, error) {
 	key := "uploads/" + o.model + "." + o.service.Kind
 	if name != "current" {
 		if !versionPattern.MatchString(name) {
@@ -23,11 +25,20 @@ func (o *operation) captureVersion(name string) (versionInput, error) {
 		}
 		key = o.key("scripts/" + name + ".product")
 	}
-	data, err := o.read(key)
+	size, err := o.runtime.StoredArtifactSize(o.ctx, o.service.Root, o.tx, key)
 	if err == nil {
-		return versionInput{data: data}, nil
+		if err = reserve(size); err != nil {
+			return versionInput{}, err
+		}
+		data, err := o.read(key)
+		return versionInput{data: data}, err
 	}
 	if !os.IsNotExist(err) || name == "current" {
+		return versionInput{}, err
+	}
+	// A legacy execution may produce any allowed product size. Reserve its
+	// worst-case payload before launching it; do not learn the size too late.
+	if err = reserve(productLimit); err != nil {
 		return versionInput{}, err
 	}
 	script, err := o.versionScript(name)
@@ -40,6 +51,20 @@ func (o *operation) captureVersion(name string) (versionInput, error) {
 }
 
 func (o *operation) detachedDiff(body []byte) (any, error) {
+	var releases []func()
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+	reserve := func(n int64) error {
+		release, ok := comparisonBytes.Try(n)
+		if !ok {
+			return failure(429, "comparison byte capacity exhausted")
+		}
+		releases = append(releases, release)
+		return nil
+	}
 	var in struct {
 		Base   string `json:"base"`
 		Target string `json:"target"`
@@ -70,11 +95,11 @@ func (o *operation) detachedDiff(body []byte) (any, error) {
 			_, _ = o.call("rollback", nil)
 		}
 	}()
-	a, err := o.captureVersion(in.Base)
+	a, err := o.captureVersion(in.Base, reserve)
 	if err != nil {
 		return nil, err
 	}
-	b, err := o.captureVersion(in.Target)
+	b, err := o.captureVersion(in.Target, reserve)
 	if err != nil {
 		return nil, err
 	}

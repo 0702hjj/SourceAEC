@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"ifcviewer/server/internal/versionstore"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -216,6 +217,9 @@ func RemoveAll(path string) error {
 		parts := strings.Split(key, "/")
 		if len(parts) == 2 && parts[0] == "models" {
 			if _, err := db.Exec("DELETE FROM repositories WHERE model_id=$1", parts[1]); err != nil {
+				return err
+			}
+			if err := versionstore.New(db).DeleteModel(context.Background(), parts[1]); err != nil {
 				return err
 			}
 		}

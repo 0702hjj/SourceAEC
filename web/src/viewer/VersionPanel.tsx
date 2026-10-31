@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchGitState, fetchScript, changeGitBranch } from "@/api/client";
 import type { GitState } from "@/api/types";
 import { useViewerStore } from "./store";
@@ -11,13 +11,22 @@ export function VersionPanel({ modelId }: { modelId: string }) {
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const refresh = useCallback(() => Promise.resolve().then(() => fetchGitState(modelId))
-    .then(setState).catch(() => setState(null)), [modelId]);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
+    if (!expanded) return;
+    let active = true;
+    let generation = 0;
+    setState(null); setError("");
+    const refresh = () => {
+      const request = ++generation;
+      void fetchGitState(modelId).then((value) => {
+        if (active && request === generation) { setState(value); setError(""); }
+      }).catch((e: Error) => { if (active && request === generation) setError(e.message); });
+    };
     refresh();
     window.addEventListener("sourceaec:script-changed", refresh);
-    return () => window.removeEventListener("sourceaec:script-changed", refresh);
-  }, [refresh]);
+    return () => { active = false; window.removeEventListener("sourceaec:script-changed", refresh); };
+  }, [expanded, modelId]);
   const change = async (action: "branches" | "checkout" | "merge", name: string) => {
     setBusy(true); setError("");
     try {
@@ -29,8 +38,11 @@ export function VersionPanel({ modelId }: { modelId: string }) {
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
-  if (!state) return null;
-  return <section aria-label="Git 版本管理">
+  return <section aria-label="分支管理">
+    <button aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>分支管理</button>
+    {expanded && <>
+    {!state && !error && <p>正在读取分支…</p>}
+    {state && <>
     <p>分支：{state.branch} {state.commit?.slice(0, 8)}</p>
     {state.commits.length === 0 ? <p>保存首个版本后可创建分支</p> : <>
       <label>新分支<input value={branch} onChange={(e) => setBranch(e.target.value)} /></label>
@@ -42,6 +54,8 @@ export function VersionPanel({ modelId }: { modelId: string }) {
       <button disabled={busy || !target} onClick={() => change("checkout", target)}>切换分支</button>
       <button disabled={busy || !target} onClick={() => change("merge", target)}>合并到当前分支</button>
     </>}
+    </>}
     {error && <p role="alert">{error}</p>}
+    </>}
   </section>;
 }

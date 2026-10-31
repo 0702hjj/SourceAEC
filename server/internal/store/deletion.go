@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/versionstore"
 	"os"
 	"path/filepath"
 )
@@ -44,6 +45,9 @@ func (s *Store) DeleteContext(ctx context.Context, id string) error {
 		return ErrNotFound
 	}
 	if _, err = tx.ExecContext(ctx, "DELETE FROM repositories WHERE model_id=$1", id); err != nil {
+		return err
+	}
+	if err = versionstore.New(tx).DeleteModel(ctx, id); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {
