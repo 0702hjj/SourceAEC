@@ -45,8 +45,8 @@ type ChatDeps struct {
 	Ag      *agent.Agent
 	Agents  map[string]*agent.Agent // kind -> 主 agent（cad/ifc/cad->ifc）
 	Ev      *agent.EventStore
-	Ed      *editsvc.Client // ifc kind 后端（services/ifc :8100）
-	Cad     *editsvc.Client // dxf kind 后端（services/cad :8200）；nil 时 dxf 会话 notify 报错文本
+	Ed      *editsvc.Client // IFC 编辑适配（默认进程内 Go）
+	Cad     *editsvc.Client // DXF 编辑适配；nil 时 dxf 会话 notify 报错文本
 	St      *store.Store
 	Ps      *store.ProjectStore // 项目级聚合（A1：create_project 项目级）；nil 时 create_project 降级单模型
 	PlanSt  *store.PlanStore    // 方案级存储（B1：plans/{projectID}/plan.json + bim_supplement.json + 版本化）

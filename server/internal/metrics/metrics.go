@@ -49,6 +49,7 @@ var (
 	ModelWaiting     Counter // Editing and derived-product writers waiting for process admission.
 	ScriptRunning    Counter // Geometry jobs including environment preparation.
 	ScriptRejected   Counter // Geometry jobs rejected by process admission.
+	PreviewGCFailed  Counter // Failed best-effort post-publication cache sweeps.
 )
 
 func init() {
@@ -63,6 +64,7 @@ func init() {
 			"modelWaiting":     ModelWaiting.Value(),
 			"scriptRunning":    ScriptRunning.Value(),
 			"scriptRejected":   ScriptRejected.Value(),
+			"previewGCFailed":  PreviewGCFailed.Value(),
 		}
 	}))
 }

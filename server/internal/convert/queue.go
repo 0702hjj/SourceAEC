@@ -127,7 +127,7 @@ func (q *Queue) enqueue(id string) (bool, bool) {
 	}
 	// Admission and database locks can wait for geometry. Never hold the queue
 	// mutex here: unrelated workers and producers must continue to progress.
-	if err := q.st.SetStatusContext(q.ctx, id, "converting", ""); err != nil && !errors.Is(err, artifact.ErrModelQueueFull) {
+	if err := q.st.SetConversionStatusContext(q.ctx, id, "converting", ""); err != nil && !errors.Is(err, artifact.ErrModelQueueFull) {
 		return false, false
 	}
 	// A full model gate must not drop a committed edit's conversion. The
@@ -157,7 +157,7 @@ func (q *Queue) unavailableLocked(id string) bool {
 func (q *Queue) reject(id string) (bool, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_ = q.st.SetStatusContext(ctx, id, "failed", "conversion queue unavailable; retry")
+	_ = q.st.SetConversionStatusContext(ctx, id, "failed", "conversion queue unavailable; retry")
 	return false, false
 }
 

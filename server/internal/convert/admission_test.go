@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
-	"ifcviewer/server/internal/metrics"
 	"ifcviewer/server/internal/store"
 )
 
@@ -35,8 +34,11 @@ func testFullModelAdmission(t *testing.T, shutdown bool) {
 		t.Fatal(err)
 	}
 	defer release()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	lifetime, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stop()
+	ctx, cancel := context.WithCancel(lifetime)
 	defer cancel()
+	q.Start(lifetime)
 	var wg sync.WaitGroup
 	for i := 0; i < artifact.ModelWaitLimit; i++ {
 		wg.Add(1)
@@ -51,7 +53,16 @@ func testFullModelAdmission(t *testing.T, shutdown bool) {
 	t.Cleanup(func() { cancel(); wg.Wait() })
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()
-	for metrics.ModelWaiting.Value() != artifact.ModelWaitLimit {
+	for {
+		// Observe actual registrations without consuming a waiting slot. The
+		// aggregate ModelWaiting gauge increments before registry admission.
+		users, err := artifact.ModelAdmissionUsers(st.DataDir, m.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if users == artifact.ModelWaitLimit+1 {
+			break
+		}
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
