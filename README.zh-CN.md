@@ -36,7 +36,8 @@ flowchart TB
     PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
-    PY -->|重新校验身份 / 拒绝过期结果| GATE
+    PY --> INSPECT[产品与源码映射检查<br/>有界格式解析与展开]
+    INSPECT -->|重新校验身份 / 拒绝过期结果| GATE
     WRITE --> JOURNAL[投影 journal / 可重建工作区]
     API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]
     QUEUE --> SOURCE[已提交 IFC 与构建身份快照]
@@ -50,7 +51,7 @@ flowchart TB
     API --> VIEW[模型锁内打开已提交预览 generation]
     VIEW --> PG
     VIEW --> CACHE
-    API --> DOWNLOAD[已提交下载 / 私有文件快照<br/>8 个读取名额 / 4 GiB 临时磁盘预算]
+    API --> DOWNLOAD[已提交下载 / 私有文件快照<br/>8 个读取名额 / 4 GiB 快照文件<br/>导出中源字节合计 1 GiB]
     PG --> DOWNLOAD
     GC[回收超过一小时的未引用 generation] --> CACHE
     RECOVER[已提交状态与投影恢复<br/>不恢复执行中的脚本] --> PG
@@ -95,6 +96,7 @@ sequenceDiagram
     E->>S: 只读输入 / 隔离几何执行
     Note over E,P: 环境准备与执行期间不持有连接或模型锁
     S-->>E: 产品、源码映射与环境身份
+    E->>E: 校验源码映射、解析与展开预算
     E->>P: 取得模型准入与锁，重新校验执行身份
     Note over E,P: 状态变化时在发布前返回 409
     E->>P: 写入当前产物与构建、输入记录

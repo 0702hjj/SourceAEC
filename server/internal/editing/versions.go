@@ -105,7 +105,7 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 	if o.service.Kind == "dxf" {
 		render, e := renderDXF(product.Data)
 		if e != nil {
-			return Product{}, nil, e
+			return Product{}, nil, failure(422, e.Error())
 		}
 		files[o.key("render.json")] = jsonBytes(render)
 	}
