@@ -114,7 +114,16 @@ func renderDXF(data []byte) (map[string]any, error) {
 	}
 	entities := []map[string]any{}
 	unsupported := []map[string]any{}
+	budget := dxfRenderBudget{objects: inspectionObjects, pairs: inspectionPairs, bytes: inspectionDXFOutputBytes}
+	for _, layer := range doc.Layers {
+		if err := budget.reserveLayer(layer); err != nil {
+			return nil, err
+		}
+	}
 	for _, entity := range doc.Entities {
+		if err := budget.reserve(entity); err != nil {
+			return nil, err
+		}
 		geometries := dxfGeometry(entity)
 		if geometries == nil {
 			unsupported = append(unsupported, map[string]any{"type": entity.Kind, "handle": entity.value(5, ""), "coords": entity.point(10)})
@@ -128,6 +137,9 @@ func renderDXF(data []byte) (map[string]any, error) {
 				continue
 			}
 			for _, child := range doc.Blocks[entity.value(2, "")] {
+				if err := budget.reserveChild(child, entity); err != nil {
+					return nil, err
+				}
 				if child.Kind == "INSERT" {
 					unsupported = append(unsupported, map[string]any{"type": "INSERT", "handle": child.value(5, ""), "coords": child.point(10)})
 					continue

@@ -59,6 +59,20 @@ go test ./internal/artifact -run '^$' -bench '^BenchmarkArtifactRead$' \
 该基准要求专用 `VIEWER_TEST_PG_DSN`，使用 1/32/128/256 MiB 可压缩合成内容。
 `B/op` 为累计分配而非峰值；PostgreSQL 导出、临时文件与慢客户端须另外观察。
 
+下载快照的并发与限速读取矩阵：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkSnapshotConcurrency$' \
+  -benchtime=32x -count=3 -benchmem -timeout=20m
+```
+
+固定 1/32/128/256 MiB、1/4/8/16/32 个客户端，每批同时发起请求，等待该批结束后再发起。
+操作数至少 32 才能覆盖最大并发；限速组以 2ms 节拍读取最多 1 MiB 的块。
+仅包含数据库快照导出和文件读取，不包含 HTTP、模型语义或几何执行。
+报告成功数量/吞吐/延迟、过载数量、连接池等待及 Go RSS；拒绝请求不算成功吞吐。
+小样本延迟分位数仅作描述，不是尾延迟 SLO；各组复用同一测试进程，RSS 可受前组影响。
+PG 与临时磁盘必须独立采样，不能把 Go RSS 或累计分配当作整个系统内存。
+
 版本历史成本可用以下基准独立测量：
 
 ```bash

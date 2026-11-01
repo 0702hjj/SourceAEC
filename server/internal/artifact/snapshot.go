@@ -15,6 +15,7 @@ import (
 var ErrReadCapacity = errors.New("artifact read capacity exhausted; retry")
 var snapshotSlots = make(chan struct{}, 8)
 var snapshotBytes = resourcebudget.NewBytes(4 << 30)
+var snapshotExportBytes = resourcebudget.NewBytes(1 << 30)
 
 // Snapshot is a private, immutable copy of one committed revision. Close removes
 // the temporary file and releases its disk reservation, including on disconnect.
@@ -52,6 +53,11 @@ func OpenSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 			release()
 		}
 	}()
+	// SQL materialization and TOAST expansion have costs beyond the file's
+	// reserved disk bytes. Account source bytes only during export, releasing
+	// after transaction/connection cleanup rather than at client disconnect.
+	releaseExport := func() {}
+	defer func() { releaseExport() }()
 	db, key := lookup(path)
 	if db == nil || !durable(key) {
 		return nil, os.ErrNotExist
@@ -78,6 +84,11 @@ func OpenSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	releaseBytes, ok = snapshotBytes.Try(size)
 	if !ok {
 		releaseBytes = func() {}
+		return nil, ErrReadCapacity
+	}
+	releaseExport, ok = snapshotExportBytes.Try(size)
+	if !ok {
+		releaseExport = func() {}
 		return nil, ErrReadCapacity
 	}
 	file, err := os.CreateTemp("", "sourceaec-read-*")

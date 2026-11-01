@@ -48,7 +48,8 @@ flowchart TB
     PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
-    PY -->|Recheck identity / reject stale result| GATE
+    PY --> INSPECT[Product and source-map checks<br/>Bounded format parsing and expansion]
+    INSPECT -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
     QUEUE --> SOURCE[Committed IFC and build identity snapshot]
@@ -62,7 +63,7 @@ flowchart TB
     API --> VIEW[Open committed preview generation under model lock]
     VIEW --> PG
     VIEW --> CACHE
-    API --> DOWNLOAD[Committed download / private file snapshot<br/>8 readers / 4 GiB temporary disk budget]
+    API --> DOWNLOAD[Committed download / private file snapshot<br/>8 readers / 4 GiB snapshot files<br/>1 GiB source bytes during export]
     PG --> DOWNLOAD
     GC[Collect unreferenced generations older than one hour] --> CACHE
     RECOVER[Committed state and projection recovery<br/>No running-script resumption] --> PG
@@ -109,6 +110,7 @@ sequenceDiagram
     E->>S: Read-only inputs / isolated geometry execution
     Note over E,P: No connection or model lock during environment preparation and execution
     S-->>E: Product, source map and environment identity
+    E->>E: Check source-map, parsing and expansion budgets
     E->>P: Model admission and lock, recheck execution identity
     Note over E,P: Changed state returns 409 before publication
     E->>P: Write current artifacts and build/input records
