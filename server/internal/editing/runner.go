@@ -189,7 +189,7 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	if len(data) == 0 {
 		return Product{}, failure(422, "empty product")
 	}
-	mapData, e := readProduct(filepath.Join(directory, "out.map.json"), productLimit)
+	mapData, e := readProduct(filepath.Join(directory, "out.map.json"), sourceMapLimit)
 	if e != nil && !os.IsNotExist(e) {
 		return Product{}, failure(422, "invalid source map")
 	}

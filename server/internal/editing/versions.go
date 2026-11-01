@@ -84,8 +84,9 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 	}
 	m := sourceMap{Hash: digest([]byte(script)), Entries: map[string]map[string]any{}}
 	if len(product.Map) > 0 {
-		if json.Unmarshal(product.Map, &m) != nil {
-			return Product{}, nil, failure(422, "invalid source map JSON")
+		m, e = parseSourceMap(product.Map)
+		if e != nil {
+			return Product{}, nil, failure(422, e.Error())
 		}
 		m.Hash = digest([]byte(script))
 		if m.Entries == nil {
@@ -93,6 +94,9 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 		}
 	}
 	sourceMap := jsonBytes(m)
+	if e := validateSourceMap(sourceMap); e != nil {
+		return Product{}, nil, failure(422, e.Error())
+	}
 	manifest := map[string]any{"scriptHash": digest([]byte(script)), "productHash": digest(product.Data), "environment": product.Environment, "kind": o.service.Kind, "inputsHash": digest(jsonBytes(inputs)), "identity": map[string]any{"environment": product.Environment, "engine": "go", "inputsHash": digest(jsonBytes(inputs))}}
 	manifest["revision"] = digest(jsonBytes(manifest))
 	files := map[string][]byte{"uploads/" + o.model + "." + o.service.Kind: product.Data, o.key("current.map.json"): sourceMap, o.key("current.build.json"): jsonBytes(manifest)}

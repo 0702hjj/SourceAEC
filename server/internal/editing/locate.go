@@ -2,7 +2,6 @@
 package editing
 
 import (
-	"encoding/json"
 	"os"
 	"strconv"
 )
@@ -13,16 +12,24 @@ type sourceMap struct {
 }
 
 func (o *operation) readMap() (sourceMap, error) {
-	b, e := o.read(o.key("current.map.json"))
+	key := o.key("current.map.json")
+	size, e := o.runtime.StoredArtifactSize(o.ctx, o.service.Root, o.tx, key)
 	if os.IsNotExist(e) {
 		return sourceMap{}, nil
 	}
 	if e != nil {
 		return sourceMap{}, e
 	}
-	var result sourceMap
-	if json.Unmarshal(b, &result) != nil {
-		return sourceMap{}, nil
+	if size > sourceMapLimit {
+		return sourceMap{}, failure(422, "source map exceeds 16 MiB limit")
+	}
+	b, e := o.runtime.ReadStoredArtifact(o.ctx, o.service.Root, o.tx, key)
+	if e != nil {
+		return sourceMap{}, e
+	}
+	result, e := parseSourceMap(b)
+	if e != nil {
+		return sourceMap{}, failure(422, e.Error())
 	}
 	return result, nil
 }
