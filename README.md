@@ -41,7 +41,7 @@ flowchart TB
     API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
     GIT --> GATE
     GIT --> PG
-    EDIT --> PREP[Short read snapshot / execution identity]
+    EDIT --> PREP[Short read snapshot / frozen request and execution identity]
     PREP --> INPUT[Project ownership and immutable inputs]
     INPUT --> PG
     PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
@@ -107,7 +107,7 @@ sequenceDiagram
     A->>E: Execute current source
     E->>P: Short read snapshot of source, inputs, branch and model identity
     E->>P: End snapshot and release connection
-    E->>S: Read-only inputs / isolated geometry execution
+    E->>S: Captured read-only inputs / isolated geometry execution
     Note over E,P: No connection or model lock during environment preparation and execution
     S-->>E: Product, source map and environment identity
     E->>E: Check source-map, parsing and expansion budgets
