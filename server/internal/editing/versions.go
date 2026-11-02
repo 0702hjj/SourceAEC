@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"time"
 
@@ -54,7 +55,7 @@ func (o *operation) versionProduct(name string) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, inputs), script, o.service.Kind)
+	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script, o.service.Kind)
 	if e != nil {
 		return nil, e
 	}
@@ -72,7 +73,7 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 		o.execution.script, o.execution.inputs = script, inputs
 		return Product{}, nil, errExecutionPrepared
 	}
-	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, inputs), script, o.service.Kind)
+	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script, o.service.Kind)
 	if e != nil {
 		return Product{}, nil, e
 	}

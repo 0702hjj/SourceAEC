@@ -29,7 +29,7 @@ flowchart TB
     API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
     GIT --> GATE
     GIT --> PG
-    EDIT --> PREP[短只读快照 / 执行身份]
+    EDIT --> PREP[短只读快照 / 固定请求与执行身份]
     PREP --> INPUT[项目归属与不可变输入]
     INPUT --> PG
     PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
@@ -93,7 +93,7 @@ sequenceDiagram
     A->>E: 执行当前源码
     E->>P: 短只读快照取得源码、输入、分支与模型身份
     E->>P: 结束快照，释放连接
-    E->>S: 只读输入 / 隔离几何执行
+    E->>S: 已捕获的只读输入 / 隔离几何执行
     Note over E,P: 环境准备与执行期间不持有连接或模型锁
     S-->>E: 产品、源码映射与环境身份
     E->>E: 校验源码映射、解析与展开预算
