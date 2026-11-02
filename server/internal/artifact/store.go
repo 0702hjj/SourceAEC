@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"errors"
 	"ifcviewer/server/internal/versionstore"
+	"ifcviewer/server/internal/workflow"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -221,6 +222,11 @@ func RemoveAll(path string) error {
 			}
 			if err := versionstore.New(db).DeleteModel(context.Background(), parts[1]); err != nil {
 				return err
+			}
+			if versionstore.ValidModel(parts[1]) {
+				if err := workflow.New(db).DeleteModel(context.Background(), parts[1]); err != nil {
+					return err
+				}
 			}
 		}
 	}

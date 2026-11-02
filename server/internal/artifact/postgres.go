@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"ifcviewer/server/internal/versionstore"
+	"ifcviewer/server/internal/workflow"
 )
 
 // Connect creates the schema but neither imports nor restores workspace files.
@@ -59,6 +60,9 @@ func Connect(root string) (*sql.DB, error) {
 	}
 	if err == nil {
 		err = versionstore.Schema(context.Background(), tx)
+	}
+	if err == nil {
+		err = workflow.Schema(context.Background(), tx)
 	}
 	if err != nil {
 		db.Close()

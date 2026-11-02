@@ -5,6 +5,7 @@ import (
 	"context"
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/versionstore"
+	"ifcviewer/server/internal/workflow"
 	"os"
 	"path/filepath"
 )
@@ -48,6 +49,9 @@ func (s *Store) DeleteContext(ctx context.Context, id string) error {
 		return err
 	}
 	if err = versionstore.New(tx).DeleteModel(ctx, id); err != nil {
+		return err
+	}
+	if err = workflow.New(tx).DeleteModel(ctx, id); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {

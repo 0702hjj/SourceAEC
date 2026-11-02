@@ -38,6 +38,9 @@ flowchart TB
     GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock]
     WRITE --> VERSION[versionstore / immutable source references<br/>Head and version counter]
     VERSION --> PG
+    SCHEMA[Artifact schema initialization] -.-> WF[workflow / internal state primitives<br/>No asynchronous execution endpoint]
+    WF -.-> PG
+    DERIVED -.Model deletion.-> WF
     API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
     GIT --> GATE
     GIT --> PG
@@ -181,6 +184,7 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/editing` | Shared IFC/DXF staging, execution, comparison, save, rollback and format adapters |
 | `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | Immutable source-history references, head/counter and exact revision patches |
+| `server/internal/workflow` | Immutable workflow definitions, fenced attempts and checkpoints; internal state primitives |
 | `server/internal/resourcebudget` | Process-local payload byte reservations |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |

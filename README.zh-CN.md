@@ -26,6 +26,9 @@ flowchart TB
     GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁]
     WRITE --> VERSION[versionstore / 不可变源码引用<br/>历史 head 与版本计数]
     VERSION --> PG
+    SCHEMA[产物 schema 初始化] -.-> WF[workflow / 内部状态原语<br/>无异步执行入口]
+    WF -.-> PG
+    DERIVED -.模型删除.-> WF
     API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
     GIT --> GATE
     GIT --> PG
@@ -162,6 +165,7 @@ cd ../server && go run ./cmd/server
 | `server/internal/editing` | IFC/DXF 共用的暂存、执行、比较、保存、回滚及格式适配 |
 | `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | 不可变源码历史引用、head/计数与精确 revision patch |
+| `server/internal/workflow` | 不可变工作流定义、带所有权校验的尝试与检查点；内部状态原语 |
 | `server/internal/resourcebudget` | 进程内产物字节预留 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |
