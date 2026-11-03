@@ -89,6 +89,7 @@ func (s *Store) DeleteModel(ctx context.Context, model string) error {
 	if !modelPattern.MatchString(model) {
 		return ErrState
 	}
-	_, err := s.db.ExecContext(ctx, "DELETE FROM workflow_definitions WHERE model_id=$1", model)
+	_, err := s.db.ExecContext(ctx, `WITH removed AS (DELETE FROM workflow_reservations WHERE model_id=$1)
+ DELETE FROM workflow_definitions WHERE model_id=$1`, model)
 	return err
 }

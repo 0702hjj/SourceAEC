@@ -7,6 +7,15 @@ import (
 	"unicode/utf8"
 )
 
+func ValidateKey(key string) error {
+	if !labelPattern.MatchString(key) {
+		return errors.New("idempotency key must be 1..128 letters, digits, dot, underscore, colon or hyphen")
+	}
+	return nil
+}
+
+func ValidateIntent(i Intent) error { _, _, err := i.encode(); return err }
+
 func ValidateRef(model string, r Ref) error {
 	if !modelPattern.MatchString(model) || !hashPattern.MatchString(r.SHA256) || r.Bytes < 0 || r.Bytes > 512<<20 || r.Key != "models/"+model+"/workflows/blobs/"+r.SHA256 {
 		return errors.New("invalid model-scoped workflow blob reference")

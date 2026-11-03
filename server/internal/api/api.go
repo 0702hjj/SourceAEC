@@ -14,6 +14,7 @@ import (
 
 	"ifcviewer/server/internal/change"
 	"ifcviewer/server/internal/convert"
+	"ifcviewer/server/internal/editing"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
@@ -34,6 +35,7 @@ type envelope struct {
 }
 
 type handler struct {
+	workflows *editing.Workflows
 	st        *store.Store
 	q         *convert.Queue
 	iss       issue.Store
@@ -65,9 +67,16 @@ func NewHandlerWithCORS(st *store.Store, q *convert.Queue, iss issue.Store, chg 
 // NewHandlerWithProjectStore 同 NewHandlerWithCORS，额外注入项目存储——
 // 删除模型时联动 ProjectStore.RemoveModel（防孤儿 modelId 残留 project.json）。
 // ps 可空（测试/无项目装配跳过联动）。
-func NewHandlerWithProjectStore(st *store.Store, q *convert.Queue, iss issue.Store, chg change.Store, ovr override.Store, ed, cad *editsvc.Client, maxUploadBytes int64, corsOrigins []string, ps *store.ProjectStore) http.Handler {
+func NewHandlerWithProjectStore(st *store.Store, q *convert.Queue, iss issue.Store, chg change.Store, ovr override.Store, ed, cad *editsvc.Client, maxUploadBytes int64, corsOrigins []string, ps *store.ProjectStore, workflows ...*editing.Workflows) http.Handler {
 	h := &handler{st: st, q: q, iss: iss, chg: chg, ovr: ovr, ed: ed, cad: cad, ps: ps, maxUpload: maxUploadBytes}
+	if len(workflows) > 0 {
+		h.workflows = workflows[0]
+	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/models/{id}/workflows", h.createWorkflow)
+	mux.HandleFunc("GET /api/v1/models/{id}/workflows", h.listWorkflows)
+	mux.HandleFunc("GET /api/v1/models/{id}/workflows/{workflowId}", h.getWorkflow)
+	mux.HandleFunc("POST /api/v1/models/{id}/workflows/{workflowId}/{action}", h.controlWorkflow)
 	mux.HandleFunc("POST /api/v1/models", h.upload)
 	mux.HandleFunc("GET /api/v1/models", h.list)
 	mux.HandleFunc("GET /api/v1/models/{id}", h.get)

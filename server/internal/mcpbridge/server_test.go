@@ -40,7 +40,7 @@ func TestProtocolCallsOnlyAuthenticatedGateway(t *testing.T) {
 	}
 	defer session.Close()
 	tools, e := session.ListTools(ctx, nil)
-	if e != nil || len(tools.Tools) != 3 {
+	if e != nil || len(tools.Tools) != 6 {
 		t.Fatal(tools, e)
 	}
 	result, e := session.CallTool(ctx, &mcp.CallToolParams{Name: "model_current_context", Arguments: map[string]any{"model_id": "m_0123456789abcdef"}})

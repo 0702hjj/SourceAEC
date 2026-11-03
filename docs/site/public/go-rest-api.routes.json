@@ -107,6 +107,12 @@
       "file": "server/internal/api/edit.go"
     },
     {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/edit/diff-upload",
+      "handler": "h.editUpload",
+      "file": "server/internal/api/edit.go"
+    },
+    {
       "method": "GET",
       "path": "/api/v1/models/{id}/edit/history",
       "handler": "h.editHistory",
@@ -252,15 +258,27 @@
     },
     {
       "method": "GET",
-      "path": "/api/v1/projects/{projectID}/{name}",
-      "handler": "h.getPlanFile",
-      "file": "server/internal/api/chat.go"
+      "path": "/api/v1/models/{id}/workflows",
+      "handler": "h.listWorkflows",
+      "file": "server/internal/api/api.go"
     },
     {
-      "method": "PUT",
-      "path": "/api/v1/projects/{projectID}/{name}",
-      "handler": "h.putPlanFile",
-      "file": "server/internal/api/chat.go"
+      "method": "POST",
+      "path": "/api/v1/models/{id}/workflows",
+      "handler": "h.createWorkflow",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/models/{id}/workflows/{workflowId}",
+      "handler": "h.getWorkflow",
+      "file": "server/internal/api/api.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/models/{id}/workflows/{workflowId}/{action}",
+      "handler": "h.controlWorkflow",
+      "file": "server/internal/api/api.go"
     },
     {
       "method": "POST",
@@ -278,6 +296,18 @@
       "method": "GET",
       "path": "/api/v1/projects/{projectID}/plan_history/{base}/{target}/diff",
       "handler": "h.diffPlanHistory",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{projectID}/{name}",
+      "handler": "h.getPlanFile",
+      "file": "server/internal/api/chat.go"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/projects/{projectID}/{name}",
+      "handler": "h.putPlanFile",
       "file": "server/internal/api/chat.go"
     },
     {
@@ -303,12 +333,6 @@
       "path": "/v1/models/{id}/render.json",
       "handler": "h.serveModelFile(\"render.json\")",
       "file": "server/internal/api/api.go"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/models/{id}/edit/diff-upload",
-      "handler": "h.editUpload",
-      "file": "server/internal/api/edit.go"
     }
   ]
 }

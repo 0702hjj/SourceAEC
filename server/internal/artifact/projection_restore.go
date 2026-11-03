@@ -31,7 +31,7 @@ func restoreWorkspace(ctx context.Context, root string, db *sql.DB) error {
 	if err = recoverProjections(root, recovery); err != nil {
 		return err
 	}
-	rows, err := recovery.QueryContext(ctx, "SELECT path,content,mode FROM artifacts")
+	rows, err := recovery.QueryContext(ctx, `SELECT path,content,mode FROM artifacts WHERE path !~ '^models/m_[0-9a-f]{16}/workflows/blobs/[0-9a-f]{64}$'`)
 	if err != nil {
 		return err
 	}

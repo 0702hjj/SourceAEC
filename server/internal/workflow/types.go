@@ -34,6 +34,7 @@ func (s *Store) requireTransaction() error {
 var (
 	ErrConflict  = errors.New("workflow idempotency key has a different intent")
 	ErrCapacity  = errors.New("workflow pending capacity exhausted")
+	ErrLeaseBusy = errors.New("workflow lease row is locked")
 	ErrLeaseLost = errors.New("workflow lease no longer owned")
 	ErrState     = errors.New("invalid workflow transition")
 	modelPattern = regexp.MustCompile(`^m_[0-9a-f]{16}$`)
