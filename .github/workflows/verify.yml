@@ -47,7 +47,7 @@ jobs:
           if sysctl kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-          uv venv --python 3.12 "$RUNNER_TEMP/geometry"
+          uv venv --managed-python --python 3.12 "$RUNNER_TEMP/geometry"
           uv pip install --python "$RUNNER_TEMP/geometry/bin/python" ifcopenshell==0.8.3.post2 numpy==2.2.6 ezdxf==1.4.3
           echo "SOURCEAEC_PYTHON=$RUNNER_TEMP/geometry/bin/python" >> "$GITHUB_ENV"
           echo "SOURCEAEC_TEST_GEOMETRY=1" >> "$GITHUB_ENV"

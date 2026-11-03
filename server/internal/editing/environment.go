@@ -93,7 +93,7 @@ func (s *Sandbox) environment(ctx context.Context, script, kind string) (string,
 		return "", "", ctx.Err()
 	}
 	raw, _ := json.Marshal(deps)
-	identity := digest(append([]byte("python3.12:"), raw...))
+	identity := digest(append([]byte("python3.12:managed-v1:"), raw...))
 	directory := filepath.Join(s.CacheDir, identity)
 	python := filepath.Join(directory, "bin", "python")
 
@@ -135,7 +135,7 @@ func (s *Sandbox) environment(ctx context.Context, script, kind string) (string,
 	}
 	prepareCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	cmd := command(prepareCtx, uv, "venv", "--python", "3.12", directory)
+	cmd := command(prepareCtx, uv, "venv", "--managed-python", "--python", "3.12", directory)
 	if log, e := execute(prepareCtx, cmd); e != nil {
 		return "", "", failure(503, "Python environment creation failed: "+log)
 	}
