@@ -1,21 +1,7 @@
+---
+search: false
+---
+
 # Go 编辑领域
 
-编辑实现位于 `server/internal/editing`，由网关在进程内调用；没有独立 Python
-HTTP 服务，也不再需要 8100/8200 端口。旧页面地址保留用于文档链接兼容。
-
-共享行为包括 PARAMS 字面量读写、精确源码 patch、十步暂存与撤销/重做、revision 冲突检查、
-试运行、保存、回滚、版本对比、Git 分支及事务发布。IFC/DXF 差异由 Go 格式适配器处理。
-
-一次修改读取当前脚本及 revision，然后 stage → run → save。
-`baseRevision` 不匹配返回冲突；失败执行不会发布产品或创建版本。
-发布通过 PostgreSQL 事务锁协调；几何执行在事务外进行，发布前重新验证输入身份。
-正常保存使用不可变源码历史，不重建 Git 仓库；分支管理按需生成兼容提交。
-同步调用重启恢复持久业务状态与文件投影。显式[工作流 API](/reference/workflows)
-可恢复未完成阶段；中断的几何从头执行，已完成的候选复用，不保存 Python 内存栈。
-
-Python 源码仅是用户/Agent 提交的模型运行时数据。执行器在临时目录生成脚本，
-传入产品输出路径；环境、资源限制、版本规则与发布均由 Go 决定。
-没有内置画法 SDK、规划 CLI 或 Python AST 服务。
-
-[API 契约](/reference/edit-api)、[沙箱](/development/sandbox)、
-[CAD 适配](/development/cad-service)、[执行与恢复](/development/execution-lifecycle)。
+本页已迁移至[新版文档](/architecture/editing)。旧地址和章节入口继续保留。

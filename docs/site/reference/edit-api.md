@@ -47,4 +47,4 @@ IFC 对比由 Go 读取 STEP 属性与相关属性定义，按 GlobalId 匹配�
 语义/合规分析引擎。DXF 按稳定 key 或无 key 内容匹配。
 脚本错误、冲突、运行限额和环境不可用分别返回相应 API 错误。
 
-[运行时限制](/development/sandbox)、[存储](/development/model-storage)。
+[运行时限制](/architecture/sandbox)、[存储](/architecture/storage)。

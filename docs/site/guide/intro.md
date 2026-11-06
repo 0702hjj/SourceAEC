@@ -10,5 +10,5 @@ Python 不承担平台业务；仓库没有 Python 应用、SDK、CLI、hooks �
 浏览器提供模型库、IFC 属性与三维查看、DXF 二维预览、版本及 AI 对话。
 几何产物、规划声明和实际验证结果分开记录，执行成功不等于设计合规。
 
-[快速开始](/guide/quickstart)、[编辑与版本](/guide/editing)、
-[架构](/development/architecture)。
+[快速开始](/operations/quickstart)、[编辑与版本](/guide/editing)、
+[架构](/architecture/overview)。
