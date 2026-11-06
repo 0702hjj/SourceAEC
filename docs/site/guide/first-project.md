@@ -14,10 +14,10 @@
 4. **编辑**。选中构件点定位脚本，跳到脚本对应行。改参数或改代码，沙箱验证后保存大版本。
 5. **对比版本**。工具栏的 Diff 选择 base 和 target 做语义对比。
 
-第 4、5 步的概念与操作见[编辑与版本](/guide/editing)。没有配置 LLM 时，chat agent 会退到离线模式：界面流程都能走通，但不会有真正的智能回复，配置方法见[配置说明](/guide/configuration)。
+第 4、5 步的概念与操作见[编辑与版本](/guide/editing)。没有配置 LLM 时，chat agent 会退到离线模式：界面流程都能走通，但不会有真正的智能回复，配置方法见[配置说明](/operations/configuration)。
 
 ## 接下来
 
-- 出问题了：[故障排查](/guide/troubleshooting)。
-- 想让外部 Agent 直接操作模型：[Agent 接入](/reference/ai)。
-- 想把整套搬到服务器上：[生产部署与运维](/guide/deploy)。
+- 出问题了：[故障排查](/operations/troubleshooting)。
+- 想让外部 Agent 直接操作模型：[Agent 接入](/integrations/agents)。
+- 想把整套搬到服务器上：[生产部署与运维](/operations/deployment)。
