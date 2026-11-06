@@ -3,6 +3,8 @@
 The diagram separates capture, external execution, atomic publication and derived conversion. Participant IDs match the
 [architecture overview](/en/architecture/overview).
 
+On narrow screens, scroll diagrams horizontally to keep labels readable.
+
 ```mermaid
 sequenceDiagram
     participant CLIENT as Web / Agent / MCP

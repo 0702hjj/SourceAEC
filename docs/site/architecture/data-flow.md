@@ -2,6 +2,8 @@
 
 下图区分输入快照、外部执行、原子发布和派生转换。节点 ID 与[架构总览](/architecture/overview)一致。
 
+窄屏上可横向滚动图表，避免将整张架构图缩小到难以阅读。
+
 ```mermaid
 sequenceDiagram
     participant CLIENT as Web / Agent / MCP

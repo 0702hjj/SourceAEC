@@ -3,6 +3,8 @@
 The Go gateway is the only business entry point. Browsers, the built-in agent and the external MCP bridge share editing contracts.
 PostgreSQL stores authoritative state; external Python executes geometry and Node converts IFC display artifacts.
 
+On narrow screens, scroll diagrams horizontally to keep labels readable.
+
 ```mermaid
 flowchart TB
     WEB[Web / IFC and DXF viewers] --> API[Go gateway / auth / REST / SSE]

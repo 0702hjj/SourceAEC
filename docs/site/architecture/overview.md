@@ -3,6 +3,8 @@
 SourceAEC 以 Go 网关为唯一业务入口。浏览器、内置 Agent 和外部 MCP 使用相同的编辑契约，
 PostgreSQL 保存业务事实，外部 Python 只执行几何，Node 只做 IFC 显示格式转换。
 
+窄屏上可横向滚动图表，避免将整张架构图缩小到难以阅读。
+
 ```mermaid
 flowchart TB
     WEB[Web / IFC 与 DXF 查看器] --> API[Go 网关 / 鉴权 / REST / SSE]
