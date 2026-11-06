@@ -13,8 +13,13 @@ Go stdio MCP：`go run ./cmd/sourceaec-mcp`（从 server 目录执行）。
 | model_current_context | 当前版本及脚本暂存状态 |
 | ifc_upload_modified | 比较本地修改后的 IFC，并经网关记录 USER 来源 |
 | dxf_upload_modified | 比较本地修改后的 DXF，并经网关记录 USER 来源 |
+| workflow_submit | 固定当前脚本/输入并创建持久 run/save；默认 AI 来源 |
+| workflow_get | 查询指定 run；省略 workflow_id 时列出最近摘要 |
+| workflow_control | cancel/resume，保留固定定义与已完成检查点 |
 
 MCP 不直接连接持久化存储，也不启动 Python 服务。
 模型源码与普通业务文件分离，生成几何必须经沙箱。
 
 [skills](/reference/ai-skill)、[编辑 API](/reference/edit-api)。
+
+持久工作流参数与至少一次几何执行语义见[工作流 API](/reference/workflows)。

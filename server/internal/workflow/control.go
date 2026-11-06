@@ -37,12 +37,22 @@ func (s *Store) Resume(ctx context.Context, model, id string) (Run, error) {
 	if !modelPattern.MatchString(model) || !runPattern.MatchString(id) {
 		return Run{}, ErrState
 	}
+	if err := s.admissionLock(ctx); err != nil {
+		return Run{}, err
+	}
 	r, err := scanRun(s.db.QueryRowContext(ctx, "SELECT "+runColumns+" FROM workflow_runs WHERE model_id=$1 AND id=$2 FOR UPDATE", model, id))
 	if err != nil {
 		return Run{}, err
 	}
 	if r.State != Failed && r.State != Canceled {
 		return Run{}, ErrState
+	}
+	count, used, err := s.pendingUsage(ctx)
+	if err != nil {
+		return Run{}, err
+	}
+	if count >= MaxPending || r.InputBytes > MaxPendingBytes-used {
+		return Run{}, ErrCapacity
 	}
 	if _, err = s.db.ExecContext(ctx, `UPDATE workflow_runs SET state='pending',phase_attempts=0,error='',available_at=clock_timestamp(),`+clearLease+" WHERE id=$1", id); err != nil {
 		return Run{}, err

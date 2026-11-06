@@ -43,8 +43,9 @@ go vet ./...
 | 已提交下载/Range 与 DXF 预览 | `api/source_snapshot_test.go` |
 | Agent 原生冲突与 MCP 认证/人工来源 | `agent/tools_native_revision_test.go`、`api/native_mcp_test.go` |
 
-MCP 当前提供上下文读取与人工修改文件比较，未提供脚本保存工具；脚本工具由 Agent
-复用同一原生 editing 生命周期。不能把这两类集成误写成两套独立保存实现。
+MCP 提供上下文、人工修改比较与持久工作流工具；均通过鉴权网关复用同一原生 editing 生命周期。
+工作流子进程终止矩阵见 `editing/workflow_recovery_test.go`，发布丢应答同事务检查
+见 `editruntime/workflow_receipt_test.go`，真实几何与转换恢复见 `editing/workflow_conversion_test.go`。
 
 其他组件：`web` 执行 npm test/lint/build；`converter` 执行 npm test；
 `docs` 执行 npm run docs:build。

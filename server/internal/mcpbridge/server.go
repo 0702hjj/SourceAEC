@@ -23,7 +23,7 @@ type Client struct {
 }
 
 func NewClient(url, token string) *Client {
-	return &Client{URL: strings.TrimRight(url, "/"), Token: token, HTTP: &http.Client{Timeout: 120 * time.Second}}
+	return &Client{URL: strings.TrimRight(url, "/"), Token: token, HTTP: &http.Client{Timeout: 190 * time.Second}}
 }
 func (c *Client) request(ctx context.Context, method, path, contentType string, body io.Reader) (any, error) {
 	req, e := http.NewRequestWithContext(ctx, method, c.URL+path, body)
@@ -162,5 +162,6 @@ func New(client *Client) *mcp.Server {
 			return nil, result, e
 		})
 	}
+	registerWorkflowTools(server, client)
 	return server
 }

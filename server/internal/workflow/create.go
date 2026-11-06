@@ -43,7 +43,7 @@ func (s *Store) Create(ctx context.Context, in Create) (Run, bool, error) {
 	}
 	bytes := in.Definition.InputBytes + in.Definition.Script.Bytes + in.Definition.Inputs.Bytes + in.Definition.Environment.Bytes
 	var count, used int64
-	if err = s.db.QueryRowContext(ctx, "SELECT count(*),coalesce(sum(input_bytes),0) FROM workflow_runs WHERE state IN ('pending','running')").Scan(&count, &used); err != nil {
+	if count, used, err = s.pendingUsage(ctx); err != nil {
 		return Run{}, false, err
 	}
 	if count >= MaxPending || bytes > MaxPendingBytes-used {

@@ -73,7 +73,8 @@ func (s *Store) Claim(ctx context.Context, owner string, ttl time.Duration) (Run
 	return claimed, err == nil, err
 }
 
-const fencePredicate = `id=$1 AND model_id=$2 AND lease_owner=$3 AND lease_token=$4 AND attempts=$5 AND state='running' AND lease_until>clock_timestamp()`
+const ownershipPredicate = `id=$1 AND model_id=$2 AND lease_owner=$3 AND lease_token=$4 AND attempts=$5 AND state='running'`
+const fencePredicate = ownershipPredicate + ` AND lease_until>clock_timestamp()`
 
 func fenceArgs(f Fence) []any { return []any{f.ID, f.Model, f.Owner, f.Token, f.Attempt} }
 
@@ -102,8 +103,25 @@ func (s *Store) Heartbeat(ctx context.Context, f Fence, ttl time.Duration) error
 		return err
 	}
 	args := append(fenceArgs(f), millis)
-	result, err := s.db.ExecContext(ctx, "UPDATE workflow_runs SET lease_until=clock_timestamp()+$6::bigint*interval '1 millisecond',updated_at=clock_timestamp() WHERE "+fencePredicate, args...)
-	return changed(result, err)
+	// Publication/checkpoint writes hold the run lock themselves. A separate
+	// heartbeat must skip that row, not time out and cancel the owning write.
+	var renewed, locked, matching bool
+	err = s.db.QueryRowContext(ctx, `WITH locked AS MATERIALIZED (
+ SELECT id FROM workflow_runs WHERE `+ownershipPredicate+` FOR UPDATE SKIP LOCKED),
+ renewed AS (UPDATE workflow_runs target SET lease_until=clock_timestamp()+$6::bigint*interval '1 millisecond',
+ updated_at=clock_timestamp() FROM locked WHERE target.id=locked.id AND target.lease_until>clock_timestamp() RETURNING target.id)
+ SELECT EXISTS(SELECT 1 FROM renewed),EXISTS(SELECT 1 FROM locked),
+ EXISTS(SELECT 1 FROM workflow_runs WHERE `+ownershipPredicate+`)`, args...).Scan(&renewed, &locked, &matching)
+	if err != nil {
+		return err
+	}
+	if renewed {
+		return nil
+	}
+	if !locked && matching {
+		return ErrLeaseBusy
+	}
+	return ErrLeaseLost
 }
 
 func changed(result sql.Result, err error) error {

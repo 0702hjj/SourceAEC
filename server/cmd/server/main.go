@@ -30,6 +30,7 @@ import (
 	"ifcviewer/server/internal/api"
 	"ifcviewer/server/internal/change"
 	"ifcviewer/server/internal/convert"
+	"ifcviewer/server/internal/editing"
 	"ifcviewer/server/internal/editsvc"
 	"ifcviewer/server/internal/issue"
 	"ifcviewer/server/internal/override"
@@ -293,7 +294,12 @@ func main() {
 
 	ed := editsvc.NewLocal(cfg.DataDir, "ifc")
 	cad := editsvc.NewLocal(cfg.DataDir, "dxf")
-	handler := api.NewHandlerWithProjectStore(st, q, iss, chg, ovr, ed, cad, cfg.MaxUploadMB<<20, cfg.CORSOrigins, store.NewProjectStore(cfg.DataDir))
+	workflows, err := editing.NewWorkflows(cfg.DataDir, q)
+	if err != nil {
+		log.Fatalf("initialize workflows: %v", err)
+	}
+	workflows.Start(ctx)
+	handler := api.NewHandlerWithProjectStore(st, q, iss, chg, ovr, ed, cad, cfg.MaxUploadMB<<20, cfg.CORSOrigins, store.NewProjectStore(cfg.DataDir), workflows)
 	// chat 模块（demo）：独立 handler，/api/v1/chat/ 子树优先匹配，其余走既有 handler。
 	// 对话由内置 Eino agent 驱动（API key 空时回退确定性 scriptedModel，离线 demo 可用）；
 	// 领域工具集按模型 kind 路由（ifc→ed :8100 / dxf→cad :8200，agent.DomainTools）。
@@ -440,6 +446,9 @@ func main() {
 		log.Printf("shutdown: chat 后台 goroutine 未在预算内收尾（放弃等待）")
 	} else {
 		log.Printf("shutdown: chat 后台已收尾（%s）", time.Since(joinStart).Round(time.Millisecond))
+	}
+	if !workflows.Wait(joinCtx) {
+		log.Printf("shutdown: workflow workers did not stop within budget")
 	}
 	if !q.WaitIdle(joinCtx) {
 		log.Printf("shutdown: convert 队列未在预算内排干（放弃等待）")

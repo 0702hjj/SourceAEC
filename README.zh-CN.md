@@ -26,8 +26,14 @@ flowchart TB
     GATE --> WRITE[editing + editruntime<br/>类型化产物 / 事务 / 模型锁]
     WRITE --> VERSION[versionstore / 不可变源码引用<br/>历史 head 与版本计数]
     VERSION --> PG
-    SCHEMA[产物 schema 初始化] -.-> WF[workflow / 内部状态原语<br/>无异步执行入口]
-    WF -.-> PG
+    API -->|显式异步 run/save| WF[editing 工作流 / 捕获前票据<br/>固定源码、输入与环境摘要]
+    WF --> PG
+    PG --> SCAN[2 个扫描 worker / 30 秒租约与 fencing]
+    SCAN -->|几何阶段，共享构建预算| SANDBOX
+    INSPECT -->|候选与检查点同事务| WF
+    SCAN -->|发布阶段 / 所有权与执行身份重查| GATE
+    WRITE -->|模型版本与发布阶段同事务| WF
+    SCAN -->|转换阶段 / 重建丢失入队| QUEUE
     DERIVED -.模型删除.-> WF
     API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
     GIT --> GATE
@@ -92,17 +98,30 @@ sequenceDiagram
     E->>P: 写入暂存状态
     E->>F: 先记录路径 journal，再更新投影
     E->>P: 提交
-    U->>A: POST run 或 save
-    A->>E: 执行当前源码
-    E->>P: 短只读快照取得源码、输入、分支与模型身份
+    alt 显式持久工作流
+        U->>A: POST workflows，key/action/baseRevision
+        A->>P: 预留票据，固定源码/输入/环境并提交 run
+        A-->>U: 202 + workflow ID；同意图重试返回原 run
+        E->>P: 扫描并领取未完成阶段，续租
+    else 同步执行
+        U->>A: POST run 或 save
+        A->>E: 执行当前源码
+    end
+    E->>P: 短快照捕获源码/输入/身份；工作流读取已冻结定义
     E->>P: 结束快照，释放连接
     E->>S: 已捕获的只读输入 / 隔离几何执行
     Note over E,P: 环境准备与执行期间不持有连接或模型锁
     S-->>E: 产品、源码映射与环境身份
     E->>E: 校验源码映射、解析与展开预算
+    opt 持久几何阶段
+        E->>P: 候选 blob 与检查点同事务提交
+    end
     E->>P: 取得模型准入与锁，重新校验执行身份
-    Note over E,P: 状态变化时在发布前返回 409
+    Note over E,P: 检查完整租约 fence；状态变化返回冲突或 superseded
     E->>P: 写入当前产物与构建、输入记录
+    opt 持久发布阶段
+        E->>P: 同事务写入 publication 标记与 result
+    end
     opt 保存版本
         E->>P: 写入不可变版本、历史引用、head 与暂存清理
     end
@@ -128,6 +147,10 @@ sequenceDiagram
 `run` 更新当前产品但不创建版本；`save` 再次执行源码并保存不可变版本；
 `rollback` 使用归档输入重新执行旧源码。IFC 模型提交与预览转换是两个完成点，
 过期转换结果不能替换当前预览。
+
+显式[持久工作流](docs/site/reference/workflows.md)固定定义后返回 202，通过查询获取阶段结果。
+重启可重做未完成的几何；检查点已完成则复用。版本与发布标记同事务，转换阶段恢复不重复保存版本。
+下面链路中的即时编辑应答用于同步请求；持久调用以查询结果为准。
 
 ## 启动
 
@@ -162,10 +185,10 @@ cd ../server && go run ./cmd/server
 | `server/internal/api` | REST、鉴权、响应 envelope、聊天与 SSE 适配 |
 | `server/internal/agent` | Agent 编排、工具、审批、技能与文件访问边界 |
 | `server/internal/editsvc` | 进程内编辑客户端与 HTTP 兼容适配 |
-| `server/internal/editing` | IFC/DXF 共用的暂存、执行、比较、保存、回滚及格式适配 |
+| `server/internal/editing` | IFC/DXF 共用编辑、工作流捕获/worker、检查点发布及格式适配 |
 | `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | 不可变源码历史引用、head/计数与精确 revision patch |
-| `server/internal/workflow` | 不可变工作流定义、带所有权校验的尝试与检查点；内部状态原语 |
+| `server/internal/workflow` | 不可变定义、捕获票据、租约尝试与阶段检查点 |
 | `server/internal/resourcebudget` | 进程内产物字节预留 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |

@@ -39,8 +39,6 @@ func (o *operation) publishExecution(built *builtExecution) (any, error) {
 	if err := o.verifyExecution(plan); err != nil {
 		return nil, err
 	}
-	o.execution = &preparedExecution{script: plan.script, inputs: plan.inputs, candidate: plan.candidate, product: built.product, files: built.files}
-	defer func() { o.execution = nil }()
 	o.readOnly = false
 	started := time.Now()
 	defer metrics.EditPublish.Observe(started)
@@ -50,6 +48,24 @@ func (o *operation) publishExecution(built *builtExecution) (any, error) {
 	}
 	defer release()
 	defer o.rollbackExecution()
+	result, err := o.applyExecution(built)
+	if err != nil {
+		return nil, err
+	}
+	_, err = o.call("commit", nil)
+	o.tx = ""
+	return result, err
+}
+
+// applyExecution is shared by synchronous publication and the durable worker;
+// the caller owns the model transaction, receipt and final commit.
+func (o *operation) applyExecution(built *builtExecution) (any, error) {
+	plan := built.plan
+	if o.tx == "" || plan.root != o.service.Root || plan.model != o.model || plan.kind != o.service.Kind {
+		return nil, failure(500, "invalid publication transaction")
+	}
+	o.execution = &preparedExecution{script: plan.script, inputs: plan.inputs, candidate: plan.candidate, product: built.product, files: built.files}
+	defer func() { o.execution = nil }()
 	current, err := o.runtime.ExecutionIdentity(o.ctx, o.service.Root, o.tx, o.model)
 	if err != nil {
 		return nil, err
@@ -61,7 +77,5 @@ func (o *operation) publishExecution(built *builtExecution) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = o.call("commit", nil)
-	o.tx = ""
-	return result, err
+	return result, nil
 }

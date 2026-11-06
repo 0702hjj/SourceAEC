@@ -34,3 +34,13 @@ methods and exact APIs, including SimpleCADAPI when configured. Do not copy its
 SDK or manuals into SourceAEC. An SDK's capability does not imply that
 SourceAEC supports all its formats or workflows; unsupported products need an
 explicit integration. This skill does not prescribe an Agent role hierarchy.
+
+For work that must survive a gateway restart, explicitly submit
+`POST /api/v1/models/{id}/workflows` with idempotencyKey, action (run/save),
+baseRevision from the current script, and source=ai. A committed submission
+returns 202; the same key and intent returns the original run with 200.
+Poll `GET /api/v1/models/{id}/workflows/{workflowId}` or use MCP
+workflow_submit/workflow_get/workflow_control. Never change the intent while
+retrying a key. Geometry can run again after an interrupted attempt; completed
+checkpoints are reused. Cancel does not undo a published version; resume keeps
+the frozen inputs and only restarts the unfinished phase.

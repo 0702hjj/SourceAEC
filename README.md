@@ -38,8 +38,14 @@ flowchart TB
     GATE --> WRITE[editing + editruntime<br/>Typed artifacts / transaction / model lock]
     WRITE --> VERSION[versionstore / immutable source references<br/>Head and version counter]
     VERSION --> PG
-    SCHEMA[Artifact schema initialization] -.-> WF[workflow / internal state primitives<br/>No asynchronous execution endpoint]
-    WF -.-> PG
+    API -->|Explicit asynchronous run/save| WF[editing workflows / pre-capture reservation<br/>Frozen source, inputs and environment seal]
+    WF --> PG
+    PG --> SCAN[2 scanning workers / 30s leases and fencing]
+    SCAN -->|Geometry / shared build budget| SANDBOX
+    INSPECT -->|Candidate and checkpoint in one transaction| WF
+    SCAN -->|Publication / ownership and identity checks| GATE
+    WRITE -->|Model version and publication in one transaction| WF
+    SCAN -->|Conversion / recover lost enqueue| QUEUE
     DERIVED -.Model deletion.-> WF
     API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
     GIT --> GATE
@@ -106,17 +112,30 @@ sequenceDiagram
     E->>P: Write staging state
     E->>F: Journal paths, then update projections
     E->>P: Commit
-    U->>A: POST run or save
-    A->>E: Execute current source
-    E->>P: Short read snapshot of source, inputs, branch and model identity
+    alt Explicit durable workflow
+        U->>A: POST workflows with key/action/baseRevision
+        A->>P: Reserve capture, freeze source/inputs/environment, commit run
+        A-->>U: 202 + workflow ID; identical retry returns original run
+        E->>P: Scan and lease the unfinished phase; heartbeat
+    else Synchronous execution
+        U->>A: POST run or save
+        A->>E: Execute current source
+    end
+    E->>P: Snapshot source/inputs/identity, or read the frozen workflow definition
     E->>P: End snapshot and release connection
     E->>S: Captured read-only inputs / isolated geometry execution
     Note over E,P: No connection or model lock during environment preparation and execution
     S-->>E: Product, source map and environment identity
     E->>E: Check source-map, parsing and expansion budgets
+    opt Durable geometry phase
+        E->>P: Commit candidate blobs and checkpoint together
+    end
     E->>P: Model admission and lock, recheck execution identity
-    Note over E,P: Changed state returns 409 before publication
+    Note over E,P: Verify ownership fence; changed state conflicts or supersedes
     E->>P: Write current artifacts and build/input records
+    opt Durable publication phase
+        E->>P: Write publication marker and result in the same transaction
+    end
     opt Save
         E->>P: Write immutable version, history references, head and staging reset
     end
@@ -143,6 +162,11 @@ sequenceDiagram
 the source again and creates an immutable version. `rollback` re-executes saved
 source with archived inputs. IFC model commit and preview conversion are separate
 completion points; stale conversion results cannot replace the current preview.
+
+Explicit [durable workflows](docs/site/reference/workflows.md) return 202 after freezing the definition;
+poll for phase results. Restart can repeat unfinished geometry, while completed checkpoints are reused.
+Versions and publication markers commit together; conversion recovery never saves another version.
+Immediate edit responses in the data flow apply to synchronous calls; durable clients poll instead.
 
 ## Quick Start
 
@@ -181,10 +205,10 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/api` | REST, authentication, response envelopes, chat and SSE adapters |
 | `server/internal/agent` | Agent workflows, tools, approvals, skills and file-access boundaries |
 | `server/internal/editsvc` | In-process editing client and HTTP compatibility adapter |
-| `server/internal/editing` | Shared IFC/DXF staging, execution, comparison, save, rollback and format adapters |
+| `server/internal/editing` | Shared IFC/DXF editing, workflow capture/workers, checkpoint publication and format adapters |
 | `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | Immutable source-history references, head/counter and exact revision patches |
-| `server/internal/workflow` | Immutable workflow definitions, fenced attempts and checkpoints; internal state primitives |
+| `server/internal/workflow` | Immutable definitions, capture reservations, fenced attempts and phase checkpoints |
 | `server/internal/resourcebudget` | Process-local payload byte reservations |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |

@@ -4,7 +4,11 @@ package workflow
 import "context"
 
 func Schema(ctx context.Context, db SQL) error {
-	_, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS workflow_definitions (
+	_, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS workflow_reservations (
+ model_id TEXT NOT NULL, request_key TEXT NOT NULL, token TEXT NOT NULL, intent_digest TEXT NOT NULL,
+ bytes BIGINT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(model_id,request_key));
+ CREATE INDEX IF NOT EXISTS workflow_reservation_expiry ON workflow_reservations(expires_at);
+ CREATE TABLE IF NOT EXISTS workflow_definitions (
  model_id TEXT NOT NULL CHECK(model_id ~ '^m_[0-9a-f]{16}$'),
  digest TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('ifc','dxf')),
  body BYTEA NOT NULL, input_bytes BIGINT NOT NULL CHECK(input_bytes BETWEEN 0 AND 271581184),
@@ -32,6 +36,7 @@ func Schema(ctx context.Context, db SQL) error {
  CHECK(state='running' OR (lease_owner IS NULL AND lease_token IS NULL AND lease_until IS NULL)),
  CHECK(phase='geometry' OR candidate IS NOT NULL), CHECK(phase!='conversion' OR result IS NOT NULL),
  CHECK(state!='succeeded' OR (result IS NOT NULL AND phase IN ('publication','conversion'))));
+ ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS repair_count INTEGER NOT NULL DEFAULT 0 CHECK(repair_count BETWEEN 0 AND 1);
  CREATE INDEX IF NOT EXISTS workflow_runnable ON workflow_runs(created_at,id) WHERE state IN ('pending','running');
  CREATE INDEX IF NOT EXISTS workflow_model ON workflow_runs(model_id,created_at DESC,id);
  CREATE TABLE IF NOT EXISTS workflow_attempts (

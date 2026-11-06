@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -163,14 +162,12 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 			argv = append(argv, "--ro-bind", path, path)
 		}
 	}
-	envDir := filepath.Dir(filepath.Dir(python))
-	if !strings.HasPrefix(envDir, "/usr") && envDir != "/" {
-		argv = append(argv, "--ro-bind", envDir, envDir)
+	roots, e := pythonRuntimeRoots(python)
+	if e != nil {
+		return Product{}, failure(503, "invalid Python runtime paths: "+e.Error())
 	}
-	resolved, _ := filepath.EvalSymlinks(python)
-	if resolved != "" && !strings.HasPrefix(resolved, "/usr/") && !strings.HasPrefix(resolved, envDir+"/") {
-		runtimeDir := filepath.Dir(filepath.Dir(resolved))
-		argv = append(argv, "--ro-bind", runtimeDir, runtimeDir)
+	for _, root := range roots {
+		argv = append(argv, "--ro-bind", root, root)
 	}
 	argv = append(argv, "--ro-bind", inputDir, "/inputs", "--setenv", "SOURCEAEC_INPUTS_DIR", "/inputs", "--setenv", "VIEWER_DATA_DIR", "/inputs", "--bind", directory, "/work", "--chdir", "/work", "--setenv", "SOURCEAEC_MAP_OUT", "/work/out.map.json", "--", prlimit, "--as=1073741824", "--nproc=256", "--fsize=268435456", "--", python, "-I", "-B", "/work/script.py", "/work/out."+kind)
 	cmd := command(runCtx, bwrap, argv...)

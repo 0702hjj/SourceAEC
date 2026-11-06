@@ -99,6 +99,7 @@ export default defineConfig({
             { text: '模型与审查 API', link: '/reference/api-model' },
             { text: '对话 API', link: '/reference/api-chat' },
             { text: 'IFC 编辑 API', link: '/reference/edit-api' },
+            { text: '持久脚本工作流', link: '/reference/workflows' },
             { text: '编辑 API 参考（自动生成）', link: '/reference/edit-api-reference' },
             { text: 'Agent 接入', link: '/reference/ai' },
             { text: 'Agent Skills', link: '/reference/ai-skill' },
