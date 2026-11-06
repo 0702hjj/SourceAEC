@@ -51,3 +51,5 @@ IFC 模型有两条渲染链路，用右上角开关切换，选择记在 localS
 - **中途预览**：收到 SSE 的 `viewer.staged` 事件后，DXF 和 web-ifc 分支直接刷新画布；xeokit 分支因为重转慢，改为角标提示，点击才重载。
 - **Diff 着色**：diff 返回的 guid 就是场景对象 id，直接调 `entity.colorize` 上色；已删除的构件在当前 XKT 里没有几何，只在列表里呈现。
 - **自动刷新**：ViewerPage 持续轮询模型状态，从 converting 变为 ready 时重挂查看器。脚本 run、save、rollback 触发的重转也能被捕获。
+
+分支操作绑定当前模型。切换模型后，迟到的响应/错误不会更新新模型面板，旧源码读取完成后也不会再发起旧模型的分支操作。

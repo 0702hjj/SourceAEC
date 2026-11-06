@@ -13,3 +13,5 @@ Blocks/polyline expansion reserve work before allocating output; oversized candi
 
 Input, record, field, nesting, reference and output limits are listed under [execution budgets](/en/architecture/execution#structural-budgets).
 See [model/render schema](/en/reference/api-model#render-json-schema) and [engine boundaries](/en/architecture/boundaries).
+
+STEP comments outside strings are treated as whitespace. Invalid/nonfinite DXF floating-point groups and derived coordinate/bounds overflow reject the candidate with 422; no partial render JSON is published.

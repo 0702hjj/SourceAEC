@@ -57,7 +57,7 @@ flowchart TB
     PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
-    PY --> INSPECT[Product and source-map checks<br/>Bounded format parsing and expansion]
+    PY --> INSPECT[Product and source-map checks<br/>Comment-aware STEP / finite DXF geometry<br/>Bounded parsing and expansion]
     INSPECT -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]

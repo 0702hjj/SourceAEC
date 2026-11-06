@@ -45,7 +45,7 @@ flowchart TB
     PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
-    PY --> INSPECT[产品与源码映射检查<br/>有界格式解析与展开]
+    PY --> INSPECT[产品与源码映射检查<br/>STEP 注释 / DXF 有限数值<br/>有界解析与展开]
     INSPECT -->|重新校验身份 / 拒绝过期结果| GATE
     WRITE --> JOURNAL[投影 journal / 可重建工作区]
     API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]

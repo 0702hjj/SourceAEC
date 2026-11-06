@@ -21,3 +21,5 @@ xeokit loads XKT/metadata with full review tools. web-ifc reads IFC directly wit
 SSE `viewer.staged` updates DXF/web-ifc immediately and offers a reload for xeokit; committed changes refresh the normal viewer.
 Diff coloring uses entity IDs; deleted geometry absent from the current model appears in the diff list.
 See [interface](/en/guide/interface) and [previews](/en/architecture/previews).
+
+Branch controls belong to the selected model. Switching models discards late branch responses/errors and prevents an obsolete source read from submitting a branch operation.
