@@ -9,7 +9,7 @@ Python 仅作为外部几何运行时。模型源码由用户或 Agent 生成，
 仓库不维护 Python 应用、SDK、CLI、hooks 或测试。skill 只保留必要的声明和参考，
 不捆绑上游 SDK。IfcOpenShell、ezdxf、SimpleCADAPI 等属于外部运行能力。
 
-领域服务与外部 CAD 引擎的职责见[引擎与集成边界](docs/site/development/integration-boundaries.md)。
+领域服务与外部 CAD 引擎的职责见[引擎与集成边界](docs/site/architecture/boundaries.md)。
 
 ## 架构
 
@@ -45,7 +45,7 @@ flowchart TB
     PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
-    PY --> INSPECT[产品与源码映射检查<br/>有界格式解析与展开]
+    PY --> INSPECT[产品与源码映射检查<br/>STEP 注释 / DXF 有限数值<br/>有界解析与展开]
     INSPECT -->|重新校验身份 / 拒绝过期结果| GATE
     WRITE --> JOURNAL[投影 journal / 可重建工作区]
     API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]
@@ -151,6 +151,18 @@ sequenceDiagram
 显式[持久工作流](docs/site/reference/workflows.md)固定定义后返回 202，通过查询获取阶段结果。
 重启可重做未完成的几何；检查点已完成则复用。版本与发布标记同事务，转换阶段恢复不重复保存版本。
 下面链路中的即时编辑应答用于同步请求；持久调用以查询结果为准。
+
+## 文档导航
+
+[简体中文](https://0702hjj.github.io/SourceAEC/) · [English](https://0702hjj.github.io/SourceAEC/en/)
+
+```mermaid
+flowchart LR
+    START[入门] --> ARCH[架构 / 职责与数据流]
+    ARCH --> OPS[运维 / 启动、验证与托管]
+    ARCH --> INTEGRATE[接入 / Agent、MCP 与 Skills]
+    INTEGRATE --> REFERENCE[API 参考 / REST 与工作流]
+```
 
 ## 启动
 

@@ -1,0 +1,46 @@
+# Persistence and versions
+
+PostgreSQL is authoritative. Disk directories are recoverable projections for the sandbox, Git and converter; do not edit `data/` manually.
+A save commits source, products, immutable history references, version number and staging reset in one transaction without running Git
+or rewriting the full bundle. Failed execution preserves current state. Patches are instructions; full snapshots are durable facts.
+
+## Ownership of state
+
+| Data | Durable source | Filesystem role |
+| --- | --- | --- |
+| Source, products, inputs, staging, versions | PostgreSQL artifacts | Recoverable workspace projection |
+| Source history and counters | versionstore immutable references/head | On-demand source projection |
+| Git DAG and branches | Stored bundles and projection records | On-demand Git workspace |
+| Preview generation | Database manifest plus immutable files | Rebuildable display cache |
+| Workflow definitions, blobs, tickets, attempts, leases, phases | PostgreSQL | Explicit whole-script recovery |
+| Running processes and queue notifications | In-process only | Not durable execution state |
+
+Native typed artifact operations avoid repeated JSON/base64 business transport for large products.
+Model `.py` source is runtime data, not maintained application code. External environments stay outside version control.
+Configure `VIEWER_PG_DSN`; `VIEWER_STORAGE_NAMESPACE` separates business namespaces. Back up both database and runtime directory.
+
+## History and upgrades
+
+First access migrates legacy product archives into the database catalog before recording completion.
+Subsequent directory changes do not change version numbering. Recoverable legacy timestamps are retained; unavailable ones remain absent.
+Journaled uncommitted paths are reconciled rather than imported as versions.
+
+Git operations project up to 32 records per transaction; cancellation preserves committed progress.
+Preparation is bounded to 30 seconds or 64 batches, returning 429 if more work remains. Retry continues progress.
+Saves expose `historyRevision` (`r_...`), not a Git SHA; `/git` materializes and returns actual commits.
+Checkout/merge preserve DAG/conflict rules and still require identity validation before publication.
+Legacy bundle import may require Git; new-model normal saves do not.
+
+Stop old writers before upgrading storage/recovery protocols. Initial startup may hash existing artifacts and rebuild previews lacking manifests.
+Keep existing product archives and bundles in backups. Legacy scripts importing retired in-repository SDKs need source adaptation or an
+administrator-provided compatible external runtime. SQLite migration is offline (`cmd/migrate-sqlite`), requires CGO and is not in static releases.
+
+## Workflow storage
+
+Content-addressed workflow blobs remain in PostgreSQL and are not bulk-projected on restart.
+Model deletion atomically removes definitions, runs, attempts, tickets and blobs. The state store does not execute geometry;
+editing workers invoke the shared sandbox/publication adapters. Old/canceled attempts cannot publish.
+
+Pending admission limits count tickets/runs and logical input bytes; completed history/blobs currently remain until model deletion.
+The 64-run/2-GiB limit does not cap accumulated storage, PG temp usage or RSS.
+See [execution](/en/architecture/execution), [previews](/en/architecture/previews) and [workflows](/en/reference/workflows).

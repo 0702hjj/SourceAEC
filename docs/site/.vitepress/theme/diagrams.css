@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+.vp-doc .mermaid {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 24px 0;
+}
+
+/* Preserve readable labels instead of shrinking a whole architecture to a phone. */
+.vp-doc .mermaid svg {
+  min-width: 720px;
+}
+
+.vp-doc .mermaid svg[aria-roledescription="sequence"] {
+  min-width: 1100px;
+}

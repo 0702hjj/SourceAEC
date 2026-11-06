@@ -4,6 +4,7 @@ package editing
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"sort"
 	"time"
@@ -82,7 +83,10 @@ func (w *Workflows) Submit(ctx context.Context, model string, request WorkflowRe
 	default:
 		return WorkflowView{}, false, failure(429, "build capacity exhausted")
 	}
-	body := jsonBytes(map[string]any{"source": intent.Source, "note": intent.Note})
+	body, err := json.Marshal(map[string]any{"source": intent.Source, "note": intent.Note})
+	if err != nil {
+		return WorkflowView{}, false, err
+	}
 	plan, err := o.captureExecution("script/"+intent.Action, body)
 	if err != nil {
 		return WorkflowView{}, false, err

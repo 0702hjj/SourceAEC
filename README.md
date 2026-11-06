@@ -9,7 +9,7 @@ people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
-See [engine and integration boundaries](docs/site/development/integration-boundaries.md)
+See [engine and integration boundaries](docs/site/en/architecture/boundaries.md)
 for the responsibilities of SourceAEC domain services and external CAD engines.
 
 ## Highlights
@@ -57,7 +57,7 @@ flowchart TB
     PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
-    PY --> INSPECT[Product and source-map checks<br/>Bounded format parsing and expansion]
+    PY --> INSPECT[Product and source-map checks<br/>Comment-aware STEP / finite DXF geometry<br/>Bounded parsing and expansion]
     INSPECT -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
@@ -167,6 +167,18 @@ Explicit [durable workflows](docs/site/reference/workflows.md) return 202 after 
 poll for phase results. Restart can repeat unfinished geometry, while completed checkpoints are reused.
 Versions and publication markers commit together; conversion recovery never saves another version.
 Immediate edit responses in the data flow apply to synchronous calls; durable clients poll instead.
+
+## Documentation
+
+[English](https://0702hjj.github.io/SourceAEC/en/) · [简体中文](https://0702hjj.github.io/SourceAEC/)
+
+```mermaid
+flowchart LR
+    START[Start here] --> ARCH[Architecture / responsibilities and data flow]
+    ARCH --> OPS[Operations / startup, verification and hosting]
+    ARCH --> INTEGRATE[Integrations / Agent, MCP and skills]
+    INTEGRATE --> REFERENCE[API reference / REST and workflows]
+```
 
 ## Quick Start
 
