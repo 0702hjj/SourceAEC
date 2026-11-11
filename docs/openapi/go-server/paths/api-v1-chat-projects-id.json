@@ -1,0 +1,116 @@
+{
+  "delete": {
+    "summary": "删除项目（级联）",
+    "description": "删除项目并级联清理绑定产物：项目 + 会话（chat-sessions）+ 事件日志（chat/{agentID}.jsonl）+ 方案（plans/{projectID}）+ 项目下模型（issues/changes/overrides + store 目录）。与 DELETE /models/{id}（单模型，不级联）区分——删除项目即删全套。",
+    "operationId": "deleteApiV1ChatProjectsId",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "object",
+                  "nullable": true,
+                  "description": "始终为 null"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "get": {
+    "summary": "项目详情（元信息 + 模型列表）",
+    "description": "项目详情：data 形状与 POST /chat/projects（创建）一致——{projectId,title,kind,createdAt,models}；models 每项 {id,kind,name,status}，与 agent get_project_models 工具同语义（status 反查真实状态，非 project.json 快照；已删模型保留快照引用）。kind 创建时确定且不可修改。",
+    "operationId": "getApiV1ChatProjectsId",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

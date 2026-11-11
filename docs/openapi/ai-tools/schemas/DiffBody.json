@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "required": [
+    "base",
+    "target"
+  ],
+  "properties": {
+    "base": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "target": {
+      "type": "string",
+      "description": "版本号或 \"current\"（uploads 现态）"
+    }
+  }
+}

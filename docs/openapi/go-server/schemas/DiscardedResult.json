@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": [
+    "discarded"
+  ],
+  "properties": {
+    "discarded": {
+      "type": "integer"
+    }
+  }
+}

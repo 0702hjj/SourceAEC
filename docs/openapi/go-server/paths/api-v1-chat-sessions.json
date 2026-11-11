@@ -1,0 +1,108 @@
+{
+  "get": {
+    "summary": "会话列表",
+    "description": "列出全部 chat 会话（demo 模块，内存态 + chat-sessions.json 持久化）。",
+    "operationId": "getApiV1ChatSessions",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ChatSessionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "post": {
+    "summary": "创建会话（同 modelId 幂等）",
+    "description": "创建 chat 会话并绑定模型（进程内 Eino agent）。同一 modelId 永远只有一个会话——退出再打开返回同一会话。modelId 可空（会话不绑定模型）。",
+    "operationId": "postApiV1ChatSessions",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ChatSession"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      }
+    },
+    "requestBody": {
+      "description": "JSON body",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/CreateSessionBody"
+          }
+        }
+      }
+    }
+  }
+}

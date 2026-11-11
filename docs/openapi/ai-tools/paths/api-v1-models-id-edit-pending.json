@@ -1,0 +1,149 @@
+{
+  "delete": {
+    "summary": "丢弃 pending（代理 edit-service）",
+    "description": "代理 `DELETE /models/{id}/pending`：丢弃全部 pending（卸载并从磁盘重载内存模型）。",
+    "operationId": "deleteApiV1ModelsIdEditPending",
+    "tags": [
+      "edit"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/DiscardedResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "get": {
+    "summary": "当前 pending（代理 edit-service，只读）",
+    "description": "代理 `GET /models/{id}/pending`：列出当前 pending（直改退役后仅供 script-run 回放簿记）。",
+    "operationId": "getApiV1ModelsIdEditPending",
+    "tags": [
+      "edit"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendingEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

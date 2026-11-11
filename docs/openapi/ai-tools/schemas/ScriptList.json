@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "required": [
+    "modelId",
+    "scripts",
+    "versions"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$"
+    },
+    "scripts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/ScriptVersionInfo"
+      }
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/ScriptVersionInfo"
+      }
+    }
+  }
+}

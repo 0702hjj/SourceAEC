@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:build": "node scripts/openapi.mjs --write",
+    "api:check": "node scripts/openapi.mjs --check",
     "docs:dev": "vitepress dev site",
-    "docs:build": "vitepress build site",
+    "docs:build": "node scripts/openapi.mjs --check && vitepress build site",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {

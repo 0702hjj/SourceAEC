@@ -1,0 +1,83 @@
+{
+  "post": {
+    "operationId": "postModelGitcheckout",
+    "summary": "checkout Git branch",
+    "description": "Native Go validates an optional staged-source baseRevision, prepares a branch candidate, runs isolated geometry and atomically publishes compatible source/product/history state. IFC queues a stale preview conversion; DXF has no XKT conversion.",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/GitState"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    },
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/GitChange"
+          }
+        }
+      }
+    }
+  }
+}

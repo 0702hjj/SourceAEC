@@ -1,0 +1,45 @@
+{
+  "get": {
+    "summary": "XKT 几何数据",
+    "description": "非信封响应。XKT 二进制几何数据（支持 Range 请求）。",
+    "operationId": "getV1ModelsIdModelXkt",
+    "tags": [
+      "static"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "XKT 二进制流",
+        "content": {
+          "application/octet-stream": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

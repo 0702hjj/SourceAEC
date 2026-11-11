@@ -1,0 +1,55 @@
+{
+  "get": {
+    "summary": "Issue 截图静态服务",
+    "description": "非信封响应。`file` 必须匹配 `i_[0-9a-f]{12}\\.png`，否则 404。",
+    "operationId": "getV1ModelsIdIssuesFile",
+    "tags": [
+      "static"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      },
+      {
+        "name": "file",
+        "in": "path",
+        "required": true,
+        "description": "截图文件名",
+        "schema": {
+          "type": "string",
+          "pattern": "^i_[0-9a-f]{12}\\.png$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "PNG 图片",
+        "content": {
+          "image/png": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

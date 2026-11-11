@@ -1,0 +1,22 @@
+{
+  "/api/v1/models/{id}/edit/diff": "api-v1-models-id-edit-diff.json",
+  "/api/v1/models/{id}/edit/history": "api-v1-models-id-edit-history.json",
+  "/api/v1/models/{id}/edit/pending": "api-v1-models-id-edit-pending.json",
+  "/api/v1/models/{id}/edit/versions": "api-v1-models-id-edit-versions.json",
+  "/api/v1/models/{id}/script": "api-v1-models-id-script.json",
+  "/api/v1/models/{id}/script/diff": "api-v1-models-id-script-diff.json",
+  "/api/v1/models/{id}/script/discard": "api-v1-models-id-script-discard.json",
+  "/api/v1/models/{id}/script/locate": "api-v1-models-id-script-locate.json",
+  "/api/v1/models/{id}/script/params": "api-v1-models-id-script-params.json",
+  "/api/v1/models/{id}/script/redo": "api-v1-models-id-script-redo.json",
+  "/api/v1/models/{id}/script/rollback": "api-v1-models-id-script-rollback.json",
+  "/api/v1/models/{id}/script/run": "api-v1-models-id-script-run.json",
+  "/api/v1/models/{id}/script/save": "api-v1-models-id-script-save.json",
+  "/api/v1/models/{id}/script/staging/diff": "api-v1-models-id-script-staging-diff.json",
+  "/api/v1/models/{id}/script/undo": "api-v1-models-id-script-undo.json",
+  "/api/v1/models/{id}/scripts": "api-v1-models-id-scripts.json",
+  "/api/v1/models/{id}/edit/diff-upload": "api-v1-models-id-edit-diff-upload.json",
+  "/api/v1/models/{id}/workflows": "api-v1-models-id-workflows.json",
+  "/api/v1/models/{id}/workflows/{workflowId}": "api-v1-models-id-workflows-workflowId.json",
+  "/api/v1/models/{id}/workflows/{workflowId}/{action}": "api-v1-models-id-workflows-workflowId-action.json"
+}

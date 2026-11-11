@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "required": [
+    "base",
+    "target",
+    "engine",
+    "text_diff",
+    "params_changes",
+    "stats"
+  ],
+  "properties": {
+    "base": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "script"
+      ]
+    },
+    "text_diff": {
+      "type": "string"
+    },
+    "params_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "action"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "modified"
+            ]
+          },
+          "old": {},
+          "new": {}
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": [
+        "added",
+        "removed"
+      ],
+      "properties": {
+        "added": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

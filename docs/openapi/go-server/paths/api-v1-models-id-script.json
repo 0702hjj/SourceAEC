@@ -1,0 +1,159 @@
+{
+  "get": {
+    "summary": "当前脚本",
+    "description": "Go 原生编辑：当前暂存脚本（或最后保存的大版本 base）。纯 IFC 上传的 legacy 模型无脚本 → 404。",
+    "operationId": "getApiV1ModelsIdScript",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ScriptStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    }
+  },
+  "put": {
+    "summary": "暂存脚本",
+    "description": "Go 原生编辑：script、params、patch 恰好提供一个；patch 必须提供当前源码 baseRevision，字节区间有序、不重叠且不切开 UTF-8 字符。写入最多 10 步暂存历史；此操作不执行几何。",
+    "operationId": "putApiV1ModelsIdScript",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ScriptState"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    },
+    "requestBody": {
+      "description": "JSON body",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/StageScriptBody"
+          }
+        }
+      }
+    }
+  }
+}

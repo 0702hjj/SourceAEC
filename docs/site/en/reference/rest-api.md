@@ -49,5 +49,9 @@ Use the schema from your deployed source revision. See [integration](/en/integra
 
 `npm test` compares inventory/OpenAPI method and path coverage against Go registrations, resolves references,
 checks operation identifiers and key native editing contracts. Field semantics still require review against
-implementation and runtime tests; route coverage alone does not prove a complete schema. Update both public
-files and reference pages when changing an API, then run `npm test` and `npm run docs:build`.
+implementation and runtime tests; route coverage alone does not prove a complete schema.
+
+Maintain contracts in `docs/openapi/`, split by path, schema and response into sources below 500 lines.
+When changing an API, update the modules, route inventory and reference pages. From `docs`, run
+`npm run api:build`, `npm test` and `npm run docs:build`. Do not edit the two generated OpenAPI snapshots
+directly; builds reject stale output.

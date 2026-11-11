@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "required": [
+    "id",
+    "entityId",
+    "entityName",
+    "field",
+    "oldValue",
+    "newValue",
+    "author",
+    "provenance",
+    "operation",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^c_[0-9a-f]{12}$",
+      "description": "change id"
+    },
+    "entityId": {
+      "type": "string"
+    },
+    "entityName": {
+      "type": "string"
+    },
+    "field": {
+      "type": "string",
+      "description": "白名单字段：Name/Description/Classification/FireRating/Comments"
+    },
+    "oldValue": {
+      "type": "string",
+      "description": "被覆盖前的值"
+    },
+    "newValue": {
+      "type": "string",
+      "description": "空字符串 = 清除该字段 override"
+    },
+    "author": {
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/components/schemas/Provenance"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "update"
+      ]
+    },
+    "diff": {
+      "type": "object",
+      "description": "脚本 diff（optional）"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

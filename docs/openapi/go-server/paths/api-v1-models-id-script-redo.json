@@ -1,0 +1,92 @@
+{
+  "post": {
+    "summary": "重做暂存",
+    "description": "Go 原生编辑：前进一步暂存链（无可重做 → 409）。",
+    "operationId": "postApiV1ModelsIdScriptRedo",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "object",
+                  "required": [
+                    "modelId",
+                    "script",
+                    "canUndo"
+                  ],
+                  "properties": {
+                    "modelId": {
+                      "type": "string"
+                    },
+                    "script": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "canUndo": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    }
+  }
+}

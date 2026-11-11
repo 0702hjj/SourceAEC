@@ -1,0 +1,10 @@
+{
+  "description": "50300: Required runtime or production isolation unavailable.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

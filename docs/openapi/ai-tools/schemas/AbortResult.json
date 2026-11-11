@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": [
+    "aborted"
+  ],
+  "properties": {
+    "aborted": {
+      "type": "boolean",
+      "const": true
+    }
+  }
+}

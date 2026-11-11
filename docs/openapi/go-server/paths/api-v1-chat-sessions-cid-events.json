@@ -1,0 +1,45 @@
+{
+  "get": {
+    "summary": "会话事件流（SSE）",
+    "description": "Server-Sent Events：`event: <type>` + `data: <json>` 帧。事件类型含 session.creating / session.idle / message / session.error / viewer.committed / viewer.notify_failed 等。非信封响应。",
+    "operationId": "getApiV1ChatSessionsCidEvents",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "description": "chat 会话 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^c_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "text/event-stream 事件流",
+        "content": {
+          "text/event-stream": {
+            "schema": {
+              "type": "string",
+              "description": "SSE 帧（event + data）"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

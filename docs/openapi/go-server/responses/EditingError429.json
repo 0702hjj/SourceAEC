@@ -1,0 +1,10 @@
+{
+  "description": "42900: Process-local operation or source-byte capacity exhausted; retry later.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

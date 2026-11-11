@@ -1,0 +1,158 @@
+{
+  "get": {
+    "summary": "会话消息历史",
+    "description": "回填会话历史（重新打开会话时）。data 形状与 opencode 历史形状对齐（Eino 事件日志投影）。",
+    "operationId": "getApiV1ChatSessionsCidMessages",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "description": "chat 会话 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^c_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "description": "消息数组（opencode 兼容形状）"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      }
+    }
+  },
+  "post": {
+    "summary": "发送消息给 AI",
+    "description": "把用户消息（含绑定模型时的系统上下文）异步交给进程内 Eino agent。返回 accepted=true 表示已受理，事件经 SSE 推送。",
+    "operationId": "postApiV1ChatSessionsCidMessages",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "description": "chat 会话 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^c_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/AcceptedResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      }
+    },
+    "requestBody": {
+      "description": "JSON body，text 必填非空",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/PostMessageBody"
+          }
+        }
+      }
+    }
+  }
+}

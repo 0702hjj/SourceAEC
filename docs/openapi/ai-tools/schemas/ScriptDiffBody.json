@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "required": [
+    "base",
+    "target"
+  ],
+  "properties": {
+    "base": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    }
+  }
+}

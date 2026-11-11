@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "required": [
+    "found"
+  ],
+  "properties": {
+    "found": {
+      "type": "boolean"
+    },
+    "designKey": {
+      "type": "string"
+    },
+    "stale": {
+      "type": "boolean",
+      "description": "staging 与 map 分叉，行号不可信"
+    },
+    "line": {
+      "type": "integer"
+    },
+    "col": {
+      "type": "integer"
+    },
+    "snippet": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "get": {
+    "summary": "Issue 列表",
+    "description": "返回该模型全部 Issue，按 createdAt 降序。",
+    "operationId": "getApiV1ModelsIdIssues",
+    "tags": [
+      "issues"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/IssueList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "post": {
+    "summary": "创建 Issue",
+    "description": "multipart/form-data：`issue` 字段为 JSON 字符串（entityId/entityName/entityType/title/comment/author?/provenance?/camera?），title 必填；`screenshot` 可选 PNG ≤5MB。返回含生成的 id、status=open、默认 author/provenance 与 screenshot 相对路径。",
+    "operationId": "postApiV1ModelsIdIssues",
+    "tags": [
+      "issues"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误；超出大小上限",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "requestBody": {
+      "description": "multipart/form-data：issue（JSON 字符串，必填）+ screenshot（PNG，≤5MB，可选）",
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "issue"
+            ],
+            "properties": {
+              "issue": {
+                "type": "string",
+                "description": "Issue JSON 字符串（见组件 IssueInput 结构）"
+              },
+              "screenshot": {
+                "type": "string",
+                "format": "binary",
+                "description": "PNG ≤5MB"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

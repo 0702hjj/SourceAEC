@@ -1,0 +1,45 @@
+{
+  "get": {
+    "summary": "模型元数据（xeokit 元模型）",
+    "description": "非信封响应。converter 用 web-ifc 从原 IFC 提取的空间结构树 + 属性集，可直接作为 XKTLoaderPlugin.load({metaModelSrc}) 输入。",
+    "operationId": "getV1ModelsIdMetadataJson",
+    "tags": [
+      "static"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "xeokit 元模型 JSON",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "见 api-model.md「metadata.json Schema」"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "post": {
+    "summary": "中止会话当前 turn",
+    "description": "中止 AI 当前响应（前端 busy 时\"发送\"变\"停止\"调用此端点）。",
+    "operationId": "postApiV1ChatSessionsCidAbort",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "description": "chat 会话 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^c_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/AbortResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      }
+    }
+  }
+}

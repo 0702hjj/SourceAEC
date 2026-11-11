@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "required": [
+    "branch",
+    "branches",
+    "commits"
+  ],
+  "properties": {
+    "branch": {
+      "type": "string"
+    },
+    "branches": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "commit": {
+      "type": "string",
+      "description": "Current Git commit when available; not a source historyRevision."
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "commit",
+          "parents",
+          "note"
+        ],
+        "properties": {
+          "commit": {
+            "type": "string"
+          },
+          "parents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
