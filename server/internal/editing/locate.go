@@ -124,7 +124,9 @@ func (o *operation) editCall(s *staging, body []byte) (any, error) {
 		return nil, e
 	}
 	s.push(text)
-	files[o.key("script_staging.json")] = jsonBytes(s)
+	if e := addJSONFile(files, o.key("script_staging.json"), s); e != nil {
+		return nil, e
+	}
 	return map[string]any{"modelId": o.model, "staged": s.Cursor + 1, "script": text}, o.publish(files)
 }
 func (o *operation) stagingDiff(s *staging) (any, error) {

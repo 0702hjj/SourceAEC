@@ -73,7 +73,11 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 		o.execution.script, o.execution.inputs = script, inputs
 		return Product{}, nil, errExecutionPrepared
 	}
-	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script, o.service.Kind)
+	ctx, e := o.notebookContext(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	product, e := o.service.Executor.Run(ctx, script, o.service.Kind)
 	if e != nil {
 		return Product{}, nil, e
 	}
@@ -94,21 +98,45 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 			m.Entries = map[string]map[string]any{}
 		}
 	}
-	sourceMap := jsonBytes(m)
+	sourceMap, e := json.Marshal(m)
+	if e != nil {
+		return Product{}, nil, e
+	}
 	if e := validateSourceMap(sourceMap); e != nil {
 		return Product{}, nil, failure(422, e.Error())
 	}
-	manifest := map[string]any{"scriptHash": digest([]byte(script)), "productHash": digest(product.Data), "environment": product.Environment, "kind": o.service.Kind, "inputsHash": digest(jsonBytes(inputs)), "identity": map[string]any{"environment": product.Environment, "engine": "go", "inputsHash": digest(jsonBytes(inputs))}}
-	manifest["revision"] = digest(jsonBytes(manifest))
-	files := map[string][]byte{"uploads/" + o.model + "." + o.service.Kind: product.Data, o.key("current.map.json"): sourceMap, o.key("current.build.json"): jsonBytes(manifest)}
-	files[o.key("current.inputs.json")] = jsonBytes(inputs)
+	inputJSON, e := json.Marshal(inputs)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	manifest := map[string]any{"scriptHash": digest([]byte(script)), "productHash": digest(product.Data), "environment": product.Environment, "kind": o.service.Kind, "inputsHash": digest(inputJSON), "identity": map[string]any{"environment": product.Environment, "engine": "go", "inputsHash": digest(inputJSON)}}
+	summary, e := notebookSummary(product)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	if summary != nil {
+		manifest["notebook"] = summary
+	}
+	manifestJSON, e := json.Marshal(manifest)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	manifest["revision"] = digest(manifestJSON)
+	manifestJSON, e = json.Marshal(manifest)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	files := map[string][]byte{"uploads/" + o.model + "." + o.service.Kind: product.Data, o.key("current.map.json"): sourceMap, o.key("current.build.json"): manifestJSON}
+	files[o.key("current.inputs.json")] = inputJSON
 	files["uploads/"+o.model+"."+o.service.Kind+".build.json"] = files[o.key("current.build.json")]
 	if o.service.Kind == "dxf" {
 		render, e := renderDXF(product.Data)
 		if e != nil {
 			return Product{}, nil, failure(422, e.Error())
 		}
-		files[o.key("render.json")] = jsonBytes(render)
+		if e := addJSONFile(files, o.key("render.json"), render); e != nil {
+			return Product{}, nil, failure(422, "invalid render JSON")
+		}
 	}
 	return product, files, nil
 }
@@ -161,7 +189,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		prefix := o.key("scripts/" + name)
 		files[prefix+".py"] = []byte(*script)
 		files[prefix+".product"] = product.Data
-		files[prefix+".meta.json"] = jsonBytes(map[string]any{"version": name, "note": in.Note, "savedAt": time.Now().UTC().Format(time.RFC3339Nano)})
+		if e := addJSONFile(files, prefix+".meta.json", map[string]any{"version": name, "note": in.Note, "savedAt": time.Now().UTC().Format(time.RFC3339Nano)}); e != nil {
+			return nil, e
+		}
 		files[prefix+".map.json"] = files[o.key("current.map.json")]
 		files[prefix+".build.json"] = files[o.key("current.build.json")]
 		files[prefix+".inputs.json"] = files[o.key("current.inputs.json")]
@@ -169,7 +199,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		s.Base = strptr(*script)
 		s.History = []string{}
 		s.Cursor = -1
-		files[o.key("script_staging.json")] = jsonBytes(s)
+		if e := addJSONFile(files, o.key("script_staging.json"), s); e != nil {
+			return nil, e
+		}
 		result["version"] = name
 		result["staged"] = 0
 	}
@@ -177,7 +209,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 		s.Base = strptr(*script)
 		s.History = []string{}
 		s.Cursor = -1
-		files[o.key("script_staging.json")] = jsonBytes(s)
+		if e := addJSONFile(files, o.key("script_staging.json"), s); e != nil {
+			return nil, e
+		}
 		result["version"] = in.Version
 		result["script"] = *script
 	}
@@ -204,6 +238,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 			return nil, e
 		}
 		result["historyRevision"], result["branch"] = history.Revision, history.Branch
+	}
+	if e := o.publishNotebookCache(product); e != nil {
+		return nil, e
 	}
 	return result, nil
 }
@@ -239,7 +276,10 @@ func (o *operation) gitMutation(s *staging, path string, body []byte) (any, erro
 	if e != nil {
 		return nil, e
 	}
-	raw, _ := json.Marshal(savedInputs.(map[string]any)["inputs"])
+	raw, e := json.Marshal(savedInputs.(map[string]any)["inputs"])
+	if e != nil {
+		return nil, e
+	}
 	if e = json.Unmarshal(raw, &o.inputOverride); e != nil {
 		return nil, e
 	}
@@ -250,7 +290,9 @@ func (o *operation) gitMutation(s *staging, path string, body []byte) (any, erro
 	s.Base = strptr(script)
 	s.History = []string{}
 	s.Cursor = -1
-	files[o.key("script_staging.json")] = jsonBytes(s)
+	if e := addJSONFile(files, o.key("script_staging.json"), s); e != nil {
+		return nil, e
+	}
 	if e = o.publish(files); e != nil {
 		return nil, e
 	}

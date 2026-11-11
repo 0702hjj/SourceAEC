@@ -9,7 +9,7 @@ people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
-See [engine and integration boundaries](docs/site/development/integration-boundaries.md)
+See [engine and integration boundaries](docs/site/en/architecture/boundaries.md)
 for the responsibilities of SourceAEC domain services and external CAD engines.
 
 ## Highlights
@@ -42,7 +42,7 @@ flowchart TB
     WF --> PG
     PG --> SCAN[2 scanning workers / 30s leases and fencing]
     SCAN -->|Geometry / shared build budget| SANDBOX
-    INSPECT -->|Candidate and checkpoint in one transaction| WF
+    INSPECT -->|Candidate, optional cache and checkpoint in one transaction| WF
     SCAN -->|Publication / ownership and identity checks| GATE
     WRITE -->|Model version and publication in one transaction| WF
     SCAN -->|Conversion / recover lost enqueue| QUEUE
@@ -56,8 +56,10 @@ flowchart TB
     PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
     PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
+    PG -->|Compatible model cache / copied before execution| NBC[Optional notebook adapter / private SDK cache]
+    NBC --> SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
-    PY --> INSPECT[Product and source-map checks<br/>Bounded format parsing and expansion]
+    PY --> INSPECT[Product and source-map checks<br/>Comment-aware STEP / finite DXF geometry<br/>Bounded parsing and expansion]
     INSPECT -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
@@ -128,7 +130,7 @@ sequenceDiagram
     S-->>E: Product, source map and environment identity
     E->>E: Check source-map, parsing and expansion budgets
     opt Durable geometry phase
-        E->>P: Commit candidate blobs and checkpoint together
+        E->>P: Commit candidate blobs, optional cache and checkpoint together
     end
     E->>P: Model admission and lock, recheck execution identity
     Note over E,P: Verify ownership fence; changed state conflicts or supersedes
@@ -167,6 +169,20 @@ Explicit [durable workflows](docs/site/reference/workflows.md) return 202 after 
 poll for phase results. Restart can repeat unfinished geometry, while completed checkpoints are reused.
 Versions and publication markers commit together; conversion recovery never saves another version.
 Immediate edit responses in the data flow apply to synchronous calls; durable clients poll instead.
+
+Optional [notebook cache](docs/site/en/architecture/notebooks.md) restores only completed, model-scoped SDK generations into private sandbox copies. Python stacks and per-cell crash checkpoints are not persisted. Administrators explicitly configure any larger notebook address-space budget.
+
+## Documentation
+
+[English](https://0702hjj.github.io/SourceAEC/en/) · [简体中文](https://0702hjj.github.io/SourceAEC/)
+
+```mermaid
+flowchart LR
+    START[Start here] --> ARCH[Architecture / responsibilities and data flow]
+    ARCH --> OPS[Operations / startup, verification and hosting]
+    ARCH --> INTEGRATE[Integrations / Agent, MCP and skills]
+    INTEGRATE --> REFERENCE[API reference / REST and workflows]
+```
 
 ## Quick Start
 
@@ -209,6 +225,7 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | Immutable source-history references, head/counter and exact revision patches |
 | `server/internal/workflow` | Immutable definitions, capture reservations, fenced attempts and phase checkpoints |
+| `server/internal/notebookcache` | Optional model-scoped SDK cache packages, immutable generations and reference cleanup |
 | `server/internal/resourcebudget` | Process-local payload byte reservations |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |

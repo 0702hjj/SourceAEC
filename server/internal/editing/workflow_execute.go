@@ -25,7 +25,7 @@ func (e frozenExecutor) Run(ctx context.Context, script, kind string) (Product, 
 }
 
 func (o *operation) loadWorkflowPlan(r workflow.Run, d workflow.Definition, loadInputs bool) (*capturedExecution, EnvironmentSeal, error) {
-	if d.Engine != workflowEngine || d.Model != r.Model || d.Kind != r.Kind {
+	if (d.Engine != workflowEngine && d.Engine != notebookWorkflowEngine) || d.Model != r.Model || d.Kind != r.Kind {
 		return nil, EnvironmentSeal{}, errors.New("unsupported workflow definition")
 	}
 	script, err := o.getWorkflowBlob(d.Script, 1<<20)
@@ -34,6 +34,10 @@ func (o *operation) loadWorkflowPlan(r workflow.Run, d workflow.Definition, load
 	}
 	if digest(script) != r.Intent.BaseRevision {
 		return nil, EnvironmentSeal{}, errors.New("workflow script revision does not match intent")
+	}
+	expectedEngine, err := executionEngine(string(script))
+	if err != nil || d.Engine != expectedEngine {
+		return nil, EnvironmentSeal{}, errors.New("workflow execution adapter policy changed")
 	}
 	environment, err := o.getWorkflowBlob(d.Environment, 1<<20)
 	if err != nil {
@@ -46,8 +50,12 @@ func (o *operation) loadWorkflowPlan(r workflow.Run, d workflow.Definition, load
 	if seal.Version != 1 || seal.Digest != d.EnvironmentDigest {
 		return nil, seal, errors.New("workflow environment manifest mismatch")
 	}
+	body, err := json.Marshal(map[string]any{"note": r.Intent.Note, "source": r.Intent.Source})
+	if err != nil {
+		return nil, seal, err
+	}
 	plan := &capturedExecution{root: o.service.Root, model: r.Model, kind: r.Kind, path: "script/" + r.Action,
-		identity: r.BaseIdentity, script: string(script), body: jsonBytes(map[string]any{"note": r.Intent.Note, "source": r.Intent.Source})}
+		identity: r.BaseIdentity, script: string(script), body: body}
 	if loadInputs {
 		data, err := o.getWorkflowBlob(d.Inputs, 1<<20)
 		if err != nil {
@@ -147,6 +155,9 @@ func (w *Workflows) geometry(ctx context.Context, r workflow.Run) error {
 	if err != nil {
 		return err
 	}
+	if err = o.publishNotebookCache(built.product); err != nil {
+		return err
+	}
 	err = o.workflowTransaction(func(s *workflow.Store) error { return s.CompleteGeometry(ctx, r.Fence(), ref) })
 	if err == nil {
 		err = o.commitExecution()
@@ -199,23 +210,35 @@ func (w *Workflows) publication(ctx context.Context, r workflow.Run) error {
 	value, err := o.applyExecution(built)
 	var domain *Error
 	if errors.As(err, &domain) && domain.Status == 409 {
-		err = o.workflowTransaction(func(s *workflow.Store) error { return s.Supersede(ctx, r.Fence()) })
-		if err == nil {
-			err = o.commitExecution()
+		// A conflict can occur after artifact/history writes, not only at the
+		// initial identity check. Roll back projections and SQL before marking
+		// the run superseded in a fresh fenced model transaction.
+		if _, rollbackErr := o.call("rollback", nil); rollbackErr != nil {
+			return rollbackErr
 		}
-		return err
+		o.tx = ""
+		release()
+		return w.transition(ctx, r, func(s *workflow.Store) error { return s.Supersede(ctx, r.Fence()) })
 	}
 	if err != nil {
 		return err
 	}
-	outcome := workflowOutcome{Response: jsonBytes(value)}
+	response, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	outcome := workflowOutcome{Response: response}
 	if r.Kind == "ifc" {
 		product := sha256.Sum256(built.product.Data)
 		build := sha256.Sum256(built.files["uploads/"+r.Model+".ifc.build.json"])
 		combined := sha256.Sum256(append(product[:], build[:]...))
 		outcome.ConversionIdentity = hex.EncodeToString(combined[:])
 	}
-	err = o.workflowTransaction(func(s *workflow.Store) error { return s.CompletePublication(ctx, r.Fence(), jsonBytes(outcome)) })
+	encoded, err := json.Marshal(outcome)
+	if err != nil {
+		return err
+	}
+	err = o.workflowTransaction(func(s *workflow.Store) error { return s.CompletePublication(ctx, r.Fence(), encoded) })
 	if err == nil {
 		err = o.commitExecution()
 	}
