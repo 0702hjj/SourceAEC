@@ -31,6 +31,17 @@ Saves expose `historyRevision` (`r_...`), not a Git SHA; `/git` materializes and
 Checkout/merge preserve DAG/conflict rules and still require identity validation before publication.
 Legacy bundle import may require Git; new-model normal saves do not.
 
+
+Git compatibility has at most three jobs per process and a combined 1 GiB bundle-source high-water budget.
+Read the length and reserve before loading the large column; SQL checks the actual length again to prevent
+uncharged growth for nontransactional callers. Each job charges the larger input or generated bundle size.
+Grow the reservation before writing output; exhaustion returns 429, cancels the Git process group and rolls
+back the current transaction. Previously committed projection batches remain resumable. Captured snapshots
+and private workspaces share ownership, releasing only after workspace cleanup and snapshot closure;
+failed cleanup retains the reservation. This is not a Go/Git/PG RSS or total scratch-disk hard quota and is
+separate from download/comparison budgets. New-model normal saves still avoid Git; legacy migration,
+queries and branch operations use this admission.
+
 Stop old writers before upgrading storage/recovery protocols. Initial startup may hash existing artifacts and rebuild previews lacking manifests.
 Keep existing product archives and bundles in backups. Legacy scripts importing retired in-repository SDKs need source adaptation or an
 administrator-provided compatible external runtime. SQLite migration is offline (`cmd/migrate-sqlite`), requires CGO and is not in static releases.

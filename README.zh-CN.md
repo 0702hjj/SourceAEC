@@ -35,7 +35,7 @@ flowchart TB
     WRITE -->|模型版本与发布阶段同事务| WF
     SCAN -->|转换阶段 / 重建丢失入队| QUEUE
     DERIVED -.模型删除.-> WF
-    API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
+    API -->|按需分支管理| GIT[Git 投影 / 每批 32 条<br/>3 个工作 / bundle 源预算 1 GiB]
     GIT --> GATE
     GIT --> PG
     EDIT --> PREP[短只读快照 / 固定请求与执行身份]
@@ -75,7 +75,8 @@ flowchart TB
 继续保证跨进程互斥。环境准备与几何执行期间释放数据库连接和模型锁；发布时发现
 源码、输入或分支已变化则返回 409。三个构建生命周期与三个已有产品比较名额分别限流。
 正常保存提交源码历史引用，不执行 Git；展开分支管理时按需生成真实提交。
-进程内预算不代表跨副本共享资源上限。
+Git 兼容工作最多 3 个、bundle 源高水位合计 1 GiB，直到快照关闭和工作区清理才归还。
+这些是源工作集预算，不是 RSS 或临时磁盘硬配额，也不代表跨副本共享资源上限。
 
 ## 主要数据链路
 
@@ -88,6 +89,7 @@ sequenceDiagram
     participant S as 几何沙箱
     participant F as Journal 与文件投影
     participant Q as IFC 转换队列
+    participant G as 私有 Git 工作区
     U->>A: GET script
     A->>E: 读取已提交脚本快照
     E->>P: 只读事务
@@ -143,6 +145,20 @@ sequenceDiagram
     else DXF
         Note over E,F: 编辑时已生成 render.json
         A-->>U: 返回编辑结果
+    end
+    opt 按需查询 Git 状态
+        U->>A: 查询 Git 状态
+        A->>E: 按需投影已保存记录
+        loop 每个投影事务最多 32 条
+            E->>P: 源字节准入后捕获 bundle
+            E->>G: 克隆并生成受限 bundle
+            E->>P: 同事务提交 bundle 与投影标记
+        end
+        E->>P: 捕获已准入 bundle 并关闭读取连接
+        E->>G: 读取分支与提交
+        E->>E: 清理工作区并归还 bundle 预留
+        E-->>A: Git 状态
+        A-->>U: 分支与提交
     end
 ```
 

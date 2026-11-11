@@ -66,6 +66,9 @@ func (o *operation) call(name string, args any) (any, error) {
 	return value, historyError(err)
 }
 func historyError(err error) error {
+	if errors.Is(err, editruntime.ErrGitCapacity) {
+		return failure(429, err.Error())
+	}
 	if errors.Is(err, versionstore.ErrProjectionPending) || errors.Is(err, versionstore.ErrConflict) {
 		return failure(409, err.Error())
 	}

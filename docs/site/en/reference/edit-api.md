@@ -41,3 +41,10 @@ Scripts require a top-level literal PARAMS and write to their first process argu
 Keys are IFC GlobalId or DXF XDATA keys. No platform Python SDK is required.
 IFC property/reference inspection is not full geometry/compliance analysis.
 See [sandbox](/en/architecture/sandbox), [storage](/en/architecture/storage) and [workflows](/en/reference/workflows).
+
+
+Branch creation, checkout and merge may include `baseRevision`, the SHA-256 of current staged source.
+When provided, check it during consistent capture and before application; stale requests return 409 without
+applying the branch action or replacing newer source. Legacy calls may omit it; read the current revision
+and include it for optimistic protection. Git job/source-byte exhaustion returns 429; retry after capacity
+is released. Already committed history projection batches retain progress.

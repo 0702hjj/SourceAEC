@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"ifcviewer/server/internal/artifact"
-	"os"
 	"strings"
 	"testing"
 )
@@ -20,7 +19,7 @@ func TestGitPreservesHumanAndAIProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(c.directory)
+	defer c.dispose()
 	for _, source := range []string{"ai", "human"} {
 		if _, err = commitGit(db, c, gitArgs{Script: "PARAMS = {}", Source: source}); err != nil {
 			t.Fatal(err)

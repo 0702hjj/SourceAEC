@@ -28,7 +28,8 @@ Except for raw file endpoints, responses use:
 | 40900 | Conflict |
 | 42900 | Capacity exhausted |
 | 50000 | Internal error |
-| 50200 | Upstream/compatibility transport failure |
+| 50200 | Editing call or compatibility transport failure |
+| 50300 | Required runtime or isolation unavailable |
 | 50400 | Execution/transport timeout |
 
 See each endpoint's HTTP contract: durable validation uses 422 and admission uses 429.

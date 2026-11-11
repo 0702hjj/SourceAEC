@@ -47,7 +47,7 @@ flowchart TB
     WRITE -->|Model version and publication in one transaction| WF
     SCAN -->|Conversion / recover lost enqueue| QUEUE
     DERIVED -.Model deletion.-> WF
-    API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
+    API -->|On-demand branch management| GIT[Git projection / 32-record batches<br/>3 jobs / 1 GiB bundle source budget]
     GIT --> GATE
     GIT --> PG
     EDIT --> PREP[Short read snapshot / frozen request and execution identity]
@@ -88,8 +88,10 @@ acquiring database connections. PostgreSQL locks provide cross-process exclusion
 Geometry preparation and execution release the database connection and model lock.
 Publication rejects changed source, inputs or branches with 409. Three build lifecycles
 and three stored-product comparisons have separate budgets. Saves commit source-history
-references without running Git; opening branch management projects real commits on demand. Process budgets
-do not provide a shared resource limit across replicas.
+references without running Git; opening branch management projects real commits on demand. Git compatibility
+keeps its three-job, 1 GiB bundle-source high-water reservations through snapshot and workspace cleanup.
+These are source working-set budgets, not RSS or scratch-disk hard quotas. Process budgets do not provide
+a shared resource limit across replicas.
 
 ## Main Data Flow
 
@@ -102,6 +104,7 @@ sequenceDiagram
     participant S as Geometry sandbox
     participant F as Journal and file projections
     participant Q as IFC conversion queue
+    participant G as Private Git workspace
     U->>A: GET script
     A->>E: Read committed script snapshot
     E->>P: Read-only transaction
@@ -117,8 +120,8 @@ sequenceDiagram
     alt Explicit durable workflow
         U->>A: POST workflows with key/action/baseRevision
         A->>P: Reserve capture, freeze source/inputs/environment, commit run
-        A-->>U: 202 + workflow ID; identical retry returns original run
-        E->>P: Scan and lease the unfinished phase; heartbeat
+        A-->>U: 202 + workflow ID, identical retry returns original run
+        E->>P: Scan and lease the unfinished phase, heartbeat
     else Synchronous execution
         U->>A: POST run or save
         A->>E: Execute current source
@@ -133,7 +136,7 @@ sequenceDiagram
         E->>P: Commit candidate blobs, optional cache and checkpoint together
     end
     E->>P: Model admission and lock, recheck execution identity
-    Note over E,P: Verify ownership fence; changed state conflicts or supersedes
+    Note over E,P: Verify ownership fence, changed state conflicts or supersedes
     E->>P: Write current artifacts and build/input records
     opt Durable publication phase
         E->>P: Write publication marker and result in the same transaction
@@ -157,6 +160,20 @@ sequenceDiagram
     else DXF
         Note over E,F: Editing already produced render.json
         A-->>U: Editing result
+    end
+    opt On-demand Git state
+        U->>A: GET Git state
+        A->>E: Project saved records when needed
+        loop At most 32 records per projection transaction
+            E->>P: Admit source bytes and capture a bundle
+            E->>G: Clone and generate a bounded bundle
+            E->>P: Commit bundle and projection marks together
+        end
+        E->>P: Capture admitted bundle and close read connection
+        E->>G: Read branches and commits
+        E->>E: Dispose workspace and release bundle reservations
+        E-->>A: Git state
+        A-->>U: Branches and commits
     end
 ```
 
