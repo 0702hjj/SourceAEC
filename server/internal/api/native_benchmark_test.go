@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"ifcviewer/server/internal/artifact"
 	"ifcviewer/server/internal/benchobserve"
 	"ifcviewer/server/internal/change"
@@ -41,13 +42,41 @@ func BenchmarkNativeHTTP(b *testing.B) {
 	if os.Getenv("VIEWER_TEST_PG_DSN") == "" || os.Getenv("VIEWER_TEST_PG_DSN") != os.Getenv("VIEWER_PG_DSN") {
 		b.Fatal("set matching explicit dedicated PostgreSQL test DSNs")
 	}
+	if os.Getenv("VIEWER_STORAGE_NAMESPACE") != "" {
+		b.Fatal("unset VIEWER_STORAGE_NAMESPACE: native benchmark requires its own temporary namespaces")
+	}
+	hotKind := os.Getenv("SOURCEAEC_BENCH_HOT_FORMAT")
+	if hotKind == "" {
+		hotKind = "ifc"
+	}
+	if hotKind != "ifc" && hotKind != "dxf" {
+		b.Fatal("SOURCEAEC_BENCH_HOT_FORMAT must be ifc or dxf")
+	}
 	for _, models := range []int{1, 32} {
 		b.Run(fmt.Sprintf("models=%d", models), func(b *testing.B) {
 			root := b.TempDir()
 			if err := artifact.Open(root); err != nil {
 				b.Fatal(err)
 			}
-			b.Cleanup(func() { _ = artifact.Close(root) })
+			schema, err := artifact.Namespace(root)
+			if err != nil {
+				artifact.Close(root)
+				b.Fatal(err)
+			}
+			// Registered before servers/workers: runs after their shutdown.
+			b.Cleanup(func() {
+				db, err := artifact.Database(root)
+				if err != nil {
+					b.Error(err)
+				} else {
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+					if _, err := db.ExecContext(ctx, "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE"); err != nil {
+						b.Error(err)
+					}
+				}
+				_ = artifact.Close(root)
+			})
 			st := store.NewStore(root)
 			converter, err := filepath.Abs("../../../converter/convert.js")
 			if err != nil {
@@ -73,7 +102,7 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			seeds := map[string][]byte{}
 			for i := range ids {
 				kind := "ifc"
-				if i%2 == 1 {
+				if i%2 == 1 || models == 1 && hotKind == "dxf" {
 					kind = "dxf"
 				}
 				if seeds[kind] == nil {
@@ -121,7 +150,8 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			observe := benchobserve.Start(roots, 250*time.Millisecond)
 			b.Cleanup(func() { observe() })
 			stopRSS := benchmarkRSS(b)
-			cpu := benchmarkCPU()
+			readCPU := benchmarkCPUReader(b)
+			cpu := readCPU()
 			var next atomic.Uint64
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -173,7 +203,10 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			b.ReportMetric(float64(after.WaitCount-before.WaitCount), "pool-waits")
 			b.ReportMetric(float64((after.WaitDuration - before.WaitDuration).Nanoseconds()), "pool-wait-ns")
 			b.ReportMetric(float64(rss), "sampled-tree-rss-bytes")
-			b.ReportMetric(float64(benchmarkCPU()-cpu), "tree-cpu-ns")
+			if models == 1 && hotKind == "dxf" {
+				b.ReportMetric(1, "fixture-hot-dxf")
+			}
+			b.ReportMetric(float64(readCPU()-cpu), "tree-cpu-ns")
 			b.ReportMetric(float64(runner.count.Load()-runs), "conversions")
 			b.ReportMetric(float64(runner.nanos.Load()-ns), "conversion-ns")
 			b.ReportMetric(float64(runner.failed.Load()), "conversion-errors")
@@ -185,6 +218,12 @@ func BenchmarkNativeHTTP(b *testing.B) {
 				b.Errorf("database leases retained: %d", after.InUse)
 			}
 			measured.validatePreviews(b, st)
+			if os.Getenv("SOURCEAEC_BENCH_RECOVERY") == "1" {
+				verifyStableBuilds(b, measured, ids, q, st)
+				if runner.failed.Load() != 0 {
+					b.Errorf("recovery conversion failed: %v", runner.lastError.Load())
+				}
+			}
 		})
 	}
 }

@@ -115,3 +115,63 @@ SOURCEAEC_BENCH_ENTROPY=sha256 go test ./internal/editing -run '^$' \
 
 默认仍使用可压缩内容；该开关不代表真实几何。每组使用独立临时根命名空间，结束后删除自身
 测试 schema。成功 p95/p99 与过载计数分别报告；固定批次仍有批间屏障，不等同于持续到达负载。
+
+
+临时目录可能位于 tmpfs；此时文件分配字节会消耗内存，未映射文件页不一定出现在进程 PSS 中。
+同时记录临时目录的文件系统类型和宿主机内存，不能将 PSS 与文件字节简单相加作为唯一物理内存。
+
+## 修改停止后的稳定构建
+
+给 `BenchmarkNativeHTTP` 设置 `SOURCEAEC_BENCH_RECOVERY=1` 可启用独立恢复阶段。
+并行生产者全部结束后停止混合负载计时，对每个模型顺序构建一次；前后源码 revision
+必须一致，并等待真实 Node 转换完成、校验当前 IFC 预览。失败会使基准失败。
+`recovery-*` 单独报告成功数、按格式的延迟、CPU、PSS/FD，不补入混合负载成功吞吐。
+恢复过程没有继续发起修改请求，因此用于验证生产者停止后的行为；小规模恢复样本的
+p95/p99 仅作描述，不能代替持续混合压力或大几何验收。
+
+单热点组默认 IFC；可设置 `SOURCEAEC_BENCH_HOT_FORMAT=dxf` 验证同样的 DXF 热点场景，
+32 模型组仍交替使用两种格式。
+
+
+原生 HTTP 基准要求清空 `VIEWER_STORAGE_NAMESPACE`，按临时根隔离；关闭 HTTP 与转换 worker 后，
+只删除对应测试命名空间，避免后续重复测量累积模型数据。
+
+## 按需 Git 长历史投影
+
+正常保存的 `BenchmarkSaveHistory` 不包含 Git 导出。首次投影与已投影查询可单独测量：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkGitHistoryProjection$' \
+  -benchtime=1x -count=3 -timeout=30m
+```
+
+基准准备 1/100/1000 个版本；`entropyBytes=65536` 使每版本额外携带变化的 64 KiB
+十六进制注释。十六进制文本仍可部分压缩，与下载矩阵的不可压缩二进制夹具不同。
+使用微型确定性几何隔离历史成本，准备过程不计入投影测量。
+`cold-*` 报告首次累计时间、CPU、采样资源和保留进度后的 429 续投次数，整体限期五分钟；
+标准 ns/op 与 `warm-*` 仅衡量投影完成后的查询。CPU 包含 Go 与已回收 Git 子进程，
+不包含独立 PG CPU；PSS 是否包含 PG 由显式 postmaster PID 和报告标记决定。
+投影后检查版本数和 Git 引用完整，记录实际 bundle 大小，结束仅删除自身测试命名空间。
+这些结果不代表真实几何吞吐，短命 Git 进程与临时文件可能漏采。
+
+`pg-tables-before-bytes` 与 `pg-tables-after-cold-bytes` 包含本测试命名空间的表、索引、
+TOAST 及尚未回收的死页，不包含 WAL 或命名临时文件；两点值不是磁盘峰值。
+
+## 隔离后代的 CPU 计数
+
+默认的 `cpu-reaped-only=1` 只计 Go 本进程与已回收子进程，可能漏掉 bubblewrap 隔离后代，
+不能当完整几何 CPU。测量完整工作负载时，在独占的 cgroup v2 unit 内运行并显式启用：
+
+```bash
+systemd-run --user --scope --unit=sourceaec-bench-native \
+  env SOURCEAEC_BENCH_CPU_CGROUP=1 SOURCEAEC_BENCH_GEOMETRY=1 \
+  SOURCEAEC_BENCH_RECOVERY=1 go test ./internal/api -run '^$' \
+  -bench '^BenchmarkNativeHTTP$' -benchtime=30s -count=3 -cpu=4 -timeout=30m
+```
+
+先导出专用数据库 DSN 与外部解释器环境；本命令从 `server` 运行。
+计数器读取当前专用 `sourceaec-bench-*` scope/service 的 `cpu.stat`，拒绝共享终端组或
+无法读取的计数器；`cpu-cgroup=1` 表示 unit 内已退出和仍存活的后代均计入。
+单位只供该负载使用；独立 PostgreSQL 的 CPU 不在其中，PSS 纳入数据库也不改变 CPU 边界。
+各阶段累计 CPU 不直接等于每次拒绝的成本。可在同样独立 unit、提供几何解释器并设置
+`SOURCEAEC_TEST_GEOMETRY=1` 后运行 `TestCgroupCPUIncludesIsolatedGeometry` 核验计数路径。
