@@ -42,3 +42,27 @@ Observe Go heap, Python/Node native memory, PG/TOAST/materialization/temp files,
 Use realistic incompressible geometry, slow clients, mixed builds/comparisons, hot-model changes followed by producer shutdown,
 and sustained samples for p95/p99. Fault injection is a separate workload.
 Profiles and benchmark binaries belong in temporary directories, never committed runtime data.
+
+## PSS, descriptors and unlinked temporary files
+
+`SnapshotConcurrency` and `NativeHTTP` also sample Linux `/proc` every 250 ms.
+Set `SOURCEAEC_BENCH_PG_PID` to the dedicated test database's postmaster PID to include its process tree.
+Otherwise `observation-pg-included=0`: the sample excludes database memory. Processes are deduplicated and
+children are discovered from every thread. Reports include PSS, descriptors and logical/allocated bytes of
+unlinked regular files. Multiple descriptors for the same device/inode count file space once.
+
+`sampled-pss-bytes` proportionally attributes shared pages; it is not a hard limit. Independent maxima need not
+occur together. Check `observation-samples`, `sampled-pss-read` and `observation-read-errors`; exited processes,
+closed descriptors and permissions can prevent reads. Short peaks may be missed and observation has CPU/I/O cost.
+Named temporary directories and PostgreSQL persistent/TOAST space still require separate measurement.
+
+Use incompressible synthetic SHA256 byte sequences for snapshot reads:
+
+```bash
+SOURCEAEC_BENCH_ENTROPY=sha256 go test ./internal/editing -run '^$' \
+  -bench '^BenchmarkSnapshotConcurrency$' -benchtime=512x -count=3 -timeout=30m
+```
+
+The default remains compressible contents; this option is not real geometry. Stored size is checked outside timed reads.
+Each case removes only its own temporary-root test schema. Successful p95/p99 and overload counts are separate.
+Fixed bursts have inter-batch barriers and do not represent a continuous arrival process.

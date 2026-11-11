@@ -92,3 +92,26 @@ go test ./internal/editing -run '^$' -bench '^BenchmarkSaveHistory$' \
 
 性能回归测试应使用匹配的环境与工作负载，故障注入另行运行。
 运行前先完成[正确性验证](/operations/testing)，避免把错误或快速拒绝当成性能收益。
+
+## PSS、句柄与匿名临时文件
+
+`SnapshotConcurrency` 和 `NativeHTTP` 另以 250ms 间隔采样 Linux `/proc`。
+可将 `SOURCEAEC_BENCH_PG_PID` 设为专用测试数据库的 postmaster PID，以纳入其进程树；
+未设置时 `observation-pg-included=0`，不能将结果当作包含数据库的系统测量。
+每个进程只计一次，子进程从全部线程发现。报告 PSS、FD，以及已删除但仍打开的普通文件
+逻辑字节和分配字节；同一 device/inode 的多个描述符不重复计算文件空间。
+
+`sampled-pss-bytes` 是比例分摊共享页后的观察值，不是内存硬上限。
+各项峰值独立取最大，不保证同时发生。`observation-samples`、`sampled-pss-read` 和
+`observation-read-errors` 一并检查；进程退出、描述符关闭或权限不足会造成读取失败。
+短峰可能漏采，采样自身也有 CPU/I/O 成本；命名临时目录和 PG 持久/TOAST 空间仍须另外测量。
+
+快照矩阵可选择 SHA256 序列构成的不可压缩合成字节，并检查实际 PG 存储长度：
+
+```bash
+SOURCEAEC_BENCH_ENTROPY=sha256 go test ./internal/editing -run '^$' \
+  -bench '^BenchmarkSnapshotConcurrency$' -benchtime=512x -count=3 -timeout=30m
+```
+
+默认仍使用可压缩内容；该开关不代表真实几何。每组使用独立临时根命名空间，结束后删除自身
+测试 schema。成功 p95/p99 与过载计数分别报告；固定批次仍有批间屏障，不等同于持续到达负载。
