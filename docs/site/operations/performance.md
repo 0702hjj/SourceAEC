@@ -104,7 +104,16 @@ go test ./internal/editing -run '^$' -bench '^BenchmarkSaveHistory$' \
 `sampled-pss-bytes` 是比例分摊共享页后的观察值，不是内存硬上限。
 各项峰值独立取最大，不保证同时发生。`observation-samples`、`sampled-pss-read` 和
 `observation-read-errors` 一并检查；进程退出、描述符关闭或权限不足会造成读取失败。
-短峰可能漏采，采样自身也有 CPU/I/O 成本；命名临时目录和 PG 持久/TOAST 空间仍须另外测量。
+短峰可能漏采，采样自身也有 CPU/I/O 成本；PG 持久/TOAST 空间仍须另外测量。
+
+同一观察器记录 Go heap alloc/in-use、goroutine 峰值及起止值；goroutine 数扣除观察器自身。
+宿主机 `/proc/meminfo` 提供最小 `MemAvailable` 与最大 `Shmem`，两者是整机值，可能受其他负载影响。
+显式选择 postmaster 后，验证 PID 和数据目录，并统计默认 `base/pgsql_tmp` 的命名文件，
+分别报告逻辑与实际分配字节，同一 inode 只计一次。自定义 tablespace、权限错误或遍历超限
+会标记覆盖不足；该统计不包含 WAL、持久表、其他临时目录或已 unlink 文件。
+`observation-host-samples` 和 `observation-pg-temp-samples` 是有效采样数；覆盖为零时省略相应
+数值指标，避免把未测量误报为零。起止采样同步完成，短暂峰值仍可能漏采。
+Go heap 不包含外部 Python/Node 原生堆，宿主机、PSS 与文件字节也不能直接相加。
 
 快照矩阵可选择 SHA256 序列构成的不可压缩合成字节，并检查实际 PG 存储长度：
 

@@ -54,7 +54,17 @@ unlinked regular files. Multiple descriptors for the same device/inode count fil
 `sampled-pss-bytes` proportionally attributes shared pages; it is not a hard limit. Independent maxima need not
 occur together. Check `observation-samples`, `sampled-pss-read` and `observation-read-errors`; exited processes,
 closed descriptors and permissions can prevent reads. Short peaks may be missed and observation has CPU/I/O cost.
-Named temporary directories and PostgreSQL persistent/TOAST space still require separate measurement.
+PostgreSQL persistent/TOAST space still requires separate measurement.
+
+The same observer records Go heap allocation/in-use, peak goroutines and initial/final values, excluding its own
+goroutine. Host `/proc/meminfo` supplies minimum `MemAvailable` and maximum `Shmem`; these machine-wide values
+can reflect unrelated workloads. With an explicit postmaster, verify its PID and data directory and count named
+files under default `base/pgsql_tmp`, reporting logical and allocated bytes with inode deduplication. Custom
+tablespaces, access failures or traversal limits make coverage incomplete. This excludes WAL, persistent tables,
+other temporary directories and unlinked files. `observation-host-samples` and `observation-pg-temp-samples`
+count valid observations; omit their value metrics when coverage is zero instead of reporting missing data as zero.
+Initial/final sampling is synchronous, but brief peaks can still be missed. Go heap excludes Python/Node native
+heaps; host, PSS and file-byte observations cannot simply be added together.
 
 Use incompressible synthetic SHA256 byte sequences for snapshot reads:
 

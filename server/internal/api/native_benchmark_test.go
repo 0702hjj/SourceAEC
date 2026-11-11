@@ -196,6 +196,7 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			// Include completion of accepted asynchronous conversion in wall throughput.
 			waitConversion(b, q)
 			b.StopTimer()
+			cpuUsed := readCPU() - cpu
 			rss := stopRSS()
 			observe().Report(b)
 			after := db.Stats()
@@ -206,7 +207,7 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			if models == 1 && hotKind == "dxf" {
 				b.ReportMetric(1, "fixture-hot-dxf")
 			}
-			b.ReportMetric(float64(readCPU()-cpu), "tree-cpu-ns")
+			b.ReportMetric(float64(cpuUsed), "tree-cpu-ns")
 			b.ReportMetric(float64(runner.count.Load()-runs), "conversions")
 			b.ReportMetric(float64(runner.nanos.Load()-ns), "conversion-ns")
 			b.ReportMetric(float64(runner.failed.Load()), "conversion-errors")
