@@ -56,12 +56,16 @@ func parseSTEPWithin(data []byte, recordLimit, fieldsLeft int) (map[string]stepR
 	if len(data) > productLimit {
 		return nil, fmt.Errorf("IFC document exceeds product size limit")
 	}
-	text := strings.TrimSpace(string(data))
+	text, err := withoutSTEPComments(string(data))
+	if err != nil {
+		return nil, err
+	}
+	text = strings.TrimSpace(text)
 	if !strings.HasPrefix(text, "ISO-10303-21;") || !strings.Contains(text, "END-ISO-10303-21;") {
 		return nil, fmt.Errorf("invalid IFC STEP document")
 	}
 	records := map[string]stepRecord{}
-	err := walkSTEP(text, ';', func(statement string) error {
+	err = walkSTEP(text, ';', func(statement string) error {
 		if !strings.HasPrefix(statement, "#") {
 			return nil
 		}

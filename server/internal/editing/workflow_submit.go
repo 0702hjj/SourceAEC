@@ -4,6 +4,7 @@ package editing
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"sort"
 	"time"
@@ -82,7 +83,10 @@ func (w *Workflows) Submit(ctx context.Context, model string, request WorkflowRe
 	default:
 		return WorkflowView{}, false, failure(429, "build capacity exhausted")
 	}
-	body := jsonBytes(map[string]any{"source": intent.Source, "note": intent.Note})
+	body, err := json.Marshal(map[string]any{"source": intent.Source, "note": intent.Note})
+	if err != nil {
+		return WorkflowView{}, false, err
+	}
 	plan, err := o.captureExecution("script/"+intent.Action, body)
 	if err != nil {
 		return WorkflowView{}, false, err
@@ -151,7 +155,11 @@ func (w *Workflows) Submit(ctx context.Context, model string, request WorkflowRe
 	if err != nil {
 		return WorkflowView{}, false, err
 	}
-	definition := workflow.Definition{Schema: 1, Model: model, Kind: m.Kind, Engine: workflowEngine, EnvironmentDigest: seal.Digest, Script: script, Inputs: inputRef, Environment: environment, InputBytes: total}
+	engine, err := executionEngine(plan.script)
+	if err != nil {
+		return WorkflowView{}, false, err
+	}
+	definition := workflow.Definition{Schema: 1, Model: model, Kind: m.Kind, Engine: engine, EnvironmentDigest: seal.Digest, Script: script, Inputs: inputRef, Environment: environment, InputBytes: total}
 	var run workflow.Run
 	var created bool
 	err = o.workflowTransaction(func(s *workflow.Store) error {

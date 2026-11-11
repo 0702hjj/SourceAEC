@@ -53,6 +53,9 @@ func (o *operation) captureExecution(path string, body []byte) (*capturedExecuti
 		if e != nil {
 			return nil, e
 		}
+		if _, err = verifyGitChange(staging, body); err != nil {
+			return nil, err
+		}
 		if err = o.runtime.CaptureRepository(o.ctx, o.service.Root, o.tx, o.model); err != nil {
 			if errors.Is(err, versionstore.ErrProjectionPending) {
 				return nil, failure(409, err.Error())

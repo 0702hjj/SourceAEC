@@ -26,38 +26,15 @@ func dependencies(script, kind string) ([]string, error) {
 	if kind == "dxf" {
 		deps = []string{"ezdxf==1.4.3"}
 	}
-	var block strings.Builder
-	active := false
-	found := false
-	for _, line := range strings.Split(script, "\n") {
-		if line == "# /// script" {
-			if found {
-				return nil, fmt.Errorf("duplicate script dependency block")
-			}
-			found = true
-			active = true
-			continue
-		}
-		if active && line == "# ///" {
-			active = false
-			break
-		}
-		if active {
-			if !strings.HasPrefix(line, "#") {
-				return nil, fmt.Errorf("invalid script dependency block")
-			}
-			block.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "#"), " "))
-			block.WriteByte('\n')
-		}
-	}
-	if active {
-		return nil, fmt.Errorf("unterminated script dependency block")
+	raw, found, e := scriptMetadata(script)
+	if e != nil {
+		return nil, e
 	}
 	if found {
 		var metadata struct {
 			Dependencies []string `toml:"dependencies"`
 		}
-		if e := toml.Unmarshal([]byte(block.String()), &metadata); e != nil {
+		if e := toml.Unmarshal(raw, &metadata); e != nil {
 			return nil, e
 		}
 		deps = metadata.Dependencies
@@ -68,6 +45,34 @@ func dependencies(script, kind string) ([]string, error) {
 		}
 	}
 	return deps, nil
+}
+func scriptMetadata(script string) ([]byte, bool, error) {
+	var block strings.Builder
+	active, found := false, false
+	for _, line := range strings.Split(script, "\n") {
+		if line == "# /// script" {
+			if found {
+				return nil, false, fmt.Errorf("duplicate script dependency block")
+			}
+			found, active = true, true
+			continue
+		}
+		if active && line == "# ///" {
+			active = false
+			break
+		}
+		if active {
+			if !strings.HasPrefix(line, "#") {
+				return nil, false, fmt.Errorf("invalid script dependency block")
+			}
+			block.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "#"), " "))
+			block.WriteByte('\n')
+		}
+	}
+	if active {
+		return nil, false, fmt.Errorf("unterminated script dependency block")
+	}
+	return []byte(block.String()), found, nil
 }
 func (s *Sandbox) environment(ctx context.Context, script, kind string) (string, string, error) {
 	deps, e := dependencies(script, kind)

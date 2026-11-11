@@ -1,0 +1,45 @@
+name: Documentation Pages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: documentation-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - name: Configure Pages (must already be enabled)
+        uses: actions/configure-pages@v5
+      - run: npm ci && npm test && npm run docs:build
+        working-directory: docs
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/site/.vitepress/dist
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy reviewed documentation
+        id: deployment
+        uses: actions/deploy-pages@v4
