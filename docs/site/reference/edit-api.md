@@ -39,6 +39,12 @@ start 包含、end 不包含；必须有序、不重叠且不切开字符。生�
 Git 查询或分支操作会按需物化真实 Git 提交；若物化失败，保存版本仍然有效，可重试查询。
 产品 diff body 为 base 与 target，target 可用 current。
 
+
+分支创建、切换和合并可携带 `baseRevision`，含义同样是当前暂存源的 SHA-256。
+提供时会在一致捕获和应用前校验，过期返回 409，不应用分支动作或替换较新源。
+省略字段的旧调用继续可用；建议修改前读取当前 revision 并显式携带。
+Git 工作容量或源字节预算不足返回 429，归还后可重试；已提交的历史投影批次保留。
+
 运行时脚本必须有顶层字面量 PARAMS，输出路径是第一个进程参数。
 无平台 Python SDK。可选源 map 在 SOURCEAEC_MAP_OUT 输出，格式为
 `{"map":{"entity-key":{"line":12,"origin":"declared"}}}`；摘要由 Go 绑定。IFC map key 使用 GlobalId，DXF 使用实体 XDATA key。
@@ -47,4 +53,4 @@ IFC 对比由 Go 读取 STEP 属性与相关属性定义，按 GlobalId 匹配�
 语义/合规分析引擎。DXF 按稳定 key 或无 key 内容匹配。
 脚本错误、冲突、运行限额和环境不可用分别返回相应 API 错误。
 
-[运行时限制](/development/sandbox)、[存储](/development/model-storage)。
+[运行时限制](/architecture/sandbox)、[存储](/architecture/storage)。

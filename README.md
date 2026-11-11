@@ -9,7 +9,7 @@ people. An optional planning and DXF workflow can feed the IFC authoring path.
 
 > Documentation: <https://0702hjj.github.io/SourceAEC/>
 
-See [engine and integration boundaries](docs/site/development/integration-boundaries.md)
+See [engine and integration boundaries](docs/site/en/architecture/boundaries.md)
 for the responsibilities of SourceAEC domain services and external CAD engines.
 
 ## Highlights
@@ -42,12 +42,12 @@ flowchart TB
     WF --> PG
     PG --> SCAN[2 scanning workers / 30s leases and fencing]
     SCAN -->|Geometry / shared build budget| SANDBOX
-    INSPECT -->|Candidate and checkpoint in one transaction| WF
+    INSPECT -->|Candidate, optional cache and checkpoint in one transaction| WF
     SCAN -->|Publication / ownership and identity checks| GATE
     WRITE -->|Model version and publication in one transaction| WF
     SCAN -->|Conversion / recover lost enqueue| QUEUE
     DERIVED -.Model deletion.-> WF
-    API -->|On-demand branch management| GIT[Git compatibility projection / batches of 32]
+    API -->|On-demand branch management| GIT[Git projection / 32-record batches<br/>3 jobs / 1 GiB bundle source budget]
     GIT --> GATE
     GIT --> PG
     EDIT --> PREP[Short read snapshot / frozen request and execution identity]
@@ -56,8 +56,10 @@ flowchart TB
     PREP --> SANDBOX[3 bounded build lifecycles / bubblewrap<br/>No database connection during execution]
     PREP --> COMPARE[3 stored-product comparisons / 512 MiB input budget]
     COMPARE -.->|Legacy source replay uses build budget| SANDBOX
+    PG -->|Compatible model cache / copied before execution| NBC[Optional notebook adapter / private SDK cache]
+    NBC --> SANDBOX
     SANDBOX --> PY[External Python geometry runtime]
-    PY --> INSPECT[Product and source-map checks<br/>Bounded format parsing and expansion]
+    PY --> INSPECT[Product and source-map checks<br/>Comment-aware STEP / finite DXF geometry<br/>Bounded parsing and expansion]
     INSPECT -->|Recheck identity / reject stale result| GATE
     WRITE --> JOURNAL[Projection journal / disposable workspace]
     API -->|After an IFC commit or upload| QUEUE[Bounded conversion queue / deduplication]
@@ -86,8 +88,10 @@ acquiring database connections. PostgreSQL locks provide cross-process exclusion
 Geometry preparation and execution release the database connection and model lock.
 Publication rejects changed source, inputs or branches with 409. Three build lifecycles
 and three stored-product comparisons have separate budgets. Saves commit source-history
-references without running Git; opening branch management projects real commits on demand. Process budgets
-do not provide a shared resource limit across replicas.
+references without running Git; opening branch management projects real commits on demand. Git compatibility
+keeps its three-job, 1 GiB bundle-source high-water reservations through snapshot and workspace cleanup.
+These are source working-set budgets, not RSS or scratch-disk hard quotas. Process budgets do not provide
+a shared resource limit across replicas.
 
 ## Main Data Flow
 
@@ -100,6 +104,7 @@ sequenceDiagram
     participant S as Geometry sandbox
     participant F as Journal and file projections
     participant Q as IFC conversion queue
+    participant G as Private Git workspace
     U->>A: GET script
     A->>E: Read committed script snapshot
     E->>P: Read-only transaction
@@ -115,8 +120,8 @@ sequenceDiagram
     alt Explicit durable workflow
         U->>A: POST workflows with key/action/baseRevision
         A->>P: Reserve capture, freeze source/inputs/environment, commit run
-        A-->>U: 202 + workflow ID; identical retry returns original run
-        E->>P: Scan and lease the unfinished phase; heartbeat
+        A-->>U: 202 + workflow ID, identical retry returns original run
+        E->>P: Scan and lease the unfinished phase, heartbeat
     else Synchronous execution
         U->>A: POST run or save
         A->>E: Execute current source
@@ -128,10 +133,10 @@ sequenceDiagram
     S-->>E: Product, source map and environment identity
     E->>E: Check source-map, parsing and expansion budgets
     opt Durable geometry phase
-        E->>P: Commit candidate blobs and checkpoint together
+        E->>P: Commit candidate blobs, optional cache and checkpoint together
     end
     E->>P: Model admission and lock, recheck execution identity
-    Note over E,P: Verify ownership fence; changed state conflicts or supersedes
+    Note over E,P: Verify ownership fence, changed state conflicts or supersedes
     E->>P: Write current artifacts and build/input records
     opt Durable publication phase
         E->>P: Write publication marker and result in the same transaction
@@ -156,6 +161,20 @@ sequenceDiagram
         Note over E,F: Editing already produced render.json
         A-->>U: Editing result
     end
+    opt On-demand Git state
+        U->>A: GET Git state
+        A->>E: Project saved records when needed
+        loop At most 32 records per projection transaction
+            E->>P: Admit source bytes and capture a bundle
+            E->>G: Clone and generate a bounded bundle
+            E->>P: Commit bundle and projection marks together
+        end
+        E->>P: Capture admitted bundle and close read connection
+        E->>G: Read branches and commits
+        E->>E: Dispose workspace and release bundle reservations
+        E-->>A: Git state
+        A-->>U: Branches and commits
+    end
 ```
 
 `run` updates the current product without creating a version. `save` executes
@@ -167,6 +186,20 @@ Explicit [durable workflows](docs/site/reference/workflows.md) return 202 after 
 poll for phase results. Restart can repeat unfinished geometry, while completed checkpoints are reused.
 Versions and publication markers commit together; conversion recovery never saves another version.
 Immediate edit responses in the data flow apply to synchronous calls; durable clients poll instead.
+
+Optional [notebook cache](docs/site/en/architecture/notebooks.md) restores only completed, model-scoped SDK generations into private sandbox copies. Python stacks and per-cell crash checkpoints are not persisted. Administrators explicitly configure any larger notebook address-space budget.
+
+## Documentation
+
+[English](https://0702hjj.github.io/SourceAEC/en/) · [简体中文](https://0702hjj.github.io/SourceAEC/)
+
+```mermaid
+flowchart LR
+    START[Start here] --> ARCH[Architecture / responsibilities and data flow]
+    ARCH --> OPS[Operations / startup, verification and hosting]
+    ARCH --> INTEGRATE[Integrations / Agent, MCP and skills]
+    INTEGRATE --> REFERENCE[API reference / REST and workflows]
+```
 
 ## Quick Start
 
@@ -209,6 +242,7 @@ Run the MCP bridge with `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN` configured.
 | `server/internal/editruntime` | Transactions, durable versions, typed artifacts, Git bundles, input snapshots and private protocol dispatch |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | Immutable source-history references, head/counter and exact revision patches |
 | `server/internal/workflow` | Immutable definitions, capture reservations, fenced attempts and phase checkpoints |
+| `server/internal/notebookcache` | Optional model-scoped SDK cache packages, immutable generations and reference cleanup |
 | `server/internal/resourcebudget` | Process-local payload byte reservations |
 | `server/internal/artifact` | PostgreSQL artifacts, namespaces, model admission, projection journals and recovery |
 | `server/internal/store` | Models, projects, planning data, status and conditional preview publication |

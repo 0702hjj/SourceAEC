@@ -9,11 +9,9 @@ import (
 	"fmt"
 	"ifcviewer/server/internal/versionstore"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var branchName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_/-]{0,79}$`)
@@ -29,14 +27,8 @@ func git(repo string, args ...string) (string, error) {
 }
 func (c *candidate) git(args ...string) (string, error) { return gitContext(c.ctx, c.repo, args...) }
 func gitContext(parent context.Context, repo string, args ...string) (string, error) {
-	if parent == nil {
-		parent = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+	cmd, cancel := gitCommand(parent, repo, args...)
 	defer cancel()
-	argv := append([]string{"-C", repo, "-c", "user.name=SourceAEC", "-c", "user.email=sourceaec@localhost", "-c", "core.hooksPath=/dev/null"}, args...)
-	cmd := exec.CommandContext(ctx, "git", argv...)
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LANG=C.UTF-8", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1"}
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("Git operation failed: %w: %s", err, strings.TrimSpace(string(data)))
@@ -44,15 +36,41 @@ func gitContext(parent context.Context, repo string, args ...string) (string, er
 	return strings.TrimSpace(string(data)), nil
 }
 func workspaceSnapshot(ctx context.Context, root, model string, snapshot RepositorySnapshot) (*candidate, error) {
-	directory, err := os.MkdirTemp("", "sourceaec-git-")
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var lease *gitReference
+	var err error
+	if snapshot.lease != nil {
+		lease, err = snapshot.lease.retainWorkspace()
+	} else {
+		initial, e := gitResources.acquire(ctx, int64(len(snapshot.Bundle)))
+		err = e
+		if err == nil {
+			lease, err = initial.retainWorkspace()
+			initial.close()
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	c := &candidate{directory: directory, repo: filepath.Join(directory, "repo"), branch: "main", root: root, model: model, ctx: ctx}
+	if err = lease.grow(int64(len(snapshot.Bundle))); err != nil {
+		lease.close()
+		return nil, err
+	}
+	directory, err := os.MkdirTemp("", "sourceaec-git-")
+	if err != nil {
+		lease.close()
+		return nil, err
+	}
+	c := &candidate{directory: directory, repo: filepath.Join(directory, "repo"), branch: "main", root: root, model: model, ctx: ctx, bundleLease: lease}
 	success := false
 	defer func() {
 		if !success {
-			os.RemoveAll(directory)
+			c.dispose()
 		}
 	}()
 	if err = os.Mkdir(c.repo, 0700); err != nil {
@@ -81,7 +99,7 @@ func workspaceSnapshot(ctx context.Context, root, model string, snapshot Reposit
 func persist(db queryer, c *candidate) error {
 	path := filepath.Join(c.directory, "saved.bundle")
 	_ = os.Remove(path)
-	if _, err := c.git("bundle", "create", path, "--all"); err != nil {
+	if err := writeGitBundle(c, path); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(path)
@@ -178,17 +196,23 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 		}
 	}
 
-	if req.Op == "git.persist" || req.Op == "git.discard" || req.Op == "git.inputs" {
+	if req.Op == "git.persist" || req.Op == "git.discard" || req.Op == "git.inputs" || req.Op == "git.candidate_state" {
 		c := r.candidates[a.Candidate]
 		if c == nil || c.root != req.Root || c.model != a.Model {
 			return nil, errors.New("invalid Git candidate")
 		}
 		if req.Op == "git.discard" {
+			if err := c.dispose(); err != nil {
+				return nil, err
+			}
 			delete(r.candidates, a.Candidate)
-			return nil, os.RemoveAll(c.directory)
+			return nil, nil
 		}
 		if req.Op == "git.inputs" {
 			return candidateInputs(c)
+		}
+		if req.Op == "git.candidate_state" {
+			return gitState(c)
 		}
 		return nil, persist(db, c)
 	}
@@ -205,6 +229,7 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer snapshot.Close()
 	c, err := workspaceSnapshot(runtimeContext(req), req.Root, a.Model, snapshot)
 	if err != nil {
 		return nil, err
@@ -212,7 +237,7 @@ func (r *Runtime) gitOperation(req Request) (any, error) {
 	keep := false
 	defer func() {
 		if !keep {
-			os.RemoveAll(c.directory)
+			c.dispose()
 		}
 	}()
 	switch req.Op {
