@@ -3,7 +3,7 @@
 有构建脚本的模型通过修改脚本和输入来编辑；保存会重新执行，生成 IFC 或 DXF。
 即使源码没有变化，不同保存请求也会独立执行，不假定脚本具有确定性。
 
-本页讲界面用户视角的模型操作。端点契约见 [IFC 编辑 API](/reference/edit-api)，界面控件见[界面使用](/guide/interface)，Agent 侧接入见 [Agent 接入](/reference/ai)。
+本页讲界面用户视角的模型操作。端点契约见 [IFC 编辑 API](/reference/edit-api)，界面控件见[界面使用](/guide/interface)，Agent 侧接入见 [Agent 接入](/integrations/agents)。
 
 ## 核心概念：script-as-source
 
@@ -110,4 +110,4 @@ AI 或人在试运行成功后，保存版本之前就能看到中间结果：
 外部几何 SDK 自身的缓存能力不等于平台提供可恢复的增量工作流。
 web-ifc 查看器更新时保留相机与未变化网格；xeokit 当前仍完整转换 XKT。
 模型属性 diff 也不能替代几何增量更新。存储与执行边界见
-[模型存储](/development/model-storage)和[执行与恢复](/development/execution-lifecycle)。
+[模型存储](/architecture/storage)和[执行与恢复](/architecture/execution)。

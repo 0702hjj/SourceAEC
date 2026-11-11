@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "required": [
+    "modelId",
+    "version",
+    "staged"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "staged": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "alignment": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "added": {
+          "type": "integer"
+        },
+        "removed": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        }
+      },
+      "deprecated": true,
+      "description": "旧适配器兼容字段；原生保存不返回自动对齐计数"
+    },
+    "historyRevision": {
+      "type": "string",
+      "pattern": "^r_[0-9a-f]{32}$",
+      "description": "权威源码历史 ID，不是 Git commit SHA"
+    },
+    "branch": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "get": {
+    "summary": "模型列表",
+    "description": "列出全部模型，按 createdAt 降序（前端 2s 轮询直至所有模型脱离 converting）。",
+    "operationId": "getApiV1Models",
+    "tags": [
+      "models"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/ModelList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "post": {
+    "summary": "上传 IFC 模型",
+    "description": "上传 IFC 文件并触发异步转换（→ converter 产出 XKT/metadata）。仅 `.ifc`，≤200MB。",
+    "operationId": "postApiV1Models",
+    "tags": [
+      "models"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok（status=converting）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误；超出大小上限",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "requestBody": {
+      "description": "multipart/form-data：字段 file",
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "format": "binary",
+                "description": ".ifc 文件（≤200MB）"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

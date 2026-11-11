@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "required": [
+    "modelId",
+    "version",
+    "script"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^v\\d+$"
+    },
+    "script": {
+      "type": "string"
+    }
+  }
+}

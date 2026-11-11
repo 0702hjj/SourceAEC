@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -63,12 +62,13 @@ func (r *Runtime) EnsureSourceHistory(ctx context.Context, root, token, model st
 	if err != nil {
 		return err
 	}
+	defer snapshot.Close()
 	if len(snapshot.Bundle) > 0 {
 		c, err := workspaceSnapshot(ctx, root, model, snapshot)
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(c.directory)
+		defer c.dispose()
 		head, err := c.git("rev-parse", "HEAD")
 		if err != nil {
 			return err

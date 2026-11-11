@@ -1,0 +1,239 @@
+# 性能与容量验证
+
+原生混合负载基准在 `server` 目录运行：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkMixedNativeEditing$' \
+  -benchtime=2000x -count=5 -cpu=1,4,8,16,32
+```
+
+它轮转脚本/参数读取、乐观暂存、运行和派生状态写入，报告所有操作的成功、冲突、
+过载、超时与其他错误数量、成功吞吐、p50/p95/p99 和连接池等待。
+默认使用确定性执行器；设置 `SOURCEAEC_BENCH_GEOMETRY=1` 及已准备好的
+`SOURCEAEC_PYTHON` 可测预热后的真实 IFC/DXF 几何，宜降低每组操作数。
+Linux 下每 5ms 采样进程树 RSS 之和，可能重复计入共享页、漏掉短命子进程，
+不包含 PostgreSQL，也不表示唯一内存占用或保证捕获峰值。
+该基准不包含 HTTP、Node 转换或冷依赖准备，不能作为这些链路的吞吐结论。
+
+完整网关负载使用真实几何、认证 HTTP、暂存、快照保存、产品比较、下载与 Node 转换：
+
+```bash
+SOURCEAEC_BENCH_GEOMETRY=1 go test ./internal/api -run '^$' \
+  -bench '^BenchmarkNativeHTTP$' -benchtime=32x -count=5 -cpu=1,4,8,16,32
+SOURCEAEC_BENCH_GEOMETRY=1 go test ./internal/api -run '^$' \
+  -bench '^BenchmarkGeometryEnvironment$' -benchtime=1x -count=5 -cpu=1
+```
+
+两个 DSN 必须显式指向同一个专用测试数据库。每组创建合成模型；每个逻辑操作
+可能包含多个 HTTP 请求，`http-requests` 是实际请求数。吞吐包含已接受转换任务的
+完成时间；`conversions` 与 `conversion-ns` 来自真实 Node 进程，不是队列入队时间。
+冷组使用新的应用环境目录，仍允许 uv 使用解释器与 wheel 缓存；热组复用同一环境。
+`SOURCEAEC_PYTHON` 用于网关预热负载，冷/热环境组主动使用 uv 准备固定依赖。
+
+报告保留全部成功、冲突、过载、超时和其他错误；`http-p99-ns` 包含拒绝请求，
+`http-ok-p99-ns` 仅包含成功请求。应同时比较 `http-ok/s`、`http-build-ok/s` 及
+成功数量，不能把快速拒绝形成的总请求吞吐当作几何吞吐提升。
+阶段值是累计次数和纳秒；CPU 是本进程与已回收子进程的 rusage，Go 分配不包含
+外部几何库的原生堆。样本量、工作负载和机器预算应随结果记录，不设置共享 CI 的绝对 QPS 门槛。
+
+需要 profile 时，将所有生成物放到临时目录：
+
+```bash
+profile_dir=$(mktemp -d)
+SOURCEAEC_BENCH_GEOMETRY=1 go test ./internal/api -run '^$' \
+  -bench '^BenchmarkNativeHTTP/models=32$' -benchtime=200x -cpu=8 \
+  -o "$profile_dir/api.test" -cpuprofile="$profile_dir/cpu.pprof" \
+  -memprofile="$profile_dir/heap.pprof" -blockprofile="$profile_dir/block.pprof" \
+  -mutexprofile="$profile_dir/mutex.pprof"
+```
+
+## 大模型与长时间运行
+
+已提交源的整份读取与文件快照可单独比较：
+
+```bash
+go test ./internal/artifact -run '^$' -bench '^BenchmarkArtifactRead$' \
+  -benchtime=1x -count=5 -benchmem
+```
+
+该基准要求专用 `VIEWER_TEST_PG_DSN`，使用 1/32/128/256 MiB 可压缩合成内容。
+`B/op` 为累计分配而非峰值；PostgreSQL 导出、临时文件与慢客户端须另外观察。
+
+下载快照的并发与限速读取矩阵：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkSnapshotConcurrency$' \
+  -benchtime=32x -count=3 -benchmem -timeout=20m
+```
+
+固定 1/32/128/256 MiB、1/4/8/16/32 个客户端，每批同时发起请求，等待该批结束后再发起。
+操作数至少 32 才能覆盖最大并发；限速组以 2ms 节拍读取最多 1 MiB 的块。
+仅包含数据库快照导出和文件读取，不包含 HTTP、模型语义或几何执行。
+报告成功数量/吞吐/延迟、过载数量、连接池等待及 Go RSS；拒绝请求不算成功吞吐。
+小样本延迟分位数仅作描述，不是尾延迟 SLO；各组复用同一测试进程，RSS 可受前组影响。
+PG 与临时磁盘必须独立采样，不能把 Go RSS 或累计分配当作整个系统内存。
+
+版本历史成本可用以下基准独立测量：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkSaveHistory$' \
+  -benchtime=1x -count=3 -benchmem -timeout=10m
+```
+
+它通过真实保存入口准备 1/100/1000 个版本，使用极小确定性几何结果隔离历史开销。
+准备过程不计入测量；`initial-bundle-bytes` 是测量开始前的仓库大小。
+快照保存不会自动构建 Git bundle，因此该值可以为零；按需 Git 查询不在该保存基准内。
+每次测量会追加版本，因此应使用固定操作数，并与相同历史长度、格式和环境对比。
+
+小模型的吞吐不能证明大模型的内存效率。按产品大小、历史长度、热点/多模型和并发
+分别测量，加入慢下载与构建/比较混合负载，并记录成功构建数量与冲突/过载比例。
+同时观察 Go heap、Python/Node RSS、PostgreSQL、磁盘及临时目录；
+采样进程树 RSS 不包含数据库，也不等同于系统唯一物理内存。
+
+性能回归测试应使用匹配的环境与工作负载，故障注入另行运行。
+运行前先完成[正确性验证](/operations/testing)，避免把错误或快速拒绝当成性能收益。
+
+## PSS、句柄与匿名临时文件
+
+`SnapshotConcurrency` 和 `NativeHTTP` 另以 250ms 间隔采样 Linux `/proc`。
+可将 `SOURCEAEC_BENCH_PG_PID` 设为专用测试数据库的 postmaster PID，以纳入其进程树；
+未设置时 `observation-pg-included=0`，不能将结果当作包含数据库的系统测量。
+每个进程只计一次，子进程从全部线程发现。报告 PSS、FD，以及已删除但仍打开的普通文件
+逻辑字节和分配字节；同一 device/inode 的多个描述符不重复计算文件空间。
+
+`sampled-pss-bytes` 是比例分摊共享页后的观察值，不是内存硬上限。
+各项峰值独立取最大，不保证同时发生。`observation-samples`、`sampled-pss-read` 和
+`observation-read-errors` 一并检查；进程退出、描述符关闭或权限不足会造成读取失败。
+短峰可能漏采，采样自身也有 CPU/I/O 成本；PG 持久/TOAST 空间仍须另外测量。
+
+同一观察器记录 Go heap alloc/in-use、goroutine 峰值及起止值；goroutine 数扣除观察器自身。
+宿主机 `/proc/meminfo` 提供最小 `MemAvailable` 与最大 `Shmem`，两者是整机值，可能受其他负载影响。
+显式选择 postmaster 后，验证 PID 和数据目录，并统计默认 `base/pgsql_tmp` 的命名文件，
+分别报告逻辑与实际分配字节，同一 inode 只计一次。自定义 tablespace、权限错误或遍历超限
+会标记覆盖不足；该统计不包含 WAL、持久表、其他临时目录或已 unlink 文件。
+`observation-host-samples` 和 `observation-pg-temp-samples` 是有效采样数；覆盖为零时省略相应
+数值指标，避免把未测量误报为零。起止采样同步完成，短暂峰值仍可能漏采。
+Go heap 不包含外部 Python/Node 原生堆，宿主机、PSS 与文件字节也不能直接相加。
+
+快照矩阵可选择 SHA256 序列构成的不可压缩合成字节，并检查实际 PG 存储长度：
+
+```bash
+SOURCEAEC_BENCH_ENTROPY=sha256 go test ./internal/editing -run '^$' \
+  -bench '^BenchmarkSnapshotConcurrency$' -benchtime=512x -count=3 -timeout=30m
+```
+
+默认仍使用可压缩内容；该开关不代表真实几何。每组使用独立临时根命名空间，结束后删除自身
+测试 schema。成功 p95/p99 与过载计数分别报告；固定批次仍有批间屏障，不等同于持续到达负载。
+
+
+临时目录可能位于 tmpfs；此时文件分配字节会消耗内存，未映射文件页不一定出现在进程 PSS 中。
+同时记录临时目录的文件系统类型和宿主机内存，不能将 PSS 与文件字节简单相加作为唯一物理内存。
+
+## 修改停止后的稳定构建
+
+给 `BenchmarkNativeHTTP` 设置 `SOURCEAEC_BENCH_RECOVERY=1` 可启用独立恢复阶段。
+并行生产者全部结束后停止混合负载计时，对每个模型顺序构建一次；前后源码 revision
+必须一致，并等待真实 Node 转换完成、校验当前 IFC 预览。失败会使基准失败。
+`recovery-*` 单独报告成功数、按格式的延迟、CPU、PSS/FD，不补入混合负载成功吞吐。
+恢复过程没有继续发起修改请求，因此用于验证生产者停止后的行为；小规模恢复样本的
+p95/p99 仅作描述，不能代替持续混合压力或大几何验收。
+
+单热点组默认 IFC；可设置 `SOURCEAEC_BENCH_HOT_FORMAT=dxf` 验证同样的 DXF 热点场景，
+32 模型组仍交替使用两种格式。
+
+
+原生 HTTP 基准要求清空 `VIEWER_STORAGE_NAMESPACE`，按临时根隔离；关闭 HTTP 与转换 worker 后，
+只删除对应测试命名空间，避免后续重复测量累积模型数据。
+
+## 按需 Git 长历史投影
+
+正常保存的 `BenchmarkSaveHistory` 不包含 Git 导出。首次投影与已投影查询可单独测量：
+
+```bash
+go test ./internal/editing -run '^$' -bench '^BenchmarkGitHistoryProjection$' \
+  -benchtime=1x -count=3 -timeout=30m
+```
+
+基准准备 1/100/1000 个版本；`entropyBytes=65536` 使每版本额外携带变化的 64 KiB
+十六进制注释。十六进制文本仍可部分压缩，与下载矩阵的不可压缩二进制夹具不同。
+使用微型确定性几何隔离历史成本，准备过程不计入投影测量。
+`cold-*` 报告首次累计时间、CPU、采样资源和保留进度后的 429 续投次数，整体限期五分钟；
+标准 ns/op 与 `warm-*` 仅衡量投影完成后的查询。CPU 包含 Go 与已回收 Git 子进程，
+不包含独立 PG CPU；PSS 是否包含 PG 由显式 postmaster PID 和报告标记决定。
+投影后检查版本数和 Git 引用完整，记录实际 bundle 大小，结束仅删除自身测试命名空间。
+这些结果不代表真实几何吞吐，短命 Git 进程与临时文件可能漏采。
+
+`pg-tables-before-bytes` 与 `pg-tables-after-cold-bytes` 包含本测试命名空间的表、索引、
+TOAST 及尚未回收的死页，不包含 WAL 或命名临时文件；两点值不是磁盘峰值。
+
+## 隔离后代的 CPU 计数
+
+默认的 `cpu-reaped-only=1` 只计 Go 本进程与已回收子进程，可能漏掉 bubblewrap 隔离后代，
+不能当完整几何 CPU。测量完整工作负载时，在独占的 cgroup v2 unit 内运行并显式启用：
+
+```bash
+systemd-run --user --scope --unit=sourceaec-bench-native \
+  env SOURCEAEC_BENCH_CPU_CGROUP=1 SOURCEAEC_BENCH_GEOMETRY=1 \
+  SOURCEAEC_BENCH_RECOVERY=1 go test ./internal/api -run '^$' \
+  -bench '^BenchmarkNativeHTTP$' -benchtime=30s -count=3 -cpu=4 -timeout=30m
+```
+
+先导出专用数据库 DSN 与外部解释器环境；本命令从 `server` 运行。
+计数器读取当前专用 `sourceaec-bench-*` scope/service 的 `cpu.stat`，拒绝共享终端组或
+无法读取的计数器；`cpu-cgroup=1` 表示 unit 内已退出和仍存活的后代均计入。
+单位只供该负载使用；独立 PostgreSQL 的 CPU 不在其中，PSS 纳入数据库也不改变 CPU 边界。
+各阶段累计 CPU 不直接等于每次拒绝的成本。可在同样独立 unit、提供几何解释器并设置
+`SOURCEAEC_TEST_GEOMETRY=1` 后运行 `TestCgroupCPUIncludesIsolatedGeometry` 核验计数路径。
+
+## 真实大几何与默认检查预算
+
+`BenchmarkLargeGeometryBuild` 使用外部 IfcOpenShell 生成三角网格、ezdxf 生成变化坐标的线段，
+不靠注释或 padding 增大文件。名义目标为 1/32/128/256 MiB，完整生成时检查实际文件位于
+目标的 90%–100%；`generated-product-max-bytes` 报告实际大小，不表示产品已通过检查或发布。
+
+```bash
+for clients in 1 4 8 16 32; do
+  SOURCEAEC_BENCH_GEOMETRY=1 SOURCEAEC_BENCH_CONVERTER=1 \
+    go test ./internal/editing -run '^
+```
+
+必须使用专用 `VIEWER_TEST_PG_DSN` 与外部 `SOURCEAEC_PYTHON`；需完整后代 CPU 时沿用上面的
+独占 cgroup。每组独立模型，客户端数为 1/4/8/16/32；固定操作数必须不少于客户端数。
+默认 sandbox 和 inspection 预算不提高。执行内存/文件限制、检查限制、超时、准入拒绝与成功
+分别计数，意外的脚本语法、几何或环境错误使基准失败。拒绝后核验旧产品摘要不变。
+
+已接受产品继续进行自比较和快/慢不可变快照读取，核验完整内容摘要。
+`SOURCEAEC_BENCH_CONVERTER=1` 为 IFC 加入真实 Node 转换队列，等待当前预览发布；DXF 无此阶段。
+`node-included` 和 conversion 指标明确覆盖范围。`build-ok-p*-ns` 仅包括成功构建的执行与发布，
+`build-ok/s` 的总计时还包括比较、快照消费和启用的转换。没有成功构建时不输出成功延迟分位数。
+名义大尺寸若全部被检查预算拒绝，结果是该负载的容量边界，不能记作大模型构建成功。
+该原生基准不包含 HTTP，也不是连续到达的稳态；短样本不证明生产 p99 或无泄漏。
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` 是该测试命名空间的表、索引和 TOAST 端点值，
+含未回收死页，不包括 WAL、命名临时文件或本地预览缓存，也不表示磁盘峰值。
+严格集成中的 `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` 另经认证 HTTP
+验证约 1 MiB 的保存、Range、限速下载与预览，再拒绝名义 32 MiB 的保存并核验旧产品、版本和预览不变。
+这属于 HTTP 正确性边界验证，不是 HTTP 吞吐矩阵。
+ \
+    -bench "^BenchmarkLargeGeometryBuild/kind=(ifc|dxf)/MiB=(1|32|128|256)$/clients=${clients}$/slow=(false|true)$" \
+    -benchtime="${clients}x" -count=3 -timeout=30m
+done
+```
+
+必须使用专用 `VIEWER_TEST_PG_DSN` 与外部 `SOURCEAEC_PYTHON`；需完整后代 CPU 时沿用上面的
+独占 cgroup。每组独立模型，客户端数为 1/4/8/16/32；固定操作数必须不少于客户端数。
+默认 sandbox 和 inspection 预算不提高。执行内存/文件限制、检查限制、超时、准入拒绝与成功
+分别计数，意外的脚本语法、几何或环境错误使基准失败。拒绝后核验旧产品摘要不变。
+
+已接受产品继续进行自比较和快/慢不可变快照读取，核验完整内容摘要。
+`SOURCEAEC_BENCH_CONVERTER=1` 为 IFC 加入真实 Node 转换队列，等待当前预览发布；DXF 无此阶段。
+`node-included` 和 conversion 指标明确覆盖范围。`build-ok-p*-ns` 仅包括成功构建的执行与发布，
+`build-ok/s` 的总计时还包括比较、快照消费和启用的转换。没有成功构建时不输出成功延迟分位数。
+名义大尺寸若全部被检查预算拒绝，结果是该负载的容量边界，不能记作大模型构建成功。
+该原生基准不包含 HTTP，也不是连续到达的稳态；短样本不证明生产 p99 或无泄漏。
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` 是该测试命名空间的表、索引和 TOAST 端点值，
+含未回收死页，不包括 WAL、命名临时文件或本地预览缓存，也不表示磁盘峰值。
+严格集成中的 `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` 另经认证 HTTP
+验证约 1 MiB 的保存、Range、限速下载与预览，再拒绝名义 32 MiB 的保存并核验旧产品、版本和预览不变。
+这属于 HTTP 正确性边界验证，不是 HTTP 吞吐矩阵。

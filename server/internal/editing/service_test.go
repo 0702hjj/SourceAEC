@@ -3,6 +3,7 @@ package editing
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -270,4 +271,13 @@ func TestRollbackReplaysArchivedInputs(t *testing.T) {
 	if err != nil || string(restored) != string(before) {
 		t.Fatal("rollback consumed current inputs", err)
 	}
+}
+
+// JSON literals in tests must encode successfully. Production callers propagate errors.
+func jsonBytes(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

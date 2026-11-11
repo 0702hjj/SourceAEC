@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "required": [
+    "projectId",
+    "title",
+    "models"
+  ],
+  "properties": {
+    "projectId": {
+      "type": "string",
+      "pattern": "^p_[0-9a-f]{16}$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "ifc",
+        "cad",
+        "cad->ifc"
+      ],
+      "description": "项目类型（创建时定死，不可演进）"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/ProjectModelRef"
+      }
+    }
+  }
+}

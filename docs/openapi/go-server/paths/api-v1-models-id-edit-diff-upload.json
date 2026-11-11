@@ -1,0 +1,71 @@
+{
+  "post": {
+    "tags": [
+      "models"
+    ],
+    "summary": "Compare a modified model and record USER provenance",
+    "operationId": "compareModifiedUpload",
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "format": "binary"
+              },
+              "author": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Diff, recorded events and summary in the standard success envelope"
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "401": {
+        "description": "Authentication required"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    }
+  }
+}

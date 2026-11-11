@@ -1,0 +1,92 @@
+{
+  "post": {
+    "summary": "创建项目（kind 必选）",
+    "description": "创建项目。kind 必选（ifc|cad|cad->ifc，强制预选）。ifc 管线建项目即初始化骨架模型（script-as-source 骨架脚本沙箱构建出最小 IFC v1，分配 modelId）；cad/cad->ifc 保持空白，agent 会话内经 init_model 工具按需初始化 DXF。",
+    "operationId": "postApiV1ChatProjects",
+    "tags": [
+      "chat"
+    ],
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "requestBody": {
+      "description": "JSON body，title 可空，kind 必选",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "默认 \"AI 项目\""
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ifc",
+                  "cad",
+                  "cad->ifc"
+                ],
+                "description": "项目类型（决定 Agent 派发方向与装配）"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

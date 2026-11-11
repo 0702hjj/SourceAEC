@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "required": [
+    "modelId",
+    "script",
+    "staged",
+    "canUndo",
+    "canRedo",
+    "maxSteps"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$"
+    },
+    "script": {
+      "type": "string"
+    },
+    "staged": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "canUndo": {
+      "type": "boolean"
+    },
+    "canRedo": {
+      "type": "boolean"
+    },
+    "maxSteps": {
+      "type": "integer"
+    }
+  }
+}

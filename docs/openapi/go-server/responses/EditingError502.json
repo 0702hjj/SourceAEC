@@ -1,0 +1,10 @@
+{
+  "description": "50200: Unexpected editing runtime error or legacy transport failure.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

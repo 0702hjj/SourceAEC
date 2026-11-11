@@ -1,0 +1,111 @@
+{
+  "get": {
+    "summary": "列方案产物历史版本",
+    "description": "列项目下某方案产物的历史版本（v{n} 升序）。query name 缺省 plan.json。",
+    "operationId": "getApiV1ProjectsProjectIDPlan_history",
+    "tags": [
+      "plan"
+    ],
+    "parameters": [
+      {
+        "name": "projectID",
+        "in": "path",
+        "required": true,
+        "description": "项目 id（方案级存储键）",
+        "schema": {
+          "type": "string",
+          "pattern": "^p_[0-9a-f]{16}$"
+        }
+      },
+      {
+        "name": "name",
+        "in": "query",
+        "required": false,
+        "description": "产物名（默认 plan.json）",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "plan.json",
+            "bim_supplement.json"
+          ]
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "projectId": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

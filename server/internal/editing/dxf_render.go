@@ -2,6 +2,7 @@
 package editing
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -158,6 +159,9 @@ func renderDXF(data []byte) (map[string]any, error) {
 		layers[layer["name"].(string)] = layer
 	}
 	for _, entry := range entities {
+		if err := validateDXFGeometry(entry); err != nil {
+			return nil, err
+		}
 		name := entry["layer"].(string)
 		if layers[name] == nil {
 			layers[name] = map[string]any{"name": name, "color": 7, "linetype": "CONTINUOUS"}
@@ -190,6 +194,9 @@ func renderDXF(data []byte) (map[string]any, error) {
 			include([]float64{center[0] - radius, center[1] - radius})
 			include([]float64{center[0] + radius, center[1] + radius})
 		}
+	}
+	if len(entities) > 0 && (math.IsNaN(min[0]) || math.IsNaN(min[1]) || math.IsNaN(max[0]) || math.IsNaN(max[1]) || math.IsInf(max[0], 1) || math.IsInf(max[1], 1) || math.IsInf(min[0], -1) || math.IsInf(min[1], -1)) {
+		return nil, fmt.Errorf("DXF bounds exceed finite coordinate range")
 	}
 	var bounds any
 	if !math.IsInf(min[0], 0) {

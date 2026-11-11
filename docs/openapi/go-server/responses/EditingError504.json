@@ -1,0 +1,10 @@
+{
+  "description": "50400: Execution deadline exceeded.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

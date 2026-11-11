@@ -1,0 +1,119 @@
+{
+  "post": {
+    "summary": "Version declarative plan and BIM supplement in Go",
+    "description": "Validate JSON and project identity, then persist both inputs atomically. No planning CLI or geometry solver is invoked.",
+    "operationId": "postApiV1ProjectsProjectIDDeliver",
+    "tags": [
+      "plan"
+    ],
+    "parameters": [
+      {
+        "name": "projectID",
+        "in": "path",
+        "required": true,
+        "description": "项目 id（方案级存储键）",
+        "schema": {
+          "type": "string",
+          "pattern": "^p_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "projectId": {
+                      "type": "string"
+                    },
+                    "planVersion": {
+                      "type": "string"
+                    },
+                    "bimVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "服务器内部错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      }
+    },
+    "requestBody": {
+      "description": "JSON body，plan 与 bimSupplement 为方案 JSON 对象",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "plan": {
+                "type": "object",
+                "description": "plan.json（project 字段 = projectID）"
+              },
+              "bimSupplement": {
+                "type": "object",
+                "description": "bim_supplement.json（project 字段 = projectID）"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

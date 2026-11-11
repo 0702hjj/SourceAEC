@@ -1,0 +1,83 @@
+{
+  "post": {
+    "operationId": "postModelScriptEditCall",
+    "summary": "Edit a source-mapped keyword argument",
+    "description": "Uses designKey for IFC or key for DXF. The map must match staged source; traced-only callsites cannot be automatically edited. Rewrites a scalar argument or its direct PARAMS binding, runs geometry, then publishes product and staging atomically. IFC queues preview conversion.",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/EditCallResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    },
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/EditCallBody"
+          }
+        }
+      }
+    }
+  }
+}

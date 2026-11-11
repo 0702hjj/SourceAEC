@@ -3,10 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:build": "node scripts/openapi.mjs --write",
+    "api:check": "node scripts/openapi.mjs --check",
     "docs:dev": "vitepress dev site",
-    "docs:build": "vitepress build site"
+    "docs:build": "node scripts/openapi.mjs --check && vitepress build site",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "vitepress": "^1.6.0"
+    "mermaid": "^11.17.2",
+    "vitepress": "^1.6.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
   }
 }

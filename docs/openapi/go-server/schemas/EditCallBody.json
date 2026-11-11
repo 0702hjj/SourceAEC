@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "required": [
+    "argument",
+    "value"
+  ],
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "DXF source-map key."
+    },
+    "designKey": {
+      "type": "string",
+      "description": "IFC source-map design key."
+    },
+    "argument": {
+      "type": "string"
+    },
+    "value": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "override",
+        "parameter"
+      ],
+      "default": "override"
+    },
+    "baseRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Optional current staged-source SHA-256. A stale provided value returns 409; omission preserves legacy behavior."
+    }
+  }
+}

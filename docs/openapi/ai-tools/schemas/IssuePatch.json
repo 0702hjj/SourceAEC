@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "comment": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "checking",
+        "resolved"
+      ]
+    }
+  },
+  "description": "仅更新传入字段；title 清空后非空才合法"
+}

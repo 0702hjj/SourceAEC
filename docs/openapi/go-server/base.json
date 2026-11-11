@@ -1,0 +1,60 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SourceAEC viewer server (Go)",
+    "version": "development",
+    "description": "SourceAEC Go gateway: native editing, state, sandbox orchestration, versions, planning and MCP. JSON envelope {code,message,data}; code=0 on success. Bearer token required when configured; selected browser read resources also accept token query parameters."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8090",
+      "description": "Go 网关（本地默认端口）"
+    }
+  ],
+  "tags": [
+    {
+      "name": "chat",
+      "description": "对话式 AI 建模（demo 模块）"
+    },
+    {
+      "name": "models",
+      "description": "模型上传/列表/详情/删除/下载/重试"
+    },
+    {
+      "name": "issues",
+      "description": "设计审查 Issue 与截图"
+    },
+    {
+      "name": "overrides",
+      "description": "metadata override 属性改写 + change log"
+    },
+    {
+      "name": "edit",
+      "description": "Native Go inspection, compatibility history and product comparison"
+    },
+    {
+      "name": "script",
+      "description": "Native Go script staging, isolated geometry, immutable versions and Git compatibility"
+    },
+    {
+      "name": "static",
+      "description": "静态资源（直挂，不走 JSON 信封）"
+    },
+    {
+      "name": "workflows",
+      "description": "Durable script execution and recovery"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "可选：默认鉴权关闭；启用（VIEWER_API_TOKEN 非空）后需 Bearer 令牌。"
+      }
+    },
+    "responses": {}
+  }
+}

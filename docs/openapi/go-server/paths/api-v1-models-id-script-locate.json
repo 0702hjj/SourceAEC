@@ -1,0 +1,93 @@
+{
+  "get": {
+    "summary": "定位 guid 脚本调用点",
+    "description": "Go 原生编辑：guid → designKey → 脚本调用点（行/列/片段）。miss 返回 200 {found:false}（不 5xx）。staging 与 map 分叉时降级 {found:false, stale:true}。",
+    "operationId": "getApiV1ModelsIdScriptLocate",
+    "tags": [
+      "script"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      },
+      {
+        "name": "guid",
+        "in": "query",
+        "required": false,
+        "description": "IFC GlobalId",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "key",
+        "in": "query",
+        "required": false,
+        "description": "DXF source-map key; IFC uses guid instead. Missing keys return found:false.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/LocateResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "$ref": "#/components/responses/EditingError400"
+      },
+      "404": {
+        "$ref": "#/components/responses/EditingError404"
+      },
+      "409": {
+        "$ref": "#/components/responses/EditingError409"
+      },
+      "429": {
+        "$ref": "#/components/responses/EditingError429"
+      },
+      "502": {
+        "$ref": "#/components/responses/EditingError502"
+      },
+      "503": {
+        "$ref": "#/components/responses/EditingError503"
+      },
+      "504": {
+        "$ref": "#/components/responses/EditingError504"
+      }
+    }
+  }
+}

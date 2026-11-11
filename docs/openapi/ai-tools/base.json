@@ -1,0 +1,24 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SourceAEC native Go editing",
+    "version": "development",
+    "description": "Native Go gateway editing; no separate Python service. See the public Go OpenAPI for shared schemas."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8090"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "可选：默认鉴权关闭；启用（VIEWER_API_TOKEN 非空）后需 Bearer 令牌。"
+      }
+    }
+  }
+}

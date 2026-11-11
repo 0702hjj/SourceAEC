@@ -1,0 +1,10 @@
+{
+  "description": "40001: Invalid body or native validation failure (domain 422 maps to HTTP 400).",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}
