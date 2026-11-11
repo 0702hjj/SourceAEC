@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/benchobserve"
 	"ifcviewer/server/internal/change"
 	"ifcviewer/server/internal/convert"
 	"ifcviewer/server/internal/editing"
@@ -113,6 +114,12 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			before := db.Stats()
 			stages := readStageTotals()
 			runs, ns := runner.count.Load(), runner.nanos.Load()
+			roots, err := benchobserve.Roots()
+			if err != nil {
+				b.Fatal(err)
+			}
+			observe := benchobserve.Start(roots, 250*time.Millisecond)
+			b.Cleanup(func() { observe() })
 			stopRSS := benchmarkRSS(b)
 			cpu := benchmarkCPU()
 			var next atomic.Uint64
@@ -160,6 +167,7 @@ func BenchmarkNativeHTTP(b *testing.B) {
 			waitConversion(b, q)
 			b.StopTimer()
 			rss := stopRSS()
+			observe().Report(b)
 			after := db.Stats()
 			measured.report(b)
 			b.ReportMetric(float64(after.WaitCount-before.WaitCount), "pool-waits")
