@@ -1,5 +1,9 @@
 # Conversion, previews and reads
 
+IFC metadata preserves spatial-tree parents and includes products outside that tree so renderable components retain
+their properties. Uncontained products use the project as a display parent; the source IFC relationships are unchanged.
+Entity deduplication preserves unique identities and resolvable property-set references.
+
 IFC conversion captures committed source/build identity. Publication rechecks it and publishes geometry/metadata as one immutable generation.
 Stale success or failure cannot replace newer state. The current manifest is retained; unreferenced generations older than one hour are
 collected at startup/after conversion. One XKT/metadata generation is limited to 1 GiB combined.
