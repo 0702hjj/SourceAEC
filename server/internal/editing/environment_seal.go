@@ -30,7 +30,7 @@ func (s *Sandbox) Freeze(ctx context.Context, script, kind string) (EnvironmentS
 	if err != nil {
 		return EnvironmentSeal{}, err
 	}
-	return auditEnvironment(ctx, python)
+	return s.auditRuntime(ctx, python, script)
 }
 
 func (s *Sandbox) RunFrozen(ctx context.Context, script, kind string, seal EnvironmentSeal) (Product, error) {
@@ -47,7 +47,7 @@ func (s *Sandbox) RunFrozen(ctx context.Context, script, kind string, seal Envir
 	if err != nil {
 		return Product{}, err
 	}
-	after, err := auditEnvironment(ctx, seal.Python)
+	after, err := pinned.auditRuntime(ctx, seal.Python, script)
 	if err != nil {
 		return Product{}, err
 	}

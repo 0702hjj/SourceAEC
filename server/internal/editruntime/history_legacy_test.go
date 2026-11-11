@@ -57,6 +57,7 @@ func TestSourceHistoryGitStateUsesNoCheckedOutConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer snapshot.Close()
 	invoke(t, r, "commit", root, token, nil)
 	held, err := db.Conn(ctx)
 	if err != nil {

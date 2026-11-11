@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
+	"ifcviewer/server/internal/benchobserve"
 	"ifcviewer/server/internal/store"
 	"net/http"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -207,9 +207,20 @@ func benchmarkTreeRSS(pid int) uint64 {
 	}
 	return rss
 }
-func benchmarkCPU() int64 {
-	var self, children syscall.Rusage
-	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &self)
-	_ = syscall.Getrusage(syscall.RUSAGE_CHILDREN, &children)
-	return self.Utime.Nano() + self.Stime.Nano() + children.Utime.Nano() + children.Stime.Nano()
+func benchmarkCPUReader(b *testing.B) func() int64 {
+	b.Helper()
+	counter, err := benchobserve.NewCPUCounter()
+	if err != nil {
+		b.Fatal(err)
+	}
+	counter.Report(b)
+	return func() int64 {
+		b.Helper()
+		counter.Report(b)
+		value, err := counter.Read()
+		if err != nil {
+			b.Fatal(err)
+		}
+		return value
+	}
 }

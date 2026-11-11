@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/notebookcache"
 	"ifcviewer/server/internal/versionstore"
 	"ifcviewer/server/internal/workflow"
 	"os"
@@ -52,6 +53,9 @@ func (s *Store) DeleteContext(ctx context.Context, id string) error {
 		return err
 	}
 	if err = workflow.New(tx).DeleteModel(ctx, id); err != nil {
+		return err
+	}
+	if err = notebookcache.New(tx).DeleteModel(ctx, id); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {
