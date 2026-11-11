@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,18 +38,15 @@ func TestKindRoutingToolsEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ch := h.subscribe(cs.ID)
 	if code := postChat(t, h, cs.ID, "读脚本"); code != http.StatusOK {
 		t.Fatalf("post status = %d", code)
 	}
-	// 订阅并排空到 session.idle：turn 收尾（notify 判定在 consumeRun 内同步完成），
-	// 避免 TempDir 清理与异步推帧/后端调用竞争（异步写盘纪律）。
-	ch := h.subscribe(cs.ID)
+	// Subscriber must exist before the asynchronous turn starts. Idle can arrive
+	// before notifyIfDirty finishes, so drain background work before assertions.
 	frames := collectUntil(t, ch, "session.idle")
 	_ = frames
-	deadline := time.Now().Add(5 * time.Second)
-	for cadFB.count() == 0 && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
-	}
+	drainRoutingChat(t, h)
 	if cadFB.count() == 0 {
 		t.Fatal("dxf 会话的工具未打到 cad 后端")
 	}
@@ -87,10 +85,7 @@ func TestKindRoutingNotifyDXF(t *testing.T) {
 	if strings.Contains(frame, "notify_failed") {
 		t.Fatalf("notify 管线失败: %s", frame)
 	}
-	deadline := time.Now().Add(2 * time.Second)
-	for cadFB.count() < 3 && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
-	}
+	drainRoutingChat(t, h)
 	if cadFB.count() < 3 {
 		t.Fatalf("cad 后端命中 %d 次，want ≥3（discard/stage/run/save 管线未走 cad）", cadFB.count())
 	}
@@ -118,13 +113,15 @@ func TestCreateProjectDoesNotTriggerNotifyOnBoundModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ch := h.subscribe(cs.ID)
 	if code := postChat(t, h, cs.ID, "再建一个新项目"); code != http.StatusOK {
 		t.Fatalf("post status = %d", code)
 	}
-	// 排空到 session.idle（turn 收尾 + notify 判定同步完成），避免 TempDir 清理竞争
-	ch := h.subscribe(cs.ID)
+	// Force a completed turn before reading to exercise buffered rapid completion.
+	waitSessionIdleLogged(t, h, cs.ID)
 	frames := collectUntil(t, ch, "session.idle")
 	_ = frames
+	drainRoutingChat(t, h)
 	// 断言零变更调用：唯一允许的后端触达是 W-0016 的只读版本探测
 	//（GET /scripts，无脚本时 404 降级不注入）——notify 管线的变更调用
 	//（DELETE pending / PUT script / run / save）一次都不许出现。
@@ -163,4 +160,13 @@ func waitChatEventAny(t *testing.T, ch chan []byte, wantTypes []string, timeout 
 	}
 	t.Fatalf("超时未等到 %v 事件", wantTypes)
 	return ""
+}
+
+func drainRoutingChat(t *testing.T, h *ChatHandler) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if !h.DrainBackground(ctx) {
+		t.Fatal("chat background work did not finish before routing assertions")
+	}
 }

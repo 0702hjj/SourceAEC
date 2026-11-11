@@ -63,10 +63,16 @@ func (o *operation) call(name string, args any) (any, error) {
 		return nil, e
 	}
 	value, err := o.runtime.Handle(editruntime.Request{Context: o.ctx, Op: name, Root: o.service.Root, Tx: o.tx, Args: raw})
-	if errors.Is(err, versionstore.ErrProjectionPending) || errors.Is(err, versionstore.ErrConflict) {
-		return nil, failure(409, err.Error())
+	return value, historyError(err)
+}
+func historyError(err error) error {
+	if errors.Is(err, editruntime.ErrGitCapacity) {
+		return failure(429, err.Error())
 	}
-	return value, err
+	if errors.Is(err, versionstore.ErrProjectionPending) || errors.Is(err, versionstore.ErrConflict) {
+		return failure(409, err.Error())
+	}
+	return err
 }
 func (o *operation) key(suffix string) string { return "models/" + o.model + "/" + suffix }
 func (o *operation) read(key string) ([]byte, error) {
@@ -112,7 +118,16 @@ func (o *operation) publish(files map[string][]byte) error {
 	}
 	return nil
 }
-func jsonBytes(v any) []byte { b, _ := json.Marshal(v); return b }
+
+// Encode before adding a file so failures cannot turn into empty persisted JSON.
+func addJSONFile(files map[string][]byte, key string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	files[key] = data
+	return nil
+}
 func (o *operation) loadStaging() (*staging, error) {
 	s := &staging{ModelID: o.model, History: []string{}, Cursor: -1}
 	b, e := o.read(o.key("script_staging.json"))
@@ -142,7 +157,11 @@ func (o *operation) loadStaging() (*staging, error) {
 	return s, nil
 }
 func (o *operation) saveStaging(s *staging) error {
-	return o.publish(map[string][]byte{o.key("script_staging.json"): jsonBytes(s)})
+	files := map[string][]byte{}
+	if err := addJSONFile(files, o.key("script_staging.json"), s); err != nil {
+		return err
+	}
+	return o.publish(files)
 }
 func decodeBody(data []byte, target any) error {
 	if len(data) == 0 || string(data) == "null" {
@@ -157,7 +176,8 @@ func decodeBody(data []byte, target any) error {
 	}
 	return nil
 }
-func (s *Service) Do(ctx context.Context, method, path string, body []byte) (any, error) {
+func (s *Service) Do(ctx context.Context, method, path string, body []byte) (value any, err error) {
+	defer func() { err = historyError(err) }()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -313,7 +333,11 @@ func (o *operation) dispatch(method, path string, body []byte) (any, error) {
 		if e != nil {
 			return nil, failure(422, e.Error())
 		}
-		return render, o.publish(map[string][]byte{o.key("render.json"): jsonBytes(render)})
+		files := map[string][]byte{}
+		if e := addJSONFile(files, o.key("render.json"), render); e != nil {
+			return nil, failure(422, "invalid render JSON")
+		}
+		return render, o.publish(files)
 	case "GET git":
 		return o.call("git.state", map[string]any{"model": o.model})
 	case "POST git/branches", "POST git/checkout", "POST git/merge":

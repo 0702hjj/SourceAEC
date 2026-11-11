@@ -93,6 +93,7 @@ func (o *operation) sourceGitState() (any, error) {
 		}
 		return nil, err
 	}
+	defer snapshot.Close()
 	if _, err = o.call("commit", nil); err != nil {
 		return nil, err
 	}

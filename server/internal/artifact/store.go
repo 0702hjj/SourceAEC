@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"ifcviewer/server/internal/notebookcache"
 	"ifcviewer/server/internal/versionstore"
 	"ifcviewer/server/internal/workflow"
 	"io/fs"
@@ -224,6 +225,9 @@ func RemoveAll(path string) error {
 				return err
 			}
 			if versionstore.ValidModel(parts[1]) {
+				if err := notebookcache.New(db).DeleteModel(context.Background(), parts[1]); err != nil {
+					return err
+				}
 				if err := workflow.New(db).DeleteModel(context.Background(), parts[1]); err != nil {
 					return err
 				}

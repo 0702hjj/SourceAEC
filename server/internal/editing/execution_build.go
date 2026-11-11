@@ -54,7 +54,7 @@ func (o *operation) publishExecution(built *builtExecution) (any, error) {
 	}
 	_, err = o.call("commit", nil)
 	o.tx = ""
-	return result, err
+	return result, historyError(err)
 }
 
 // applyExecution is shared by synchronous publication and the durable worker;
@@ -74,8 +74,5 @@ func (o *operation) applyExecution(built *builtExecution) (any, error) {
 		return nil, failure(409, "model or build inputs changed during execution; run again")
 	}
 	result, err := o.dispatch("POST", plan.path, plan.body)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return result, historyError(err)
 }
