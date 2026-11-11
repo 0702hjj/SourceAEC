@@ -137,3 +137,60 @@ the current `sourceaec-bench-*` scope/service and its readable `cpu.stat`, rejec
 is excluded; including PG in PSS does not change the CPU boundary. Phase totals do not attribute each rejection's
 individual cost. Run `TestCgroupCPUIncludesIsolatedGeometry` inside the same kind of dedicated unit with the
 geometry interpreter and `SOURCEAEC_TEST_GEOMETRY=1` to verify the accounting path.
+
+## Real large geometry and default inspection budgets
+
+`BenchmarkLargeGeometryBuild` uses external IfcOpenShell triangle meshes and ezdxf lines with varying coordinates,
+without padding or comments to inflate size. Nominal targets are 1/32/128/256 MiB. Completed generation must produce
+90%–100% of the target; `generated-product-max-bytes` is actual output size, not evidence of inspection or publication.
+
+```bash
+for clients in 1 4 8 16 32; do
+  SOURCEAEC_BENCH_GEOMETRY=1 SOURCEAEC_BENCH_CONVERTER=1 \
+    go test ./internal/editing -run '^
+```
+
+Provide a dedicated `VIEWER_TEST_PG_DSN` and external `SOURCEAEC_PYTHON`; use the dedicated cgroup above for full
+descendant CPU. Independent-model bursts cover 1/4/8/16/32 clients; fixed operation counts must cover every client.
+Sandbox and inspection limits remain at their defaults. Report successful builds separately from execution memory/file
+limits, inspection limits, timeouts and admission rejections. Unexpected syntax, geometry or environment errors fail
+the benchmark. Rejected builds must retain the previous product digest.
+
+Accepted products undergo self-comparison and fast/paced immutable snapshot reads with complete digest verification.
+`SOURCEAEC_BENCH_CONVERTER=1` includes the real Node queue and current preview publication for IFC; DXF has no such
+stage. `node-included` and conversion metrics state coverage. `build-ok-p*-ns` measures successful execution/publication;
+the elapsed denominator of `build-ok/s` also includes comparison, snapshot consumption and enabled conversion.
+Successful latency percentiles are omitted when no build succeeds. Fully rejected nominal sizes establish a workload
+boundary, not successful large-model capacity. This native benchmark excludes HTTP and continuous arrivals; short
+samples establish neither production p99 nor absence of leaks.
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` cover namespace tables, indexes and TOAST, including dead pages.
+They exclude WAL, named temporary files and local preview caches; endpoint observations are not disk peaks.
+Strict integration also runs `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` through authenticated
+HTTP: save about 1 MiB, verify Range/paced downloads and previews, then reject a nominal 32 MiB save and require
+unchanged committed product, version count and preview. This checks HTTP correctness boundaries, not HTTP throughput.
+ \
+    -bench "^BenchmarkLargeGeometryBuild/kind=(ifc|dxf)/MiB=(1|32|128|256)$/clients=${clients}$/slow=(false|true)$" \
+    -benchtime="${clients}x" -count=3 -timeout=30m
+done
+```
+
+Provide a dedicated `VIEWER_TEST_PG_DSN` and external `SOURCEAEC_PYTHON`; use the dedicated cgroup above for full
+descendant CPU. Independent-model bursts cover 1/4/8/16/32 clients; fixed operation counts must cover every client.
+Sandbox and inspection limits remain at their defaults. Report successful builds separately from execution memory/file
+limits, inspection limits, timeouts and admission rejections. Unexpected syntax, geometry or environment errors fail
+the benchmark. Rejected builds must retain the previous product digest.
+
+Accepted products undergo self-comparison and fast/paced immutable snapshot reads with complete digest verification.
+`SOURCEAEC_BENCH_CONVERTER=1` includes the real Node queue and current preview publication for IFC; DXF has no such
+stage. `node-included` and conversion metrics state coverage. `build-ok-p*-ns` measures successful execution/publication;
+the elapsed denominator of `build-ok/s` also includes comparison, snapshot consumption and enabled conversion.
+Successful latency percentiles are omitted when no build succeeds. Fully rejected nominal sizes establish a workload
+boundary, not successful large-model capacity. This native benchmark excludes HTTP and continuous arrivals; short
+samples establish neither production p99 nor absence of leaks.
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` cover namespace tables, indexes and TOAST, including dead pages.
+They exclude WAL, named temporary files and local preview caches; endpoint observations are not disk peaks.
+Strict integration also runs `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` through authenticated
+HTTP: save about 1 MiB, verify Range/paced downloads and previews, then reject a nominal 32 MiB save and require
+unchanged committed product, version count and preview. This checks HTTP correctness boundaries, not HTTP throughput.

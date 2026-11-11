@@ -184,3 +184,56 @@ systemd-run --user --scope --unit=sourceaec-bench-native \
 单位只供该负载使用；独立 PostgreSQL 的 CPU 不在其中，PSS 纳入数据库也不改变 CPU 边界。
 各阶段累计 CPU 不直接等于每次拒绝的成本。可在同样独立 unit、提供几何解释器并设置
 `SOURCEAEC_TEST_GEOMETRY=1` 后运行 `TestCgroupCPUIncludesIsolatedGeometry` 核验计数路径。
+
+## 真实大几何与默认检查预算
+
+`BenchmarkLargeGeometryBuild` 使用外部 IfcOpenShell 生成三角网格、ezdxf 生成变化坐标的线段，
+不靠注释或 padding 增大文件。名义目标为 1/32/128/256 MiB，完整生成时检查实际文件位于
+目标的 90%–100%；`generated-product-max-bytes` 报告实际大小，不表示产品已通过检查或发布。
+
+```bash
+for clients in 1 4 8 16 32; do
+  SOURCEAEC_BENCH_GEOMETRY=1 SOURCEAEC_BENCH_CONVERTER=1 \
+    go test ./internal/editing -run '^
+```
+
+必须使用专用 `VIEWER_TEST_PG_DSN` 与外部 `SOURCEAEC_PYTHON`；需完整后代 CPU 时沿用上面的
+独占 cgroup。每组独立模型，客户端数为 1/4/8/16/32；固定操作数必须不少于客户端数。
+默认 sandbox 和 inspection 预算不提高。执行内存/文件限制、检查限制、超时、准入拒绝与成功
+分别计数，意外的脚本语法、几何或环境错误使基准失败。拒绝后核验旧产品摘要不变。
+
+已接受产品继续进行自比较和快/慢不可变快照读取，核验完整内容摘要。
+`SOURCEAEC_BENCH_CONVERTER=1` 为 IFC 加入真实 Node 转换队列，等待当前预览发布；DXF 无此阶段。
+`node-included` 和 conversion 指标明确覆盖范围。`build-ok-p*-ns` 仅包括成功构建的执行与发布，
+`build-ok/s` 的总计时还包括比较、快照消费和启用的转换。没有成功构建时不输出成功延迟分位数。
+名义大尺寸若全部被检查预算拒绝，结果是该负载的容量边界，不能记作大模型构建成功。
+该原生基准不包含 HTTP，也不是连续到达的稳态；短样本不证明生产 p99 或无泄漏。
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` 是该测试命名空间的表、索引和 TOAST 端点值，
+含未回收死页，不包括 WAL、命名临时文件或本地预览缓存，也不表示磁盘峰值。
+严格集成中的 `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` 另经认证 HTTP
+验证约 1 MiB 的保存、Range、限速下载与预览，再拒绝名义 32 MiB 的保存并核验旧产品、版本和预览不变。
+这属于 HTTP 正确性边界验证，不是 HTTP 吞吐矩阵。
+ \
+    -bench "^BenchmarkLargeGeometryBuild/kind=(ifc|dxf)/MiB=(1|32|128|256)$/clients=${clients}$/slow=(false|true)$" \
+    -benchtime="${clients}x" -count=3 -timeout=30m
+done
+```
+
+必须使用专用 `VIEWER_TEST_PG_DSN` 与外部 `SOURCEAEC_PYTHON`；需完整后代 CPU 时沿用上面的
+独占 cgroup。每组独立模型，客户端数为 1/4/8/16/32；固定操作数必须不少于客户端数。
+默认 sandbox 和 inspection 预算不提高。执行内存/文件限制、检查限制、超时、准入拒绝与成功
+分别计数，意外的脚本语法、几何或环境错误使基准失败。拒绝后核验旧产品摘要不变。
+
+已接受产品继续进行自比较和快/慢不可变快照读取，核验完整内容摘要。
+`SOURCEAEC_BENCH_CONVERTER=1` 为 IFC 加入真实 Node 转换队列，等待当前预览发布；DXF 无此阶段。
+`node-included` 和 conversion 指标明确覆盖范围。`build-ok-p*-ns` 仅包括成功构建的执行与发布，
+`build-ok/s` 的总计时还包括比较、快照消费和启用的转换。没有成功构建时不输出成功延迟分位数。
+名义大尺寸若全部被检查预算拒绝，结果是该负载的容量边界，不能记作大模型构建成功。
+该原生基准不包含 HTTP，也不是连续到达的稳态；短样本不证明生产 p99 或无泄漏。
+
+`pg-tables-before-bytes` / `pg-tables-after-bytes` 是该测试命名空间的表、索引和 TOAST 端点值，
+含未回收死页，不包括 WAL、命名临时文件或本地预览缓存，也不表示磁盘峰值。
+严格集成中的 `TestLargeGeometryGatewayPreservesProductsAndVersionsOnRejection` 另经认证 HTTP
+验证约 1 MiB 的保存、Range、限速下载与预览，再拒绝名义 32 MiB 的保存并核验旧产品、版本和预览不变。
+这属于 HTTP 正确性边界验证，不是 HTTP 吞吐矩阵。
