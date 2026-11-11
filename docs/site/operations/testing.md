@@ -53,3 +53,5 @@ MCP 提供上下文、人工修改比较与持久工作流工具；均通过鉴�
 根目录执行 `scripts/check_file_size.sh`、`scripts/check_public_snapshot.sh` 和
 `scripts/check_go_business.sh`。业务边界检查禁止提交 Python 源码或应用清单，
 skill 只维护声明和参考，不捆绑执行库。
+
+可选外部 SDK 适配使用 `scripts/test_notebook_integration.sh`，提供 VIEWER_TEST_PG_DSN 和 SOURCEAEC_TEST_NOTEBOOK_PYTHON。独立 CI job 安装已发布 SimpleCADAPI 2.2.0b1，验证真实冷/热/局部修改等价、并发副本、冻结预算、持久化与删除清理。

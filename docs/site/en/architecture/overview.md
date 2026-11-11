@@ -13,6 +13,8 @@ flowchart TB
     API --> WF[editing workers + workflow / durable phases]
     EDIT --> CAPTURE[Short snapshot / frozen source, inputs and identity]
     WF --> CAPTURE
+    PG -->|Compatible model cache| NBC[Optional notebook adapter / private copy]
+    NBC --> SANDBOX
     CAPTURE --> SANDBOX[bubblewrap / external Python geometry]
     SANDBOX --> CHECK[Go format, source-map and budget checks]
     CHECK --> PUBLISH[Shared model admission / lock / identity recheck]
@@ -47,3 +49,5 @@ Publication rechecks source/input/branch/model identity; durable publication als
 Synchronous requests do not automatically resume. Explicit workflows persist definitions and completed phases; unfinished geometry
 may execute again, while committed versions do not advance twice. No Python stack or notebook cell recovery is provided.
 Use documentation matching your deployed source revision; upstream SDK capabilities are not automatically SourceAEC capabilities.
+
+The optional [notebook adapter](/en/architecture/notebooks) persists completed SDK cache generations, not Python stacks or cell checkpoints.

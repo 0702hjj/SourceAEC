@@ -73,7 +73,11 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 		o.execution.script, o.execution.inputs = script, inputs
 		return Product{}, nil, errExecutionPrepared
 	}
-	product, e := o.service.Executor.Run(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script, o.service.Kind)
+	ctx, e := o.notebookContext(context.WithValue(o.ctx, inputContextKey{}, maps.Clone(inputs)), script)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	product, e := o.service.Executor.Run(ctx, script, o.service.Kind)
 	if e != nil {
 		return Product{}, nil, e
 	}
@@ -106,6 +110,13 @@ func (o *operation) execute(script string) (Product, map[string][]byte, error) {
 		return Product{}, nil, e
 	}
 	manifest := map[string]any{"scriptHash": digest([]byte(script)), "productHash": digest(product.Data), "environment": product.Environment, "kind": o.service.Kind, "inputsHash": digest(inputJSON), "identity": map[string]any{"environment": product.Environment, "engine": "go", "inputsHash": digest(inputJSON)}}
+	summary, e := notebookSummary(product)
+	if e != nil {
+		return Product{}, nil, e
+	}
+	if summary != nil {
+		manifest["notebook"] = summary
+	}
 	manifestJSON, e := json.Marshal(manifest)
 	if e != nil {
 		return Product{}, nil, e
@@ -227,6 +238,9 @@ func (o *operation) run(s *staging, path string, body []byte) (any, error) {
 			return nil, e
 		}
 		result["historyRevision"], result["branch"] = history.Revision, history.Branch
+	}
+	if e := o.publishNotebookCache(product); e != nil {
+		return nil, e
 	}
 	return result, nil
 }

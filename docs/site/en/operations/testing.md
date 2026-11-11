@@ -25,3 +25,5 @@ Run web tests/lint/build, converter tests and docs tests/build for their changes
 `scripts/check_file_size.sh`, `scripts/check_public_snapshot.sh`, `scripts/check_go_business.sh`.
 No maintained Python business source or bundled SDK is permitted. Use [performance verification](/en/operations/performance)
 separately from correctness/fault tests.
+
+For the optional external SDK adapter, use `scripts/test_notebook_integration.sh` with VIEWER_TEST_PG_DSN and SOURCEAEC_TEST_NOTEBOOK_PYTHON. A separate CI job installs published SimpleCADAPI 2.2.0b1 and checks real cold/hot/partial equivalence, private concurrent copies, frozen budgets, persistence and cleanup.

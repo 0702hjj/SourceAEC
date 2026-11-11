@@ -18,6 +18,7 @@ Go 网关读取 server_config.json，可由命令行 `-config` 选择文件。
 | VIEWER_LLM_BASE_URL | 模型 API 地址 |
 | VIEWER_LLM_MODEL | 模型名 |
 | VIEWER_PPROF_ADDR | 观察端口；设为 disable 关闭 |
+| SOURCEAEC_NOTEBOOK_AS_BYTES | 管理员 notebook 地址空间字节数；默认 1 GiB，范围 64 MiB–8 GiB |
 
 Go MCP 独立运行时读取 SOURCEAEC_API_URL 和 VIEWER_API_TOKEN。
 没有 Python 服务 URL、skill venv 或 Python 应用部署配置。

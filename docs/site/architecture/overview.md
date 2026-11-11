@@ -13,6 +13,8 @@ flowchart TB
     API --> WF[editing workers + workflow / 持久阶段]
     EDIT --> CAPTURE[短快照 / 固定源码、输入与身份]
     WF --> CAPTURE
+    PG -->|同模型兼容缓存| NBC[可选 Notebook 适配 / 私有副本]
+    NBC --> SANDBOX
     CAPTURE --> SANDBOX[bubblewrap / 外部 Python 几何]
     SANDBOX --> CHECK[Go 格式、映射与预算检查]
     CHECK --> PUBLISH[共同模型准入 / 锁 / 身份复查]
@@ -48,3 +50,5 @@ flowchart TB
 已提交版本不重复推进。不保存 Python 堆栈，不提供 notebook cell 级恢复。
 
 文档对应仓库源码能力；部署时应使用匹配版本。外部 SDK 的能力不自动成为 SourceAEC 产品能力。
+
+可选 [Notebook 适配](/architecture/notebooks)保存完整完成后的 SDK 缓存 generation，不保存 Python 堆栈或逐 cell 检查点。

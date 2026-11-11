@@ -18,6 +18,7 @@ Relative paths resolve from the process working directory.
 | VIEWER_LLM_BASE_URL | LLM API URL |
 | VIEWER_LLM_MODEL | Model name |
 | VIEWER_PPROF_ADDR | Profiling listener; `disable` turns it off |
+| SOURCEAEC_NOTEBOOK_AS_BYTES | Administrator notebook address-space bytes; default 1 GiB, 64 MiB–8 GiB |
 
 The external Go MCP bridge reads `SOURCEAEC_API_URL` and `VIEWER_API_TOKEN`.
 There is no Python service URL or skill venv deployment setting. Default environments live under the user cache in `sourceaec/environments`.

@@ -30,7 +30,7 @@ flowchart TB
     WF --> PG
     PG --> SCAN[2 个扫描 worker / 30 秒租约与 fencing]
     SCAN -->|几何阶段，共享构建预算| SANDBOX
-    INSPECT -->|候选与检查点同事务| WF
+    INSPECT -->|候选、可选缓存与检查点同事务| WF
     SCAN -->|发布阶段 / 所有权与执行身份重查| GATE
     WRITE -->|模型版本与发布阶段同事务| WF
     SCAN -->|转换阶段 / 重建丢失入队| QUEUE
@@ -44,6 +44,8 @@ flowchart TB
     PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
     PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
+    PG -->|同模型兼容缓存 / 执行前复制| NBC[可选 Notebook 适配 / 私有 SDK 缓存]
+    NBC --> SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
     PY --> INSPECT[产品与源码映射检查<br/>STEP 注释 / DXF 有限数值<br/>有界解析与展开]
     INSPECT -->|重新校验身份 / 拒绝过期结果| GATE
@@ -114,7 +116,7 @@ sequenceDiagram
     S-->>E: 产品、源码映射与环境身份
     E->>E: 校验源码映射、解析与展开预算
     opt 持久几何阶段
-        E->>P: 候选 blob 与检查点同事务提交
+        E->>P: 候选 blob、可选缓存与检查点同事务提交
     end
     E->>P: 取得模型准入与锁，重新校验执行身份
     Note over E,P: 检查完整租约 fence；状态变化返回冲突或 superseded
@@ -151,6 +153,8 @@ sequenceDiagram
 显式[持久工作流](docs/site/reference/workflows.md)固定定义后返回 202，通过查询获取阶段结果。
 重启可重做未完成的几何；检查点已完成则复用。版本与发布标记同事务，转换阶段恢复不重复保存版本。
 下面链路中的即时编辑应答用于同步请求；持久调用以查询结果为准。
+
+可选 [Notebook 缓存](docs/site/architecture/notebooks.md)仅将同模型已完成的 SDK generation 恢复到私有沙箱副本，不保存 Python 堆栈或逐 cell 崩溃检查点。更大的 notebook 地址空间预算由管理员显式配置。
 
 ## 文档导航
 
@@ -201,6 +205,7 @@ cd ../server && go run ./cmd/server
 | `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | 不可变源码历史引用、head/计数与精确 revision patch |
 | `server/internal/workflow` | 不可变定义、捕获票据、租约尝试与阶段检查点 |
+| `server/internal/notebookcache` | 可选同模型 SDK 缓存包、不可变 generation 与引用清理 |
 | `server/internal/resourcebudget` | 进程内产物字节预留 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |

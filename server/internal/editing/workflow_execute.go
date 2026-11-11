@@ -25,7 +25,7 @@ func (e frozenExecutor) Run(ctx context.Context, script, kind string) (Product, 
 }
 
 func (o *operation) loadWorkflowPlan(r workflow.Run, d workflow.Definition, loadInputs bool) (*capturedExecution, EnvironmentSeal, error) {
-	if d.Engine != workflowEngine || d.Model != r.Model || d.Kind != r.Kind {
+	if (d.Engine != workflowEngine && d.Engine != notebookWorkflowEngine) || d.Model != r.Model || d.Kind != r.Kind {
 		return nil, EnvironmentSeal{}, errors.New("unsupported workflow definition")
 	}
 	script, err := o.getWorkflowBlob(d.Script, 1<<20)
@@ -34,6 +34,10 @@ func (o *operation) loadWorkflowPlan(r workflow.Run, d workflow.Definition, load
 	}
 	if digest(script) != r.Intent.BaseRevision {
 		return nil, EnvironmentSeal{}, errors.New("workflow script revision does not match intent")
+	}
+	expectedEngine, err := executionEngine(string(script))
+	if err != nil || d.Engine != expectedEngine {
+		return nil, EnvironmentSeal{}, errors.New("workflow execution adapter policy changed")
 	}
 	environment, err := o.getWorkflowBlob(d.Environment, 1<<20)
 	if err != nil {
@@ -149,6 +153,9 @@ func (w *Workflows) geometry(ctx context.Context, r workflow.Run) error {
 	}
 	ref, err := o.checkpointFiles(built, r.Definition)
 	if err != nil {
+		return err
+	}
+	if err = o.publishNotebookCache(built.product); err != nil {
 		return err
 	}
 	err = o.workflowTransaction(func(s *workflow.Store) error { return s.CompleteGeometry(ctx, r.Fence(), ref) })

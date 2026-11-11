@@ -18,6 +18,7 @@ const sections = [
     ['storage', '持久化与版本', 'Persistence and versions'],
     ['previews', '转换、预览与读取', 'Conversion, previews and reads'],
     ['sandbox', '几何沙箱', 'Geometry sandbox'],
+    ['notebooks', '可选 Notebook 缓存', 'Optional notebook cache'],
     ['formats', 'IFC / DXF 适配', 'IFC / DXF adapters'],
     ['boundaries', '外部引擎边界', 'External engine boundaries'],
   ] },

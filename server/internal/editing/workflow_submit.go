@@ -155,7 +155,11 @@ func (w *Workflows) Submit(ctx context.Context, model string, request WorkflowRe
 	if err != nil {
 		return WorkflowView{}, false, err
 	}
-	definition := workflow.Definition{Schema: 1, Model: model, Kind: m.Kind, Engine: workflowEngine, EnvironmentDigest: seal.Digest, Script: script, Inputs: inputRef, Environment: environment, InputBytes: total}
+	engine, err := executionEngine(plan.script)
+	if err != nil {
+		return WorkflowView{}, false, err
+	}
+	definition := workflow.Definition{Schema: 1, Model: model, Kind: m.Kind, Engine: engine, EnvironmentDigest: seal.Digest, Script: script, Inputs: inputRef, Environment: environment, InputBytes: total}
 	var run workflow.Run
 	var created bool
 	err = o.workflowTransaction(func(s *workflow.Store) error {

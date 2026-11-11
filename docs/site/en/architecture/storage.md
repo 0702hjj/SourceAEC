@@ -44,3 +44,5 @@ editing workers invoke the shared sandbox/publication adapters. Old/canceled att
 Pending admission limits count tickets/runs and logical input bytes; completed history/blobs currently remain until model deletion.
 The 64-run/2-GiB limit does not cap accumulated storage, PG temp usage or RSS.
 See [execution](/en/architecture/execution), [previews](/en/architecture/previews) and [workflows](/en/reference/workflows).
+
+Optional notebook caches use separate PostgreSQL generation/head tables, scoped by namespace/model. A model transaction replaces the reference and collects the prior unreferenced generation. They are disposable accelerators, not version-history payloads; build records retain diagnostic generation IDs rather than promises to retain old cache packages. Model deletion removes these rows atomically.
