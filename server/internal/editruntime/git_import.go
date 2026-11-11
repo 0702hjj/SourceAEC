@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"ifcviewer/server/internal/versionstore"
-	"os"
 )
 
 func importHistory(ctx context.Context, db queryer, root, model string) error {
@@ -29,7 +28,7 @@ func importHistory(ctx context.Context, db queryer, root, model string) error {
 	var c *candidate
 	defer func() {
 		if c != nil {
-			os.RemoveAll(c.directory)
+			c.dispose()
 		}
 	}()
 	for _, record := range records {

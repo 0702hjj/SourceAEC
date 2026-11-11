@@ -3,7 +3,6 @@ package editruntime
 
 import (
 	"context"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,11 +20,12 @@ func TestGitNotesLargeInputsDoNotUseCommandArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer s.Close()
 	c, err := workspaceSnapshot(context.Background(), root, "m_0000000000000001", s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(c.directory)
+	defer c.dispose()
 	note, err := c.git("notes", "--ref=build", "show", result["commit"])
 	if err != nil || !strings.Contains(note, payload) {
 		t.Fatal("large build note lost", err)

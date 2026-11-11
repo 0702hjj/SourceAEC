@@ -9,7 +9,7 @@ Python 仅作为外部几何运行时。模型源码由用户或 Agent 生成，
 仓库不维护 Python 应用、SDK、CLI、hooks 或测试。skill 只保留必要的声明和参考，
 不捆绑上游 SDK。IfcOpenShell、ezdxf、SimpleCADAPI 等属于外部运行能力。
 
-领域服务与外部 CAD 引擎的职责见[引擎与集成边界](docs/site/development/integration-boundaries.md)。
+领域服务与外部 CAD 引擎的职责见[引擎与集成边界](docs/site/architecture/boundaries.md)。
 
 ## 架构
 
@@ -30,12 +30,12 @@ flowchart TB
     WF --> PG
     PG --> SCAN[2 个扫描 worker / 30 秒租约与 fencing]
     SCAN -->|几何阶段，共享构建预算| SANDBOX
-    INSPECT -->|候选与检查点同事务| WF
+    INSPECT -->|候选、可选缓存与检查点同事务| WF
     SCAN -->|发布阶段 / 所有权与执行身份重查| GATE
     WRITE -->|模型版本与发布阶段同事务| WF
     SCAN -->|转换阶段 / 重建丢失入队| QUEUE
     DERIVED -.模型删除.-> WF
-    API -->|按需分支管理| GIT[Git 兼容投影 / 每批 32 条]
+    API -->|按需分支管理| GIT[Git 投影 / 每批 32 条<br/>3 个工作 / bundle 源预算 1 GiB]
     GIT --> GATE
     GIT --> PG
     EDIT --> PREP[短只读快照 / 固定请求与执行身份]
@@ -44,8 +44,10 @@ flowchart TB
     PREP --> SANDBOX[3 个完整构建名额 / bubblewrap<br/>执行期间不占数据库连接]
     PREP --> COMPARE[3 个已有产品比较 / 512 MiB 输入预算]
     COMPARE -.->|旧源码重放申请构建名额| SANDBOX
+    PG -->|同模型兼容缓存 / 执行前复制| NBC[可选 Notebook 适配 / 私有 SDK 缓存]
+    NBC --> SANDBOX
     SANDBOX --> PY[外部 Python 几何运行时]
-    PY --> INSPECT[产品与源码映射检查<br/>有界格式解析与展开]
+    PY --> INSPECT[产品与源码映射检查<br/>STEP 注释 / DXF 有限数值<br/>有界解析与展开]
     INSPECT -->|重新校验身份 / 拒绝过期结果| GATE
     WRITE --> JOURNAL[投影 journal / 可重建工作区]
     API -->|IFC 提交或上传后| QUEUE[有界转换队列 / 去重]
@@ -73,7 +75,8 @@ flowchart TB
 继续保证跨进程互斥。环境准备与几何执行期间释放数据库连接和模型锁；发布时发现
 源码、输入或分支已变化则返回 409。三个构建生命周期与三个已有产品比较名额分别限流。
 正常保存提交源码历史引用，不执行 Git；展开分支管理时按需生成真实提交。
-进程内预算不代表跨副本共享资源上限。
+Git 兼容工作最多 3 个、bundle 源高水位合计 1 GiB，直到快照关闭和工作区清理才归还。
+这些是源工作集预算，不是 RSS 或临时磁盘硬配额，也不代表跨副本共享资源上限。
 
 ## 主要数据链路
 
@@ -86,6 +89,7 @@ sequenceDiagram
     participant S as 几何沙箱
     participant F as Journal 与文件投影
     participant Q as IFC 转换队列
+    participant G as 私有 Git 工作区
     U->>A: GET script
     A->>E: 读取已提交脚本快照
     E->>P: 只读事务
@@ -114,7 +118,7 @@ sequenceDiagram
     S-->>E: 产品、源码映射与环境身份
     E->>E: 校验源码映射、解析与展开预算
     opt 持久几何阶段
-        E->>P: 候选 blob 与检查点同事务提交
+        E->>P: 候选 blob、可选缓存与检查点同事务提交
     end
     E->>P: 取得模型准入与锁，重新校验执行身份
     Note over E,P: 检查完整租约 fence；状态变化返回冲突或 superseded
@@ -142,6 +146,20 @@ sequenceDiagram
         Note over E,F: 编辑时已生成 render.json
         A-->>U: 返回编辑结果
     end
+    opt 按需查询 Git 状态
+        U->>A: 查询 Git 状态
+        A->>E: 按需投影已保存记录
+        loop 每个投影事务最多 32 条
+            E->>P: 源字节准入后捕获 bundle
+            E->>G: 克隆并生成受限 bundle
+            E->>P: 同事务提交 bundle 与投影标记
+        end
+        E->>P: 捕获已准入 bundle 并关闭读取连接
+        E->>G: 读取分支与提交
+        E->>E: 清理工作区并归还 bundle 预留
+        E-->>A: Git 状态
+        A-->>U: 分支与提交
+    end
 ```
 
 `run` 更新当前产品但不创建版本；`save` 再次执行源码并保存不可变版本；
@@ -151,6 +169,20 @@ sequenceDiagram
 显式[持久工作流](docs/site/reference/workflows.md)固定定义后返回 202，通过查询获取阶段结果。
 重启可重做未完成的几何；检查点已完成则复用。版本与发布标记同事务，转换阶段恢复不重复保存版本。
 下面链路中的即时编辑应答用于同步请求；持久调用以查询结果为准。
+
+可选 [Notebook 缓存](docs/site/architecture/notebooks.md)仅将同模型已完成的 SDK generation 恢复到私有沙箱副本，不保存 Python 堆栈或逐 cell 崩溃检查点。更大的 notebook 地址空间预算由管理员显式配置。
+
+## 文档导航
+
+[简体中文](https://0702hjj.github.io/SourceAEC/) · [English](https://0702hjj.github.io/SourceAEC/en/)
+
+```mermaid
+flowchart LR
+    START[入门] --> ARCH[架构 / 职责与数据流]
+    ARCH --> OPS[运维 / 启动、验证与托管]
+    ARCH --> INTEGRATE[接入 / Agent、MCP 与 Skills]
+    INTEGRATE --> REFERENCE[API 参考 / REST 与工作流]
+```
 
 ## 启动
 
@@ -189,6 +221,7 @@ cd ../server && go run ./cmd/server
 | `server/internal/editruntime` | 事务、持久版本、类型化产物、Git bundle、输入快照与私有协议分派 |
 | `server/internal/versionstore`, `server/internal/sourcepatch` | 不可变源码历史引用、head/计数与精确 revision patch |
 | `server/internal/workflow` | 不可变定义、捕获票据、租约尝试与阶段检查点 |
+| `server/internal/notebookcache` | 可选同模型 SDK 缓存包、不可变 generation 与引用清理 |
 | `server/internal/resourcebudget` | 进程内产物字节预留 |
 | `server/internal/artifact` | PostgreSQL 产物、命名空间、模型准入、投影 journal 与恢复 |
 | `server/internal/store` | 模型、项目、方案数据、状态与条件预览发布 |

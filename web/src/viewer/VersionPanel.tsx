@@ -1,11 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 0702hjj
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchGitState, fetchScript, changeGitBranch } from "@/api/client";
 import type { GitState } from "@/api/types";
 import { useViewerStore } from "./store";
 
 export function VersionPanel({ modelId }: { modelId: string }) {
+  return <ModelVersionPanel key={modelId} modelId={modelId} />;
+}
+
+function ModelVersionPanel({ modelId }: { modelId: string }) {
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   const [state, setState] = useState<GitState | null>(null);
   const [branch, setBranch] = useState("");
   const [target, setTarget] = useState("");
@@ -31,12 +40,15 @@ export function VersionPanel({ modelId }: { modelId: string }) {
     setBusy(true); setError("");
     try {
       const script = await fetchScript(modelId);
+      if (!alive.current) return;
       if (!script.revision) throw new Error("请刷新脚本后重试");
-      setState(await changeGitBranch(modelId, action, name, script.revision));
+      const next = await changeGitBranch(modelId, action, name, script.revision);
+      if (!alive.current) return;
+      setState(next);
       useViewerStore.getState().flagPendingModelReload();
       window.dispatchEvent(new Event("sourceaec:script-changed"));
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
+    } catch (e) { if (alive.current) setError((e as Error).message); }
+    finally { if (alive.current) setBusy(false); }
   };
   return <section aria-label="分支管理">
     <button aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>分支管理</button>

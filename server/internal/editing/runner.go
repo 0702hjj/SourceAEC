@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	"ifcviewer/server/internal/metrics"
+	"ifcviewer/server/internal/notebookcache"
 )
 
 const productLimit = 256 << 20
@@ -22,23 +24,31 @@ const outputLimit = 1 << 20
 var processScriptGate = make(chan struct{}, 3)
 
 type Product struct {
-	Data, Map   []byte
-	Environment string
+	Data, Map      []byte
+	Environment    string
+	NotebookCache  *notebookcache.Snapshot
+	NotebookReport []byte
+	NotebookStatus string
 }
 type Executor interface {
 	Run(context.Context, string, string) (Product, error)
 }
 type Sandbox struct {
-	Python   string
-	UV       string
-	CacheDir string
-	Timeout  time.Duration
-	gate     chan struct{}
+	Python               string
+	UV                   string
+	CacheDir             string
+	Timeout              time.Duration
+	NotebookAddressSpace uint64
+	gate                 chan struct{}
 }
 
 func NewSandbox() *Sandbox {
 	cache, _ := os.UserCacheDir()
-	return &Sandbox{Python: os.Getenv("SOURCEAEC_PYTHON"), UV: "uv", CacheDir: filepath.Join(cache, "sourceaec", "environments"), Timeout: 60 * time.Second, gate: processScriptGate}
+	notebookBytes := uint64(1 << 30)
+	if raw := os.Getenv("SOURCEAEC_NOTEBOOK_AS_BYTES"); raw != "" {
+		notebookBytes, _ = strconv.ParseUint(raw, 10, 64)
+	}
+	return &Sandbox{NotebookAddressSpace: notebookBytes, Python: os.Getenv("SOURCEAEC_PYTHON"), UV: "uv", CacheDir: filepath.Join(cache, "sourceaec", "environments"), Timeout: 60 * time.Second, gate: processScriptGate}
 }
 
 type limitedLog struct {
@@ -156,6 +166,18 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 		return Product{}, e
 	}
 	defer os.RemoveAll(inputDir)
+	notebook, e := s.prepareNotebook(runCtx, python, script, inputDir)
+	if e != nil {
+		return Product{}, e
+	}
+	addressSpace := uint64(1 << 30)
+	if notebook != nil {
+		defer os.RemoveAll(notebook.root)
+		if s.NotebookAddressSpace < 64<<20 || s.NotebookAddressSpace > 8<<30 {
+			return Product{}, failure(503, "invalid administrator notebook address-space budget")
+		}
+		addressSpace = s.NotebookAddressSpace
+	}
 	argv := []string{"--die-with-parent", "--new-session", "--unshare-all", "--cap-drop", "ALL", "--clearenv", "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "LANG", "C.UTF-8", "--setenv", "HOME", "/tmp", "--setenv", "PYTHONNOUSERSITE", "1", "--setenv", "PYTHONDONTWRITEBYTECODE", "1", "--setenv", "OPENBLAS_NUM_THREADS", "1", "--setenv", "OMP_NUM_THREADS", "1", "--setenv", "MKL_NUM_THREADS", "1", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"}
 	for _, path := range []string{"/usr", "/bin", "/lib", "/lib64", "/etc/ssl"} {
 		if _, e := os.Stat(path); e == nil {
@@ -169,7 +191,11 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	for _, root := range roots {
 		argv = append(argv, "--ro-bind", root, root)
 	}
-	argv = append(argv, "--ro-bind", inputDir, "/inputs", "--setenv", "SOURCEAEC_INPUTS_DIR", "/inputs", "--setenv", "VIEWER_DATA_DIR", "/inputs", "--bind", directory, "/work", "--chdir", "/work", "--setenv", "SOURCEAEC_MAP_OUT", "/work/out.map.json", "--", prlimit, "--as=1073741824", "--nproc=256", "--fsize=268435456", "--", python, "-I", "-B", "/work/script.py", "/work/out."+kind)
+	argv = append(argv, "--ro-bind", inputDir, "/inputs", "--setenv", "SOURCEAEC_INPUTS_DIR", "/inputs", "--setenv", "VIEWER_DATA_DIR", "/inputs", "--bind", directory, "/work", "--chdir", "/work", "--setenv", "SOURCEAEC_MAP_OUT", "/work/out.map.json")
+	if notebook != nil {
+		argv = append(argv, notebook.mounts()...)
+	}
+	argv = append(argv, "--", prlimit, fmt.Sprintf("--as=%d", addressSpace), "--nproc=256", "--fsize=268435456", "--", python, "-I", "-B", "/work/script.py", "/work/out."+kind)
 	cmd := command(runCtx, bwrap, argv...)
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LANG=C.UTF-8"}
 	log, e := execute(runCtx, cmd)
@@ -190,7 +216,13 @@ func (s *Sandbox) Run(ctx context.Context, script, kind string) (Product, error)
 	if e != nil && !os.IsNotExist(e) {
 		return Product{}, failure(422, "invalid source map")
 	}
-	return Product{Data: data, Map: mapData, Environment: identity}, nil
+	product := Product{Data: data, Map: mapData, Environment: identity}
+	if notebook != nil {
+		if err := notebook.finish(runCtx, directory, &product); err != nil {
+			return Product{}, err
+		}
+	}
+	return product, nil
 }
 func readProduct(path string, limit int64) ([]byte, error) {
 	// O_NOFOLLOW protects publication even when a child replaces a path with a link.

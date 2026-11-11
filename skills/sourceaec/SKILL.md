@@ -23,6 +23,7 @@ Read only the relevant format reference:
 
 - [IFC](references/ifc.md): units, spatial ownership, stable identity and mapping.
 - [DXF](references/dxf.md): drawing units, layers, stable keys and preview limits.
+- [Optional notebooks](references/notebooks.md): explicit safe-reuse declarations and completed SDK cache reports.
 
 Planning is optional declarative input. Use project APIs to read or version
 plan.json, bim_supplement.json and building.json when the task needs them;
