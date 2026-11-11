@@ -14,8 +14,11 @@ async function extractMetadata(ifcData) {
     const spatial = await props.getSpatialStructure(modelID, true);
     const metaObjects = [];
     const propertySets = [];
+    const visited = new Set();
 
     async function walk(node, parentId) {
+      if (visited.has(node.expressID)) return;
+      visited.add(node.expressID);
       const line = await ifcAPI.GetLine(modelID, node.expressID, true);
       const gid = line.GlobalId && line.GlobalId.value ? String(line.GlobalId.value) : `e${node.expressID}`;
       const type = line.constructor && line.constructor.name ? line.constructor.name : "IfcElement";
@@ -39,6 +42,14 @@ async function extractMetadata(ifcData) {
     }
 
     await walk(spatial, null);
+    // Spatial containment is optional. Preserve metadata for renderable
+    // products outside that tree as well, using the project as a display parent.
+    const products = ifcAPI.GetLineIDsWithType(modelID, WebIFC.IFCPRODUCT, true);
+    const projectId = metaObjects[0]?.id || null;
+    for (let i = 0; i < products.size(); i++) {
+      const expressID = products.get(i);
+      if (!visited.has(expressID)) await walk({ expressID, children: [] }, projectId);
+    }
     return { projectId: "project", metaObjects, propertySets };
   } finally {
     ifcAPI.CloseModel(modelID);

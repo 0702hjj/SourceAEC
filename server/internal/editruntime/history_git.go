@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"time"
 
 	"ifcviewer/server/internal/versionstore"
@@ -35,11 +34,12 @@ func (r *Runtime) MaterializeSourceHistory(ctx context.Context, root, token, mod
 	if err != nil {
 		return false, err
 	}
+	defer snapshot.Close()
 	c, err := workspaceSnapshot(ctx, root, model, snapshot)
 	if err != nil {
 		return false, err
 	}
-	defer os.RemoveAll(c.directory)
+	defer c.dispose()
 	c.projectionOnly = true
 	for _, e := range pending {
 		if c.branch != e.Branch {
@@ -94,6 +94,6 @@ func (r *Runtime) GitStateSnapshot(ctx context.Context, root, model string, snap
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(c.directory)
+	defer c.dispose()
 	return gitState(c)
 }

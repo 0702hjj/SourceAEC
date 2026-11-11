@@ -52,6 +52,7 @@ type candidate struct {
 	directory, repo, branch, root, model string
 	ctx                                  context.Context
 	projectionOnly                       bool
+	bundleLease                          *gitReference
 }
 type Runtime struct {
 	embedded           bool
@@ -93,6 +94,10 @@ func (r *Runtime) database(req Request) (queryer, error) {
 	return artifact.Database(req.Root)
 }
 func (r *Runtime) Close() {
+	if r.repositorySnapshot != nil {
+		r.repositorySnapshot.Close()
+		r.repositorySnapshot = nil
+	}
 	for token, t := range r.transactions {
 		_ = t.tx.Rollback()
 		if t.journalLocked && restore(t) == nil {
@@ -100,7 +105,7 @@ func (r *Runtime) Close() {
 		}
 	}
 	for _, c := range r.candidates {
-		_ = os.RemoveAll(c.directory)
+		_ = c.dispose()
 	}
 	for root := range r.opened {
 		if r.embedded {

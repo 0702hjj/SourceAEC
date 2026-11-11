@@ -14,7 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"ifcviewer/server/internal/artifact"
+	"ifcviewer/server/internal/benchobserve"
 )
 
 // Fixed concurrent bursts measure successful snapshot reads separately from
@@ -24,6 +26,11 @@ func BenchmarkSnapshotConcurrency(b *testing.B) {
 		b.Skip("explicit dedicated test database required")
 	}
 	b.Setenv("VIEWER_PG_DSN", os.Getenv("VIEWER_TEST_PG_DSN"))
+	b.Setenv("VIEWER_STORAGE_NAMESPACE", "")
+	entropy := os.Getenv("SOURCEAEC_BENCH_ENTROPY")
+	if entropy != "" && entropy != "sha256" {
+		b.Fatal("SOURCEAEC_BENCH_ENTROPY must be empty or sha256")
+	}
 	for _, mib := range []int{1, 32, 128, 256} {
 		for _, clients := range []int{1, 4, 8, 16, 32} {
 			for _, slow := range []bool{false, true} {
@@ -32,19 +39,47 @@ func BenchmarkSnapshotConcurrency(b *testing.B) {
 					if err := artifact.Open(root); err != nil {
 						b.Fatal(err)
 					}
-					defer artifact.Close(root)
 					db, err := artifact.Database(root)
 					if err != nil {
+						artifact.Close(root)
 						b.Fatal(err)
 					}
-					key := "uploads/m_0000000000000001.ifc"
-					if _, err := db.Exec("INSERT INTO artifacts(path,content) SELECT $1,convert_to(repeat('x',$2),'UTF8')", key, mib<<20); err != nil {
+					schema, err := artifact.Namespace(root)
+					if err != nil {
+						artifact.Close(root)
 						b.Fatal(err)
+					}
+					defer func() {
+						if _, err := db.Exec("DROP SCHEMA " + pgx.Identifier{schema}.Sanitize() + " CASCADE"); err != nil {
+							b.Error(err)
+						}
+						artifact.Close(root)
+					}()
+					key := "uploads/m_0000000000000001.ifc"
+					query := "INSERT INTO artifacts(path,content) SELECT $1,convert_to(repeat('x',$2),'UTF8')"
+					if entropy == "sha256" {
+						query = "INSERT INTO artifacts(path,content) SELECT $1,string_agg(sha256(int8send(n)),''::bytea) FROM generate_series(1,$2::bigint/32) n"
+					}
+					if _, err := db.Exec(query, key, mib<<20); err != nil {
+						b.Fatal(err)
+					}
+					var stored int64
+					if err := db.QueryRow("SELECT pg_column_size(content) FROM artifacts WHERE path=$1", key).Scan(&stored); err != nil {
+						b.Fatal(err)
+					}
+					if entropy == "sha256" && stored < int64(mib<<20)*95/100 {
+						b.Fatalf("incompressible fixture unexpectedly compressed: %d", stored)
 					}
 					var ok, rejected atomic.Int64
 					var mu sync.Mutex
 					var latencies []time.Duration
 					before := db.Stats()
+					roots, err := benchobserve.Roots()
+					if err != nil {
+						b.Fatal(err)
+					}
+					observe := benchobserve.Start(roots, 250*time.Millisecond)
+					b.Cleanup(func() { observe() })
 					stopRSS := sampleProcessRSS()
 					b.ReportAllocs()
 					b.ResetTimer()
@@ -89,12 +124,18 @@ func BenchmarkSnapshotConcurrency(b *testing.B) {
 					}
 					b.StopTimer()
 					b.ReportMetric(float64(stopRSS()), "sampled-go-rss-bytes")
+					observe().Report(b)
+					b.ReportMetric(float64(stored), "fixture-stored-bytes")
+					if entropy == "sha256" {
+						b.ReportMetric(1, "fixture-sha256")
+					}
 					b.ReportMetric(float64(ok.Load()), "ok-count")
 					b.ReportMetric(float64(rejected.Load()), "overload-count")
 					b.ReportMetric(float64(ok.Load())/b.Elapsed().Seconds(), "ok/s")
 					sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
 					if len(latencies) > 0 {
 						b.ReportMetric(float64(latencies[(len(latencies)-1)*95/100].Nanoseconds()), "ok-p95-ns")
+						b.ReportMetric(float64(latencies[(len(latencies)-1)*99/100].Nanoseconds()), "ok-p99-ns")
 					}
 					after := db.Stats()
 					b.ReportMetric(float64(after.WaitCount-before.WaitCount), "pool-waits")
