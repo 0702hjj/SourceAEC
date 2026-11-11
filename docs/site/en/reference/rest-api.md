@@ -46,3 +46,8 @@ CORS uses an origin allowlist. The browser stores its token as `aiifc_token` and
 [Go OpenAPI](/go-server.openapi.json), [route inventory](/go-rest-api.routes.json) and [AI tools](/ai-tools.openapi.json)
 are shared by both languages. The gateway implements editing in-process; there is no separate FastAPI schema/service.
 Use the schema from your deployed source revision. See [integration](/en/integrations/overview).
+
+`npm test` compares inventory/OpenAPI method and path coverage against Go registrations, resolves references,
+checks operation identifiers and key native editing contracts. Field semantics still require review against
+implementation and runtime tests; route coverage alone does not prove a complete schema. Update both public
+files and reference pages when changing an API, then run `npm test` and `npm run docs:build`.

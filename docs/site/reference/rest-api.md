@@ -61,7 +61,11 @@ CORS 使用配置的来源白名单。编辑领域在 Go 网关进程内运行�
 
 ### Go server
 
-完整 schema 见 [go-server.openapi.json](/go-server.openapi.json)，可以直接喂给 LLM、工具或代码生成器。路由清单与请求响应 schema 随公开文档版本发布；修改 Go API 时，请同步更新 `docs/site/public/` 下的 schema、路由清单和对应参考页，并运行 `npm run docs:build` 检查站点。
+请求与响应 schema 见 [go-server.openapi.json](/go-server.openapi.json)，路由见
+[端点清单](/go-rest-api.routes.json)。两者随文档版本发布；`npm test` 对照 Go 注册检查
+method/path 覆盖、引用和 operation ID，并校验关键原生编辑契约。schema 的字段语义仍需人工
+对照实现和运行时测试审阅，不能仅凭路由覆盖认定完整。修改 API 后同步更新这两份文件和参考页，
+运行 `npm test` 与 `npm run docs:build`。
 
 对接方要自研前端或接自己的存储时，看[存储与前端对接](/integrations/overview)；外部 Agent 接入看 [Agent 接入](/integrations/agents)。
 
