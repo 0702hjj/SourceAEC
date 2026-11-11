@@ -4,6 +4,7 @@ package editing
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -82,6 +83,13 @@ func parseDXF(data []byte) (dxfDocument, error) {
 			objects++
 			if objects > inspectionObjects {
 				return doc, fmt.Errorf("DXF record count exceeds inspection limit")
+			}
+		}
+		value := strings.TrimSpace(scanner.Text())
+		if dxfFloatCode(code) {
+			v, err := strconv.ParseFloat(value, 64)
+			if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
+				return doc, fmt.Errorf("invalid or nonfinite DXF numeric group %d", code)
 			}
 		}
 		pairs = append(pairs, dxfPair{code, strings.TrimSuffix(scanner.Text(), "\r")})
@@ -169,7 +177,11 @@ func dxfEntitiesWithin(data []byte, outputBytes int64) (map[string]map[string]an
 			fields[fmt.Sprintf("group[%d]", code)] = value
 		}
 		if key == "" {
-			hash := digest(jsonBytes(fields))
+			raw, err := json.Marshal(fields)
+			if err != nil {
+				return nil, err
+			}
+			hash := digest(raw)
 			counts[hash]++
 			key = fmt.Sprintf("nokey:%s:%d", hash, counts[hash])
 		}
