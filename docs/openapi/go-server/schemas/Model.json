@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "size",
+    "status",
+    "createdAt",
+    "error"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$",
+      "description": "模型 id"
+    },
+    "name": {
+      "type": "string",
+      "description": "文件名"
+    },
+    "size": {
+      "type": "integer",
+      "format": "int64",
+      "description": "IFC 文件字节数"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "converting",
+        "ready",
+        "failed"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 UTC"
+    },
+    "error": {
+      "type": "string",
+      "description": "失败原因（ready 时为空串）"
+    }
+  }
+}

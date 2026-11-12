@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "required": [
+    "modelId",
+    "ok"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$"
+    },
+    "ok": {
+      "type": "boolean",
+      "enum": [
+        true
+      ]
+    },
+    "semanticDiff": {
+      "type": "object",
+      "nullable": true,
+      "properties": {
+        "added": {
+          "type": "integer"
+        },
+        "removed": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        }
+      },
+      "description": "Comparison counts; null if unavailable."
+    }
+  }
+}

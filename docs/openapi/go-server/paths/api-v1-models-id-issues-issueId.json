@@ -1,0 +1,169 @@
+{
+  "delete": {
+    "summary": "删除 Issue",
+    "description": "删除 Issue 及其截图文件。",
+    "operationId": "deleteApiV1ModelsIdIssuesIssueId",
+    "tags": [
+      "issues"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      },
+      {
+        "name": "issueId",
+        "in": "path",
+        "required": true,
+        "description": "issue id",
+        "schema": {
+          "type": "string",
+          "pattern": "^i_[0-9a-f]{12}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok（data: null）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "type": "object",
+                  "nullable": true,
+                  "description": "始终为 null"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "patch": {
+    "summary": "更新 Issue",
+    "description": "JSON body：title/comment/status 仅更新传入字段。",
+    "operationId": "patchApiV1ModelsIdIssuesIssueId",
+    "tags": [
+      "issues"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      },
+      {
+        "name": "issueId",
+        "in": "path",
+        "required": true,
+        "description": "issue id",
+        "schema": {
+          "type": "string",
+          "pattern": "^i_[0-9a-f]{12}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "code",
+                "message",
+                "data"
+              ],
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "enum": [
+                    0
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "data": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "参数/校验错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "requestBody": {
+      "description": "JSON body（全字段可选）",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/IssuePatch"
+          }
+        }
+      }
+    }
+  }
+}

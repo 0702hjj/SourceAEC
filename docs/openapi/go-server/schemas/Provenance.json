@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "required": [
+    "source"
+  ],
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "UI",
+        "AI",
+        "USER"
+      ],
+      "description": "变更来源"
+    },
+    "origin": {
+      "type": "string"
+    }
+  }
+}

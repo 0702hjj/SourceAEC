@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "note": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "human",
+        "ai"
+      ],
+      "default": "human"
+    }
+  }
+}

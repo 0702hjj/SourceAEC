@@ -1,0 +1,10 @@
+{
+  "description": "40400: Model, script, version or callsite not found.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "type": "object",
+  "additionalProperties": true,
+  "description": "持久化编辑历史条目（含 operation 字段；直改退役后只读保留）"
+}

@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "branch": {
+      "type": "string",
+      "description": "Branch name; takes precedence over name. Required semantically when name is absent."
+    },
+    "name": {
+      "type": "string",
+      "description": "Legacy alias for branch."
+    },
+    "baseRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Optional current staged-source SHA-256. A stale provided value returns 409; omission preserves legacy behavior."
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "branch"
+      ]
+    },
+    {
+      "required": [
+        "name"
+      ]
+    }
+  ]
+}

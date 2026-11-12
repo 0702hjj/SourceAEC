@@ -76,5 +76,5 @@ IFC 转换阶段失败或取消时，之前发布的版本与 result 仍存在�
 内容寻址 blob 仅存 PostgreSQL，恢复不会把它们批量投影到磁盘；模型删除同时清理工作流。
 完成 run 与 blob 当前保留到模型删除，待处理限额不限制累计历史存储、PG 临时空间或总 RSS。
 
-参见[执行与恢复](/development/execution-lifecycle)、[沙箱](/development/sandbox)、
-[AI/MCP](/reference/ai)与 [OpenAPI](/go-server.openapi.json)。
+参见[执行与恢复](/architecture/execution)、[沙箱](/architecture/sandbox)、
+[AI/MCP](/integrations/agents)与 [OpenAPI](/go-server.openapi.json)。

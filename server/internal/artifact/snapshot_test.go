@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestSnapshotDoesNotHoldConnectionOrMutableProjection(t *testing.T) {
@@ -136,9 +137,22 @@ func TestSnapshotCancellationDuringCopy(t *testing.T) {
 	if err := copySnapshot(ctx, conn, key, w, 8<<20); err == nil {
 		t.Error("copy ignored cancellation")
 	}
+	if w.Len() == 0 {
+		t.Error("copy failed before the fixture canceled its first chunk")
+	}
 	_ = tx.Rollback()
 	_ = conn.Close()
-	if db.Stats().InUse != 0 {
-		t.Fatal("canceled copy retained connection")
+	// Context cancellation can let database/sql's background rollback win.
+	// ErrTxDone and Conn.Close are not barriers for that goroutine's pool return.
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for db.Stats().InUse != 0 {
+		select {
+		case <-deadline.C:
+			t.Fatalf("canceled copy retained connection: %+v", db.Stats())
+		case <-ticker.C:
+		}
 	}
 }

@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "required": [
+    "chatSessionId",
+    "opencodeSessionId",
+    "modelId",
+    "title",
+    "createdAt"
+  ],
+  "properties": {
+    "chatSessionId": {
+      "type": "string",
+      "pattern": "^c_[0-9a-f]{16}$"
+    },
+    "opencodeSessionId": {
+      "type": "string",
+      "description": "历史字段名（契约兼容保留）；Eino 接管后语义为 agent 会话 ID"
+    },
+    "modelId": {
+      "type": "string",
+      "pattern": "^m_[0-9a-f]{16}$",
+      "description": "空串 = 未绑定模型"
+    },
+    "title": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

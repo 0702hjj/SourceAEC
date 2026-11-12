@@ -1,0 +1,10 @@
+{
+  "description": "40900: Revision, staging or publication conflict.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/ErrorEnvelope"
+      }
+    }
+  }
+}

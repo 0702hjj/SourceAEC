@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "idempotencyKey",
+    "action",
+    "baseRevision"
+  ],
+  "properties": {
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "run",
+        "save"
+      ]
+    },
+    "baseRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "human",
+        "ai"
+      ],
+      "default": "human"
+    },
+    "note": {
+      "type": "string"
+    }
+  }
+}

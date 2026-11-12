@@ -1,0 +1,45 @@
+{
+  "get": {
+    "summary": "CAD 渲染数据（render payload v2）",
+    "description": "Go-generated DXF render payload, schemaVersion 2. Unsupported entity types are reported explicitly.",
+    "operationId": "getV1ModelsIdRenderJson",
+    "tags": [
+      "static"
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "模型 id",
+        "schema": {
+          "type": "string",
+          "pattern": "^m_[0-9a-f]{16}$"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "render payload v2 JSON",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "见 api-model.md「render.json Schema」"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "模型/Issue/会话/资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}
