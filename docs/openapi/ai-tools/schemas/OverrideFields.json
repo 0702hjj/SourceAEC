@@ -1,7 +1,0 @@
-{
-  "type": "object",
-  "additionalProperties": {
-    "type": "string"
-  },
-  "description": "entityId → 字段 → 值 的 override 集合"
-}

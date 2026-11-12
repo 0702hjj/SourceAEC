@@ -13,8 +13,8 @@
   "paths": {
     "/api/v1/models/{id}/edit/diff": {
       "post": {
-        "summary": "版本语义 diff（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/diff`：对比两个大版本快照（target 可为 \"current\" 表示 uploads 现态），返回 GlobalId 键的 added/removed/changed 属性级 diff。",
+        "summary": "版本语义 diff",
+        "description": "Go 原生编辑：对比两个大版本快照（target 可为 \"current\" 表示 uploads 现态），返回 GlobalId 键的 added/removed/changed 属性级 diff。",
         "operationId": "postApiV1ModelsIdEditDiff",
         "tags": [
           "edit"
@@ -63,54 +63,25 @@
             }
           },
           "400": {
-            "description": "参数/校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError400"
           },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
           },
           "504": {
-            "description": "diff timed out",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError504"
           }
         },
         "requestBody": {
@@ -128,8 +99,8 @@
     },
     "/api/v1/models/{id}/edit/history": {
       "get": {
-        "summary": "编辑历史（代理 edit-service，只读）",
-        "description": "代理 `GET /models/{id}/history`：持久化编辑历史（直改退役后只读保留历史数据）。",
+        "summary": "编辑历史",
+        "description": "Go 原生编辑：持久化编辑历史（直改退役后只读保留历史数据）。",
         "operationId": "getApiV1ModelsIdEditHistory",
         "tags": [
           "edit"
@@ -180,33 +151,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/edit/pending": {
       "delete": {
-        "summary": "丢弃 pending（代理 edit-service）",
-        "description": "代理 `DELETE /models/{id}/pending`：丢弃全部 pending（卸载并从磁盘重载内存模型）。",
+        "summary": "丢弃 pending",
+        "description": "Go 原生编辑：清空兼容 pending 编辑簿记，不执行几何或创建版本。",
         "operationId": "deleteApiV1ModelsIdEditPending",
         "tags": [
           "edit"
@@ -254,31 +226,32 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       },
       "get": {
-        "summary": "当前 pending（代理 edit-service，只读）",
-        "description": "代理 `GET /models/{id}/pending`：列出当前 pending（直改退役后仅供 script-run 回放簿记）。",
+        "summary": "当前 pending",
+        "description": "Go 原生编辑：列出当前 pending（直改退役后仅供 script-run 回放簿记）。",
         "operationId": "getApiV1ModelsIdEditPending",
         "tags": [
           "edit"
@@ -329,33 +302,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/edit/versions": {
       "get": {
-        "summary": "版本快照列表（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/versions`：列出大版本快照（未提交前 versions=[]、current=null）。",
+        "summary": "版本快照列表",
+        "description": "Go 原生编辑：列出大版本快照（未提交前 versions=[]、current=null）。",
         "operationId": "getApiV1ModelsIdEditVersions",
         "tags": [
           "edit"
@@ -403,33 +377,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script": {
       "get": {
-        "summary": "当前脚本（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/script`：当前暂存脚本（或最后保存的大版本 base）。纯 IFC 上传的 legacy 模型无脚本 → 404。",
+        "summary": "当前脚本",
+        "description": "Go 原生编辑：当前暂存脚本（或最后保存的大版本 base）。纯 IFC 上传的 legacy 模型无脚本 → 404。",
         "operationId": "getApiV1ModelsIdScript",
         "tags": [
           "script"
@@ -477,31 +452,32 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       },
       "put": {
-        "summary": "暂存脚本（代理 edit-service）",
-        "description": "代理 `PUT /models/{id}/script`：全量替换脚本或仅改 PARAMS 块（script/params 恰好二选一）。写入 WPS 式 10 步暂存链。",
+        "summary": "暂存脚本",
+        "description": "Go 原生编辑：script、params、patch 恰好提供一个；patch 必须提供当前源码 baseRevision，字节区间有序、不重叠且不切开 UTF-8 字符。写入最多 10 步暂存历史；此操作不执行几何。",
         "operationId": "putApiV1ModelsIdScript",
         "tags": [
           "script"
@@ -550,34 +526,25 @@
             }
           },
           "400": {
-            "description": "参数/校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError400"
+          },
+          "404": {
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         },
         "requestBody": {
@@ -595,8 +562,8 @@
     },
     "/api/v1/models/{id}/script/diff": {
       "post": {
-        "summary": "大版本脚本 diff（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/diff`：两大版本的 unified 文本 diff + PARAMS 变更 + 统计（AI 主要面向的 diff）。",
+        "summary": "大版本脚本 diff",
+        "description": "Go 原生编辑：两大版本的 unified 文本 diff + PARAMS 变更 + 统计（AI 主要面向的 diff）。",
         "operationId": "postApiV1ModelsIdScriptDiff",
         "tags": [
           "script"
@@ -645,44 +612,25 @@
             }
           },
           "400": {
-            "description": "参数/校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError400"
           },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         },
         "requestBody": {
@@ -700,8 +648,8 @@
     },
     "/api/v1/models/{id}/script/discard": {
       "post": {
-        "summary": "丢弃暂存（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/discard`：丢弃暂存编辑，回到最后保存的大版本（不产生版本）。",
+        "summary": "丢弃暂存",
+        "description": "Go 原生编辑：丢弃暂存编辑，回到最后保存的大版本（不产生版本）。",
         "operationId": "postApiV1ModelsIdScriptDiscard",
         "tags": [
           "script"
@@ -753,10 +701,13 @@
                           "type": "string"
                         },
                         "discarded": {
-                          "type": "boolean"
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Number of discarded staging steps."
                         },
                         "script": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true
                         }
                       }
                     }
@@ -765,43 +716,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script/locate": {
       "get": {
-        "summary": "定位 guid 脚本调用点（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/script/locate?guid=`：guid → designKey → 脚本调用点（行/列/片段）。miss 返回 200 {found:false}（不 5xx）。staging 与 map 分叉时降级 {found:false, stale:true}。",
+        "summary": "定位 guid 脚本调用点",
+        "description": "Go 原生编辑：guid → designKey → 脚本调用点（行/列/片段）。miss 返回 200 {found:false}（不 5xx）。staging 与 map 分叉时降级 {found:false, stale:true}。",
         "operationId": "getApiV1ModelsIdScriptLocate",
         "tags": [
           "script"
@@ -820,8 +762,17 @@
           {
             "name": "guid",
             "in": "query",
-            "required": true,
+            "required": false,
             "description": "IFC GlobalId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "description": "DXF source-map key; IFC uses guid instead. Missing keys return found:false.",
             "schema": {
               "type": "string"
             }
@@ -858,33 +809,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script/params": {
       "get": {
-        "summary": "脚本 PARAMS（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/script/params`：ast 提取当前脚本的 PARAMS dict（不执行）。",
+        "summary": "脚本 PARAMS",
+        "description": "Go 原生编辑：静态解析受支持的 PARAMS 字面量子集，不执行脚本。",
         "operationId": "getApiV1ModelsIdScriptParams",
         "tags": [
           "script"
@@ -932,33 +884,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script/redo": {
       "post": {
-        "summary": "重做暂存（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/redo`：前进一步暂存链（无可重做 → 409）。",
+        "summary": "重做暂存",
+        "description": "Go 原生编辑：前进一步暂存链（无可重做 → 409）。",
         "operationId": "postApiV1ModelsIdScriptRedo",
         "tags": [
           "script"
@@ -1010,7 +963,8 @@
                           "type": "string"
                         },
                         "script": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true
                         },
                         "canUndo": {
                           "type": "boolean"
@@ -1022,43 +976,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script/rollback": {
       "post": {
-        "summary": "回滚到大版本（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/rollback`：恢复指定大版本的脚本到暂存并重新运行进 uploads。成功后排 XKT 重转。",
+        "summary": "回滚到大版本",
+        "description": "Go 原生编辑：恢复指定大版本的脚本到暂存并重新运行进 uploads。成功后排 XKT 重转。",
         "operationId": "postApiV1ModelsIdScriptRollback",
         "tags": [
           "script"
@@ -1107,44 +1052,25 @@
             }
           },
           "400": {
-            "description": "参数/校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError400"
           },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         },
         "requestBody": {
@@ -1162,8 +1088,8 @@
     },
     "/api/v1/models/{id}/script/run": {
       "post": {
-        "summary": "沙箱运行脚本（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/run`：沙箱运行当前暂存脚本并原子替换 uploads/{id}.ifc（不产生版本）。成功后排 XKT 重转（模型 status → converting）。沙箱最长 60s。",
+        "summary": "沙箱运行脚本",
+        "description": "Go 原生编辑：隔离运行当前暂存脚本并原子发布 IFC/DXF 产品，不创建版本。IFC 排队转换预览，DXF 使用原生 render.json。执行预算及外部解释器由管理员配置；生产环境要求 bubblewrap。",
         "operationId": "postApiV1ModelsIdScriptRun",
         "tags": [
           "script"
@@ -1211,33 +1137,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBody"
               }
             }
           }
@@ -1246,8 +1173,8 @@
     },
     "/api/v1/models/{id}/script/save": {
       "post": {
-        "summary": "保存为大版本（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/save`：沙箱运行后快照 scripts/v{n}.py + versions/v{n}.ifc（原子、lockstep）。运行失败 → 422 且不产生版本。成功后排 XKT 重转。",
+        "summary": "保存为大版本",
+        "description": "Go 原生编辑：沙箱运行后快照 scripts/v{n}.py + versions/v{n}.ifc（原子、lockstep）。运行失败 → 422 且不产生版本。成功后排 XKT 重转。",
         "operationId": "postApiV1ModelsIdScriptSave",
         "tags": [
           "script"
@@ -1295,35 +1222,26 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         },
         "requestBody": {
@@ -1341,8 +1259,8 @@
     },
     "/api/v1/models/{id}/script/staging/diff": {
       "get": {
-        "summary": "暂存步骤小版本 diff（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/script/staging/diff`：暂存链步间 diff（默认最近两步）。query（from/to）原样透传。",
+        "summary": "暂存步骤小版本 diff",
+        "description": "Go 原生编辑：暂存链步间 diff（默认最近两步）。query（from/to）原样透传。",
         "operationId": "getApiV1ModelsIdScriptStagingDiff",
         "tags": [
           "script"
@@ -1403,7 +1321,7 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/ScriptDiffResult"
+                      "$ref": "#/components/schemas/StagingDiffResult"
                     }
                   }
                 }
@@ -1411,52 +1329,33 @@
             }
           },
           "400": {
-            "description": "参数/校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError400"
           },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/script/undo": {
       "post": {
-        "summary": "撤销暂存（代理 edit-service）",
-        "description": "代理 `POST /models/{id}/script/undo`：回退一步暂存链（无可撤销 → 409）。",
+        "summary": "撤销暂存",
+        "description": "Go 原生编辑：回退一步暂存链（无可撤销 → 409）。",
         "operationId": "postApiV1ModelsIdScriptUndo",
         "tags": [
           "script"
@@ -1508,7 +1407,8 @@
                           "type": "string"
                         },
                         "script": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true
                         },
                         "canRedo": {
                           "type": "boolean"
@@ -1520,43 +1420,34 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
           },
           "409": {
-            "description": "状态冲突（无脚本可执行/无可撤销/暂存步骤不足等）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
     },
     "/api/v1/models/{id}/scripts": {
       "get": {
-        "summary": "大版本列表（代理 edit-service）",
-        "description": "代理 `GET /models/{id}/scripts`：脚本大版本列表（legacy IFC-only 模型为空）。",
+        "summary": "大版本列表",
+        "description": "Go 原生编辑：脚本大版本列表（legacy IFC-only 模型为空）。",
         "operationId": "getApiV1ModelsIdScripts",
         "tags": [
           "script"
@@ -1604,25 +1495,26 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/EditingError400"
+          },
           "404": {
-            "description": "模型/Issue/会话/资源不存在",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
           },
           "502": {
-            "description": "上游服务不可达或错误（edit-service / cad-edit-service）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
@@ -1672,13 +1564,28 @@
             "description": "Diff, recorded events and summary in the standard success envelope"
           },
           "400": {
-            "description": "Invalid document"
+            "$ref": "#/components/responses/EditingError400"
           },
           "401": {
             "description": "Authentication required"
           },
           "404": {
-            "description": "Unknown model"
+            "$ref": "#/components/responses/EditingError404"
+          },
+          "409": {
+            "$ref": "#/components/responses/EditingError409"
+          },
+          "429": {
+            "$ref": "#/components/responses/EditingError429"
+          },
+          "502": {
+            "$ref": "#/components/responses/EditingError502"
+          },
+          "503": {
+            "$ref": "#/components/responses/EditingError503"
+          },
+          "504": {
+            "$ref": "#/components/responses/EditingError504"
           }
         }
       }
@@ -2743,7 +2650,8 @@
           "staged",
           "canUndo",
           "canRedo",
-          "maxSteps"
+          "maxSteps",
+          "revision"
         ],
         "properties": {
           "modelId": {
@@ -2765,6 +2673,11 @@
           },
           "maxSteps": {
             "type": "integer"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 of current staged source."
           }
         }
       },
@@ -2977,18 +2890,25 @@
           },
           "ok": {
             "type": "boolean",
-            "const": true
+            "enum": [
+              true
+            ]
           },
           "semanticDiff": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SemanticDiffCounts"
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "added": {
+                "type": "integer"
               },
-              {
-                "type": "null"
+              "removed": {
+                "type": "integer"
+              },
+              "changed": {
+                "type": "integer"
               }
-            ],
-            "description": "构件级 {added, removed, changed} 计数（旧 uploads 产物 vs 本次 run）；diff 失败/首次 run 无旧产物时为 null"
+            },
+            "description": "Comparison counts; null if unavailable."
           }
         }
       },
@@ -3016,6 +2936,14 @@
         "properties": {
           "note": {
             "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "human",
+              "ai"
+            ],
+            "default": "human"
           }
         }
       },
@@ -3075,6 +3003,14 @@
           "version": {
             "type": "string",
             "pattern": "^v\\d+$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "human",
+              "ai"
+            ],
+            "default": "human"
           }
         }
       },
@@ -3121,7 +3057,10 @@
         "required": [
           "base",
           "target",
-          "engine"
+          "engine",
+          "text_diff",
+          "params_changes",
+          "stats"
         ],
         "properties": {
           "base": {
@@ -3132,42 +3071,52 @@
           },
           "engine": {
             "type": "string",
-            "const": "script"
+            "enum": [
+              "script"
+            ]
           },
-          "diff": {
-            "type": "string",
-            "description": "unified 文本 diff"
+          "text_diff": {
+            "type": "string"
           },
-          "params": {
-            "type": "object",
-            "description": "PARAMS 变更"
+          "params_changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "action"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified"
+                  ]
+                },
+                "old": {},
+                "new": {}
+              }
+            }
           },
           "stats": {
             "type": "object",
-            "description": "diff 统计"
-          },
-          "buildingChanges": {
-            "type": [
-              "array",
-              "null"
+            "required": [
+              "added",
+              "removed"
             ],
-            "description": "building.json 交付索引字段级差异（两侧均有 sidecar 时非空；否则 null）",
-            "items": {
-              "type": "object",
-              "properties": {
-                "op": {
-                  "type": "string",
-                  "enum": [
-                    "add",
-                    "remove",
-                    "modify"
-                  ]
-                },
-                "path": {
-                  "type": "string"
-                },
-                "before": {},
-                "after": {}
+            "properties": {
+              "added": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "removed": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           }
@@ -3200,6 +3149,45 @@
           },
           "origin": {
             "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "argument": {
+                  "type": "string"
+                },
+                "value": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                "paramPath": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "key": {
+            "type": "string",
+            "description": "DXF source-map key."
           }
         }
       },
@@ -3311,7 +3299,9 @@
         "properties": {
           "aborted": {
             "type": "boolean",
-            "const": true
+            "enum": [
+              true
+            ]
           }
         }
       },
@@ -3323,7 +3313,9 @@
         "properties": {
           "accepted": {
             "type": "boolean",
-            "const": true
+            "enum": [
+              true
+            ]
           }
         }
       },
@@ -3354,7 +3346,10 @@
             "type": "string"
           },
           "data": {
-            "type": "null"
+            "nullable": true,
+            "enum": [
+              null
+            ]
           }
         }
       },
@@ -3468,6 +3463,71 @@
             "type": "string"
           }
         }
+      },
+      "StagingDiffResult": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "text_diff",
+          "params_changes",
+          "stats"
+        ],
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "text_diff": {
+            "type": "string"
+          },
+          "params_changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "action"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified"
+                  ]
+                },
+                "old": {},
+                "new": {}
+              }
+            }
+          },
+          "stats": {
+            "type": "object",
+            "required": [
+              "added",
+              "removed"
+            ],
+            "properties": {
+              "added": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "removed": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -3475,6 +3535,78 @@
         "type": "http",
         "scheme": "bearer",
         "description": "可选：默认鉴权关闭；启用（VIEWER_API_TOKEN 非空）后需 Bearer 令牌。"
+      }
+    },
+    "responses": {
+      "EditingError400": {
+        "description": "40001: Invalid body or native validation failure (domain 422 maps to HTTP 400).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError404": {
+        "description": "40400: Model, script, version or callsite not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError409": {
+        "description": "40900: Revision, staging or publication conflict.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError429": {
+        "description": "42900: Process-local operation or source-byte capacity exhausted; retry later.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError502": {
+        "description": "50200: Unexpected editing runtime error or legacy transport failure.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError503": {
+        "description": "50300: Required runtime or production isolation unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "EditingError504": {
+        "description": "50400: Execution deadline exceeded.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
       }
     }
   }

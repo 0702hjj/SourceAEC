@@ -1,7 +1,0 @@
-{
-  "type": "object",
-  "additionalProperties": {
-    "$ref": "#/components/schemas/OverrideFields"
-  },
-  "description": "全部 override：{ [entityId]: { [field]: value } }，无 override 时为 {}"
-}

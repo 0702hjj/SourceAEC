@@ -55,3 +55,5 @@ Maintain contracts in `docs/openapi/`, split by path, schema and response into s
 When changing an API, update the modules, route inventory and reference pages. From `docs`, run
 `npm run api:build`, `npm test` and `npm run docs:build`. Do not edit the two generated OpenAPI snapshots
 directly; builds reject stale output.
+The agent subset selects paths and schemas from the same Go declarations and includes referenced components,
+so shared fields have one maintained definition.

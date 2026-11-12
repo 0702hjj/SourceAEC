@@ -69,6 +69,7 @@ method/path 覆盖、引用和 operation ID，并校验关键原生编辑契约�
 契约维护源在 `docs/openapi/`，按路径、schema 和响应类型拆分，每文件少于 500 行。
 修改 API 后更新对应模块、路由清单与参考页，在 `docs` 运行 `npm run api:build`、`npm test`
 和 `npm run docs:build`。不要直接编辑两个生成的 OpenAPI 快照；构建会拒绝过期产物。
+AI 子集从同一组 Go 合同定义选择路径和 schema，并补齐组件引用；共享字段无需维护两份。
 
 对接方要自研前端或接自己的存储时，看[存储与前端对接](/integrations/overview)；外部 Agent 接入看 [Agent 接入](/integrations/agents)。
 

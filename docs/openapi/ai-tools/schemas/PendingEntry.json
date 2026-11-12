@@ -1,5 +1,0 @@
-{
-  "type": "object",
-  "additionalProperties": true,
-  "description": "pending 项（L1 直改退役后仅供 script-run 回放簿记，形状以运行服务为准）"
-}

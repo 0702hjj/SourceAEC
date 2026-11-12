@@ -2,6 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { projectContract } from './openapi-project.mjs'
 
 export const contractNames = ['go-server', 'ai-tools']
 const sourceRoot = new URL('../openapi/', import.meta.url)
@@ -39,10 +40,19 @@ async function section(root, name) {
 
 // Modules are merged before publication, so component references remain local
 // to the original single-file document instead of becoming external URL refs.
-export async function assembleContract(name, root = sourceRoot) {
+export async function assembleContract(name, root = sourceRoot, ancestors = []) {
+  if (ancestors.includes(name)) throw new Error(`cyclic contract projection: ${name}`)
   if (!contractNames.includes(name)) throw new Error(`unknown contract: ${name}`)
   const directory = new URL(`${name}/`, root)
   const document = await readJSON(new URL('base.json', directory))
+  const projection = await readJSON(new URL('source.json', directory)).catch(error => {
+    if (error.code === 'ENOENT') return null
+    throw error
+  })
+  if (projection) {
+    const canonical = await assembleContract(projection.contract, root, [...ancestors, name])
+    return projectContract(document, canonical, projection)
+  }
   document.paths = await section(directory, 'paths')
   for (const name of ['schemas', 'responses']) {
     if (Object.hasOwn(document.components, name)) document.components[name] = await section(directory, name)

@@ -92,6 +92,7 @@ test('CLI checks are read-only and stale snapshots require an explicit build', a
   await mkdir(join(temporary, 'site/public'), { recursive: true })
   const script = join(temporary, 'scripts/openapi.mjs')
   await copyFile(new URL('../scripts/openapi.mjs', import.meta.url), script)
+  await copyFile(new URL('../scripts/openapi-project.mjs', import.meta.url), join(temporary, 'scripts/openapi-project.mjs'))
   for (const name of contractNames) {
     await mkdir(join(temporary, `openapi/${name}/paths`), { recursive: true })
     await writeFile(join(temporary, `openapi/${name}/base.json`), JSON.stringify({ paths: {}, components: {} }))
